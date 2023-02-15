@@ -826,6 +826,7 @@ extern const bfd_target mn10200_elf32_vec;
 extern const bfd_target mn10300_elf32_vec;
 extern const bfd_target moxie_elf32_be_vec;
 extern const bfd_target moxie_elf32_le_vec;
+extern const bfd_target my66000_elf64_vec;
 extern const bfd_target msp430_elf32_vec;
 extern const bfd_target msp430_elf32_ti_vec;
 extern const bfd_target mt_elf32_vec;
@@ -1269,6 +1270,10 @@ static const bfd_target * const _bfd_target_vector[] =
 	&s390_elf32_vec,
 #ifdef BFD64
 	&s390_elf64_vec,
+#endif
+
+#ifdef BFD_64
+	&my66000_elf_vec,
 #endif
 
 #ifdef BFD64

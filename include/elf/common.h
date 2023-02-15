@@ -459,6 +459,9 @@
    architecture was derived.  */
 #define EM_CSKY_OLD		EM_MCORE
 
+/* My 66000 - unofficial.  */
+#define EM_MY66000		0x1801
+
 /* See the above comment before you add a new EM_* value here.  */
 
 /* Values for e_version.  */

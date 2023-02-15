@@ -385,6 +385,8 @@ DESCRIPTION
 .#define bfd_mach_fr550		550
 .  bfd_arch_moxie,     {* The moxie processor.  *}
 .#define bfd_mach_moxie		1
+.  bfd_arch_my66000,   {* The My66000 processor.  *}
+.#define bfd_mach_my66000	1
 .  bfd_arch_ft32,      {* The ft32 processor.  *}
 .#define bfd_mach_ft32		1
 .#define bfd_mach_ft32b		2
@@ -678,6 +680,7 @@ extern const bfd_arch_info_type bfd_rs6000_arch;
 extern const bfd_arch_info_type bfd_rl78_arch;
 extern const bfd_arch_info_type bfd_rx_arch;
 extern const bfd_arch_info_type bfd_s390_arch;
+extern const bfd_arch_info_type bfd_my66000_arch;
 extern const bfd_arch_info_type bfd_score_arch;
 extern const bfd_arch_info_type bfd_sh_arch;
 extern const bfd_arch_info_type bfd_sparc_arch;

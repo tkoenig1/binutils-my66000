@@ -1,0 +1,15 @@
+2023-02-15  Thomas Koenig  <tkoenig@gcc.gnu.org>
+
+	Initial commit: Skeleton support for BFD.
+	* cpu-my66000.c: New file.
+	* elf64-my66000.c: New file:
+	* Makefile.am: Add them.
+	* archures.c: Add bfd_arch_my66000.
+	* bfd-in2.h: Likewise.  Add bfd_mach_my66000.
+	* config.bfd: Add my66000-*-elf.
+	* configure.ac: Add my66000_elf64_vec.
+	* configure: Regenerate.
+	* cpu-my66000: New file.
+	* elf64-my66000.c: New file.
+	* targets.c (my66000_elf_ev): Add.
+	* config.sub: Add my66000.

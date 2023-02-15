@@ -140,6 +140,7 @@ ALL_MACHINES = \
 	cpu-mips.lo \
 	cpu-mmix.lo \
 	cpu-moxie.lo \
+	cpu-my66000.lo \
 	cpu-msp430.lo \
 	cpu-mt.lo \
 	cpu-nds32.lo \
@@ -223,6 +224,7 @@ ALL_MACHINES_CFILES = \
 	cpu-mips.c \
 	cpu-mmix.c \
 	cpu-moxie.c \
+	cpu-my66000.c \
 	cpu-msp430.c \
 	cpu-mt.c \
 	cpu-nds32.c \
@@ -569,6 +571,7 @@ BFD64_BACKENDS = \
 	elf64-riscv.lo \
 	elfxx-riscv.lo \
 	elf64-s390.lo \
+	elf64-my66000.lo \
 	elf64-sparc.lo \
 	elf64-tilegx.lo \
 	elf64-x86-64.lo \
@@ -609,6 +612,7 @@ BFD64_BACKENDS_CFILES = \
 	elf64-nfp.c \
 	elf64-ppc.c \
 	elf64-s390.c \
+	elf64-my66000.c \
 	elf64-sparc.c \
 	elf64-tilegx.c \
 	elf64-x86-64.c \
