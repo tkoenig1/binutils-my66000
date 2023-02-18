@@ -36,6 +36,7 @@
 #define ARCH_riscv
 #define ARCH_score
 #define ARCH_tilegx
+#define ARCH_my66000
 #endif
 #define ARCH_arc
 #define ARCH_arm
@@ -525,6 +526,11 @@ disassembler (enum bfd_architecture a,
 #ifdef ARCH_moxie
     case bfd_arch_moxie:
       disassemble = print_insn_moxie;
+      break;
+#endif
+#ifdef ARCH_my66000
+    case bfd_arch_my66000:
+      disassemble = print_insn_my66000;
       break;
 #endif
 #ifdef ARCH_iq2000

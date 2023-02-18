@@ -4,3 +4,9 @@
 	* config.sub: Add my66000.
 	* configure.ac: Add my66000.
 	* configure: Regenerated.
+
+2023-02-18  Thomas Koenig  <tkoenig@gcc.gnu.org>
+
+	* configure.ac: Also build opcodes, to not attempt
+	to build gdb.
+	* configure: Regenerated.

@@ -13,3 +13,8 @@
 	* elf64-my66000.c: New file.
 	* targets.c (my66000_elf_ev): Add.
 	* config.sub: Add my66000.
+
+2023-02-18  Thomas Koenig  <tkoenig@gcc.gnu.org>
+
+	* targets.c: Correct entry for _bfd_target_vector.
+

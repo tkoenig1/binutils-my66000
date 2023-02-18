@@ -110,6 +110,8 @@ TARGET64_LIBOPCODES_CFILES = \
 	micromips-opc.c \
 	mmix-dis.c \
 	mmix-opc.c \
+	my66000-dis.c \
+	my66000-opc.c \
 	nfp-dis.c \
 	riscv-dis.c \
 	riscv-opc.c \

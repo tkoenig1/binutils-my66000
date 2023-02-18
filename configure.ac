@@ -1149,7 +1149,7 @@ case "${target}" in
     noconfigdirs="$noconfigdirs"
     ;;
   my66000-*-*)
-    noconfigdirs="$noconfigdirs bdf binutils opcodes gas ld gprof gold"
+    noconfigdirs="$noconfigdirs bdf binutils gas ld gprof gdb gold"
     ;;
   h8300*-*-*)
     noconfigdirs="$noconfigdirs target-libgloss"

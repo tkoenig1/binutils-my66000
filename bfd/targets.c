@@ -1273,7 +1273,7 @@ static const bfd_target * const _bfd_target_vector[] =
 #endif
 
 #ifdef BFD_64
-	&my66000_elf_vec,
+	&my66000_elf64_vec,
 #endif
 
 #ifdef BFD64
