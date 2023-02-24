@@ -176,6 +176,7 @@ TARGET_CPU_CFILES = \
 	config/tc-mn10200.c \
 	config/tc-mn10300.c \
 	config/tc-moxie.c \
+	config/tc-my66000.c \
 	config/tc-msp430.c \
 	config/tc-mt.c \
 	config/tc-nds32.c \
@@ -250,6 +251,7 @@ TARGET_CPU_HFILES = \
 	config/tc-mn10200.h \
 	config/tc-mn10300.h \
 	config/tc-msp430.h \
+	config/tc-my66000.h \
 	config/tc-mt.h \
 	config/tc-nds32.h \
 	config/tc-nios2.h \

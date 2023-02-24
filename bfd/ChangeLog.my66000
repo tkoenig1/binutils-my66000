@@ -1,3 +1,12 @@
+2023-02-24  Thomas Koenig  <tkoenig@gcc.gnu.org>
+
+	* elf64-my66000.c:  Correct name of TARGET_LITTLE_SYM.
+	* ChangeLog.my66000: Correct order.
+
+2023-02-18  Thomas Koenig  <tkoenig@gcc.gnu.org>
+
+	* targets.c: Correct entry for _bfd_target_vector.
+
 2023-02-15  Thomas Koenig  <tkoenig@gcc.gnu.org>
 
 	Initial commit: Skeleton support for BFD.
@@ -13,8 +22,3 @@
 	* elf64-my66000.c: New file.
 	* targets.c (my66000_elf_ev): Add.
 	* config.sub: Add my66000.
-
-2023-02-18  Thomas Koenig  <tkoenig@gcc.gnu.org>
-
-	* targets.c: Correct entry for _bfd_target_vector.
-

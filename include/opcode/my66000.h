@@ -17,24 +17,41 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-/* Instruction formats.  */
+/* Instructios and instruction classes.  */
 
-enum my66000_primary
+#ifndef MY66000_H
+#define MY66000_H
+
+enum my66000_encoding
 {
- MY66000_FMT_BAD = 0,
- MY66000_MAJOR,
- MY66000_XOM6,
- MY66000_XOM7,
- MY66000_XOP1,
- MY66000_XOP2,
- MY66000_XOP4,
- MY66000_XOP5, 
+ MY66000_END = -1,
+ MY66000_BAD = 0,  /* Empty.  */
+ MY66000_ILL,      /* Reserved as non-opcodes.  */
+ MY66000_OPIMM,
+ MY66000_MEM,
+ MY66000_OM6,
+ MY66000_OM7,
+ MY66000_OP1,
+ MY66000_OP2,
+ MY66000_OP4,
+ MY66000_OP5,
+ MY66000_PB1,
+ MY66000_PCND,
+ MY66000_SHIFT,
 };
 
 typedef struct my66000_opc_info_t
 {
-  unsigned int primary_opcode;
+  int p_opc;	/* Primary opcode */
+  int s_opc;	/* Secondary opcode, if applicable.  */
   const char *name;
+  enum my66000_encoding enc;
+  struct my66000_opc_info_t const *sub;  /* Subtable, if applicable.  */
 } my66000_opc_info_t;
 
-extern const my66000_opc_info_t my66000_opc_info[32];
+extern const my66000_opc_info_t my66000_opc_info[];
+extern const my66000_opc_info_t my66000_opc_om6[];
+extern const my66000_opc_info_t my66000_opc_om7[];
+extern const my66000_opc_info_t my66000_opc_op1[];
+extern const my66000_opc_info_t my66000_opc_op2[];
+#endif

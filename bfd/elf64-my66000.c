@@ -24,7 +24,7 @@
 #include "libbfd.h"
 #include "elf-bfd.h"
 
-#define TARGET_LITTLE_SYM	bfd_elf64_my66000_vec
+#define TARGET_LITTLE_SYM	my66000_elf64_vec
 #define TARGET_LITTLE_NAME	"elf64-my66000"
 #define ELF_ARCH		bfd_arch_my66000
 #define ELF_MACHINE_CODE	EM_MY66000
