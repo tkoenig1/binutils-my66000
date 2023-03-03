@@ -1,5 +1,5 @@
 /* tc-my66000.h -- header file for tc-my66000.c.
-   Copyright (C) 2018 Free Software Foundation, Inc.
+   Copyright (C) 2023 Free Software Foundation, Inc.
    Contributed by Thomas König (tkoenig@gcc.gnu.org).
 
    This file is part of GAS.

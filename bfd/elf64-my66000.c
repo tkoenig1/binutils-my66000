@@ -1,4 +1,4 @@
-/* My66000 specific support for 64-bit ELF
+/* My 66000 specific support for 64-bit ELF
    Copyright (C) 2023 Free Software Foundation, Inc.
    Contributed by Thomas König.
 

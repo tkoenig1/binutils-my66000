@@ -1,5 +1,5 @@
-/* tc-my66000.h -- header file for tc-my66000.c.
-   Copyright (C) 2018 Free Software Foundation, Inc.
+/* tc-my66000.h -- Assembler for My 66000.
+   Copyright (C) 2023 Free Software Foundation, Inc.
    Contributed by Thomas König (tkoenig@gcc.gnu.org).
    Based on the moxie and mrisc32 targets.
 
@@ -97,9 +97,8 @@ md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
 static htab_t s_opc_map_1, s_opc_map_2;
 
 static void
-build_hashess (const my66000_opc_info_t * table)
+build_opc_hashes (const my66000_opc_info_t * table)
 {
-  printf ("Calling hashnames %p\n",table);
   for (int i=0; table[i].enc != MY66000_END; i++)
     {
       void ** slot;
@@ -120,15 +119,148 @@ build_hashess (const my66000_opc_info_t * table)
 	    }
 	}
     }
+  
 }
+
+static htab_t rname_map;
+static htab_t operand_map;
 
 void
 md_begin (void)
 {
+  /* Build hashes for looking up the instructions.  */
   s_opc_map_1 = str_htab_create ();
   s_opc_map_2 = str_htab_create ();
-  build_hashess (my66000_opc_info);
-  bfd_set_arch_mach (stdoutput, TARGET_ARCH, 0);
+  build_opc_hashes (my66000_opc_info);
+  build_opc_hashes (my66000_opc_om6);
+  build_opc_hashes (my66000_opc_om7);
+  build_opc_hashes (my66000_opc_op1);
+  build_opc_hashes (my66000_opc_op2);
+  build_opc_hashes (my66000_opc_op4);
+  build_opc_hashes (my66000_opc_op5);
+  build_opc_hashes (my66000_opc_bb1a);
+  build_opc_hashes (my66000_opc_bb1b);
+  build_opc_hashes (my66000_opc_bcnd);
+  build_opc_hashes (my66000_opc_jt);
+
+  /* Build hash for the register names.  */
+  rname_map = str_htab_create ();
+  for (int i=0; i<32; i++)
+    {
+      str_hash_insert (rname_map, my66000_rname[i],
+		       (void *) &my66000_numtab[i], 0);
+      
+      str_hash_insert (rname_map, my66000_rnum[i],
+		       (void *) &my66000_numtab[i], 0);
+    }
+  /* Finally, the hashes for operand formats.  */
+ operand_map = str_htab_create ();
+ for (const my66000_operand_info_t * p = my66000_operand_table; p->name != NULL; p++)
+    str_hash_insert (operand_map, p->name, (void *) p, 0);
+}
+
+#define MAX_REG_STR_LEN 3
+#if 0
+/* Match a register name from map and return its number, or, on
+   error, return -1 and set errmsg to something useful.  */
+
+static int
+match_register (char **ptr, char **errmsg, htab_t map)
+{
+  int reg;
+  char *s = *ptr;
+  char tmp;
+  char *rp;
+  int i;
+  char buffer[MAX_REG_STR_LEN + 1];
+
+  /* Search for the end of the potential register name.  */
+  for (i=0; !(ISALNUM(s[i])); i++)
+    buffer[i] = TOLOWER(s[i]);
+
+  buffer[i] = '\0';
+
+  /* Look for the register from map.  */
+  rp = (char *) str_hash_find (map, buf);
+  if (rp == NULL)
+    {
+      char buf[100];
+      snprintf (buf, sizeof(buffer), "%s: %s", (_("bad register name")), s);
+      *errmsg = buf;
+      reg = -1;
+    }
+  else
+    {
+      *ptr = s + (i-1);
+      reg = *rp;
+    }
+  s[i] = tmp;
+  return reg;
+}
+
+/* Match a character required by the syntax.  Issue error or advance
+   ptr.  */
+
+static void
+match_character (char c, char **errmsg, char **ptr)
+{
+  int i;
+  char *s = *ptr;
+
+  for (i=0; !(ISALNUM(s[i] & 0xff)); i++)
+    ;
+
+  if (*s != c)
+    {
+      char buf[100];
+      snprintf (buf, sizeof(buffer), "%s: %c", (_("unexpected character")), c);
+      *errmsg = buf;
+    }
+  else
+    *ptr = &s[i];
+}
+
+/* Match a 16-bit constant, including sign.  */
+
+static int
+match_16bit (char **ptr, char **errmsg)
+{
+  int i;
+  char *s = *ptr;
+  bool neg;
+  uint64_t val;
+  int16_t ret;
+
+  if (*s == '-')
+    {
+      neg = true;
+      s++;
+    }
+  else
+    neg = false;
+
+  val = 0;
+  for (i=0; ISNUM(s[i]); i++)
+    val = 10*val + (s[i] - '0');
+}
+
+static uint32_t
+set_dst (uint32_t iword, int regno)
+{
+  return iword | (regno << 21);
+}
+
+#endif
+static void
+encode_instr (const my66000_opc_info_t *opc, char *str ATTRIBUTE_UNUSED, char **errmsg)
+{
+  char *p;
+  uint32_t iword;
+
+  *errmsg = NULL;
+  iword = opc->p_opc << 26;
+  p = frag_more (4);
+  memcpy (p, &iword, 4);
 }
 
 /* This routine is called for each instruction to be assembled.  */
@@ -136,10 +268,10 @@ md_begin (void)
 void
 md_assemble (char *str)
 {
-  my66000_opc_info_t *opcode;
+  my66000_opc_info_t *opc;
   char buffer[MAX_OP_STR_LEN + 1];
   int i;
-  char *output;
+  char *err1, *err2;
 
   /* Drop leading whitespace.  */
   while (ISSPACE (*str))
@@ -151,22 +283,43 @@ md_assemble (char *str)
       char c = str[i];
       if (!c || is_end_of_line[c & 0xff] || ISSPACE(c))
 	break;
-      buffer[i] = c;
+      buffer[i] = TOLOWER(c);
     }
   buffer[i] = '\0';
 
-  printf ("buffer = %s\n", buffer);
   if (i == 0)
-    as_bad (_("Can't find opcode "));
+    as_bad ("%s: %s",_("Illegal instruction"), buffer);
 
-  opcode = (my66000_opc_info_t *) str_hash_find (s_opc_map_1, buffer);
-  if (opcode == NULL)
+  /* We have up to two times the same assembler name, with different
+     encodings, like "add r1, r22,#1234" vs.  "add r1,r22,r17".  This
+     is complicated a bit because "add r1,r22,#1234" is also valid
+     with a 32 bit or even a 64-bit immediate.  The strategy is to
+     look up a first variant.  If this gives an error, check if there
+     is a second variant.  If it doesn't exist, queue the error from
+     the first attempt and try the second variant.
+
+     Note: The ordering of what is put into each map matters in this.
+  */
+
+  opc = (my66000_opc_info_t *) str_hash_find (s_opc_map_1, buffer);
+  err1 = NULL;
+  encode_instr (opc, &str[i], &err1);
+  if (err1 != NULL)
     {
-      as_bad (_("unknown opcode %s"), str);
-      return;
+      opc = (my66000_opc_info_t *) str_hash_find (s_opc_map_1, buffer);
+      if (opc == NULL)
+	{
+	  as_bad ("%s", err1);
+	  return;
+	}
+      err2 = NULL;
+      encode_instr (opc, &str[i], &err2);
+      if (err2 != NULL)
+	{
+	  as_bad ("%s", err2);
+	  return;
+	}
     }
-  output = frag_more (4);
-  memset (output, 0, 4);
 }
 
 /* Put number into target byte order.  */

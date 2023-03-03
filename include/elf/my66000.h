@@ -1,4 +1,4 @@
-/* My66000 ELF support for BFD.
+/* My 66000 ELF support for BFD.
    Copyright (C) 2003-2023 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.

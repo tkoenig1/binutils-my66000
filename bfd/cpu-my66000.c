@@ -1,4 +1,4 @@
-/* BFD support for My66000.
+/* BFD support for My 66000.
    Copyright (C) 2023 Free Software Foundation, Inc.
    Contributed by Thomas König.
 
