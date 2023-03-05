@@ -70,33 +70,14 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc)
     }
 }
 
-/* Get the minor opcode from the instruction.  The position varies a
-   bit.  */
-
-static int
-get_minor_opcode (uint32_t iword, my66000_encoding enc)
-{
-  switch (enc)
-    {
-    case MY66000_OM6:
-    case MY66000_OM7:
-      return (iword >> 12) & 0xf;
-      break;
-      
-    default:
-      return -1;
-    }
-}
-
 int
 print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 {
   int status;
   int length;
   bfd_byte buffer[4];
-  int opcode, minor_opcode;
-  uint32_t iword;
-  my66000_opc_info_t const *primary, *secondary, *opc;
+  uint32_t iword, opcode;
+  my66000_opc_info_t const *p, *q, *opc;
 
   fpr = info->fprintf_func;
   stream = info->stream;
@@ -107,32 +88,21 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   length = 4;
   iword = (uint32_t) bfd_getl32 (buffer);
   opcode = iword >> 26;
+  p = &my66000_opc_info[opcode];
 
-  primary = &my66000_opc_info[opcode];
-
-  /* Some opcodes can be disassembled to a specific version, or a general
-     version.  Use the specific version if available.  */
-
-  if (primary->sub)
+  q = NULL;
+  iword = 0;
+  while (p->sub != NULL)
     {
-      minor_opcode = get_minor_opcode (iword, primary->enc);
-      assert (minor_opcode != -1);
-      secondary = &primary->sub[minor_opcode];
-      if (secondary->name == NULL)
-	secondary = NULL;
+      opcode = (iword & p->frag_mask) >> p->shift;
+      if (p->name && p->sub)
+	q = p;
+      p = &p->sub[opcode];
     }
-  else
-    secondary = NULL;
 
-  if (secondary)
-    {
-      assert (secondary->name);
-      fpr (stream, "%s\t", secondary->name);
-    }
-  else
-    fpr (stream, "%s\t", primary->name);
+  opc = q ? q : p;
+  fpr (stream, "%s\t", opc->name);
 
-  opc = secondary ? secondary : primary;
   print_operands (iword, opc);
   return length;
 

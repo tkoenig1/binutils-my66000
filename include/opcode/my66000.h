@@ -22,8 +22,8 @@
 #ifndef MY66000_H
 #define MY66000_H
 
-#define MY66000_MAJOR_OPCODE(c) ((c)<<26)
-#define MY66000_MAJOR_OPCODE_MASK (63 << 26)
+#define MY66000_MAJOR(c) ((c)<<26)
+#define MY66000_MAJOR_MASK (63 << 26)
 
 typedef enum my66000_encoding
 {
@@ -32,13 +32,13 @@ typedef enum my66000_encoding
  MY66000_ILL,      /* Reserved as non-opcodes.  */
  MY66000_OPIMM,
  MY66000_MEM,
- MY66000_OP1,
- MY66000_OP2,
- MY66000_OP4,
- MY66000_OP5,
  MY66000_PB1,
+ MY66000_OP1,
+ MY66000_BB1A,
+ MY66000_BB1B,
  MY66000_PCND,
- MY66000_BB,
+ MY66000_PB1A,
+ MY66000_PB1B,
  MY66000_BCND,
  MY66000_JT,
  MY66000_BR,
@@ -48,17 +48,21 @@ typedef enum my66000_encoding
  MY66000_MEMM,
  MY66000_CARRY,
  MY66000_VEC, 
- MY66000_OM6,
- MY66000_OM7,
 } my66000_encoding;
+
+/* This is the main data structure for instructions. The table
+   contains the fragment opcode, a constant giving the operand
+   encoding, a subtable of instructions and the mask and shift of the
+   instructions of the subtable, so they can be looked up.  */
 
 typedef struct my66000_opc_info_t
 {
-  int p_opc;	/* Primary opcode */
-  int s_opc;	/* Secondary opcode, if applicable.  */
   const char *name;
-  enum my66000_encoding enc;
-  struct my66000_opc_info_t const *sub;  /* Subtable, if applicable.  */
+  int32_t frag_opc;			/* Opcode fragment  */
+  enum my66000_encoding enc;		/* Encoding.  */
+  struct my66000_opc_info_t const *sub; /* Subtable, if applicable.  */
+  int32_t frag_mask;			/* Mask for the subtable opcode.  */
+  uint32_t shift;			/* Shift for the subtable.  */
 } my66000_opc_info_t;
 
 extern const my66000_opc_info_t my66000_opc_info[];
@@ -82,12 +86,12 @@ extern const char my66000_numtab[32];
 /* Names of all the different operands the architecture has.  */
 typedef enum my66000_operands
 {
- MY66000_OPS_END = 0,
  MY66000_OPS_DST,
  MY66000_OPS_IMMED16,
  MY66000_OPS_SRC1,
  MY66000_OPS_SRC2,
  MY66000_OPS_RINDEX,
+ MY66000_OPS_END
 } my66000_operands;
 
 /* Specify the operand properties for the format strings and for
@@ -95,19 +99,24 @@ typedef enum my66000_operands
 
 typedef struct my66000_operand_info_t
 {
-  const char *name;   /* Name for looking up in the format string.  */
   my66000_operands oper;
-  uint32_t nbits;
-  uint32_t pos;  /* Operand encoding shifted and masked by ((1u<<nbit)-1) << pos */
+  uint32_t frag_mask;
+  uint32_t shift;
 } my66000_operand_info_t;
 
 extern const my66000_operand_info_t my66000_operand_table[];
 
-typedef struct my66000_opcode_fmt_t
+typedef struct my66000_fmt_spec_t
 {
   char *fmt;
+  uint32_t frag_opc;
+} my66000_fmt_spec_t;
+
+typedef struct my66000_opcode_fmt_t
+{
+  const my66000_fmt_spec_t *spec;
   my66000_encoding enc;
-  int sub;
+  uint32_t frag_mask;
 } my66000_opcode_fmt_t;
 
 extern const my66000_opcode_fmt_t my66000_opcode_fmt[];

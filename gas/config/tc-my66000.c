@@ -123,12 +123,11 @@ build_opc_hashes (const my66000_opc_info_t * table)
 }
 
 static htab_t rname_map;
-static htab_t operand_map;
 
 void
 md_begin (void)
 {
-  /* Build hashes for looking up the instructions.  */
+   /* Build hashes for looking up the instructions.  */
   s_opc_map_1 = str_htab_create ();
   s_opc_map_2 = str_htab_create ();
   build_opc_hashes (my66000_opc_info);
@@ -153,71 +152,44 @@ md_begin (void)
       str_hash_insert (rname_map, my66000_rnum[i],
 		       (void *) &my66000_numtab[i], 0);
     }
-  /* Finally, the hashes for operand formats.  */
- operand_map = str_htab_create ();
- for (const my66000_operand_info_t * p = my66000_operand_table; p->name != NULL; p++)
-    str_hash_insert (operand_map, p->name, (void *) p, 0);
+
+  /* Internal test for consistency.  We use the enum to index into
+     the opcode fmt table, this needs to be right.  This can be
+     #ifdefed out for later production.  */
+  int count = 0;
+  for (const my66000_opcode_fmt_t *p = my66000_opcode_fmt;
+       p->enc != MY66000_END; p++)
+    {
+      if (p->enc != count)
+	as_fatal (_("opcode_fmt unordered for entry %d"), count);
+
+      count ++;
+    }
 }
 
 #define MAX_REG_STR_LEN 3
-#if 0
-/* Match a register name from map and return its number, or, on
-   error, return -1 and set errmsg to something useful.  */
 
-static int
-match_register (char **ptr, char **errmsg, htab_t map)
+/* Match a non-whitespace character required by the syntax.  Issue
+   error or advance ptr past the matched character.  */
+
+void match_character (char c, char **ptr, char **errmsg);
+
+void
+match_character (char c, char **ptr, char **errmsg)
 {
-  int reg;
-  char *s = *ptr;
-  char tmp;
-  char *rp;
-  int i;
-  char buffer[MAX_REG_STR_LEN + 1];
+  char *s;
 
-  /* Search for the end of the potential register name.  */
-  for (i=0; !(ISALNUM(s[i])); i++)
-    buffer[i] = TOLOWER(s[i]);
-
-  buffer[i] = '\0';
-
-  /* Look for the register from map.  */
-  rp = (char *) str_hash_find (map, buf);
-  if (rp == NULL)
-    {
-      char buf[100];
-      snprintf (buf, sizeof(buffer), "%s: %s", (_("bad register name")), s);
-      *errmsg = buf;
-      reg = -1;
-    }
-  else
-    {
-      *ptr = s + (i-1);
-      reg = *rp;
-    }
-  s[i] = tmp;
-  return reg;
-}
-
-/* Match a character required by the syntax.  Issue error or advance
-   ptr.  */
-
-static void
-match_character (char c, char **errmsg, char **ptr)
-{
-  int i;
-  char *s = *ptr;
-
-  for (i=0; !(ISALNUM(s[i] & 0xff)); i++)
+  for (s = *ptr; ISSPACE(*s); s++)
     ;
 
   if (*s != c)
     {
-      char buf[100];
-      snprintf (buf, sizeof(buffer), "%s: %c", (_("unexpected character")), c);
-      *errmsg = buf;
+      static char errbuf[100];
+      snprintf (errbuf, sizeof(errbuf), "%s: %c", (_("unexpected character")), c);
+      *errmsg = errbuf;
     }
   else
-    *ptr = &s[i];
+    *ptr = s + 1;
 }
 
 /* Match a 16-bit constant, including sign.  */
@@ -240,27 +212,144 @@ match_16bit (char **ptr, char **errmsg)
     neg = false;
 
   val = 0;
-  for (i=0; ISNUM(s[i]); i++)
-    val = 10*val + (s[i] - '0');
+  for (i=0; ISDIGIT(s[i]); i++)
+    val = 10 * val + (s[i] - '0');
+
+  if ((neg && val > -INT16_MIN) || (!neg && val > INT16_MAX))
+    {
+      static char errbuf[] = "Constant out of range";
+      *errmsg =  errbuf;
+      return 0;
+    }
+  ret = neg ? -val : val;
+  *ptr = &s[i];
+  return ret;
 }
+
+/* Match a register name from map and return its number, or, on
+   error, return -1 and set errmsg to something useful.  */
 
 static uint32_t
-set_dst (uint32_t iword, int regno)
+match_register (char **ptr, char **errmsg, htab_t map)
 {
-  return iword | (regno << 21);
+  uint32_t reg;
+  char *s = *ptr;
+  char *rp;
+  int i;
+  char buf[MAX_REG_STR_LEN + 1];
+
+  /* Drop leading whitespace.  */
+  while (ISSPACE (*s))
+    s++;
+
+  /* Search for the end of the potential register name.  */
+  for (i=0; ISALNUM(s[i]); i++)
+    buf[i] = TOLOWER(s[i]);
+
+  buf[i] = '\0';
+
+  /* Look for the register from map.  */
+  rp = (char *) str_hash_find (map, buf);
+  if (rp == NULL)
+    {
+      static char errbuf[100];
+      snprintf (errbuf, sizeof(errbuf), "%s: %s", (_("bad register name")), s);
+      *errmsg = errbuf;
+      reg = 0;  /* Error will be reported via errmsg anyway.  */
+    }
+  else
+    {
+      *ptr = s + i;
+      reg = *rp;
+    }
+  return reg;
 }
 
-#endif
+/* Attempt a match of the arglist pointed to by str against fmt.  If
+   errmsg is set, the match was a failure; otherwise issue issue the
+   instruction.  This (eventually) includes handling of variable-
+   length instructions.  */
+
 static void
-encode_instr (const my66000_opc_info_t *opc, char *str ATTRIBUTE_UNUSED, char **errmsg)
+match_arglist (uint32_t iword, const char *fmt, char *str, char **errmsg)
+{
+  const char *fp = fmt;
+  char *sp = str;
+  const my66000_operand_info_t *info;
+  char *p;
+
+  for (; *fp; fp++)
+    {
+      uint32_t frag;
+      if (!ISUPPER(*fp))
+	{
+	  match_character (*fp, &sp, errmsg);
+	  if (*errmsg)
+	    return;
+	  continue;
+	}
+
+      info = &my66000_operand_table[*fp - 'A'];
+      switch (info->oper)
+	{
+	case MY66000_OPS_DST:
+	case MY66000_OPS_SRC1:
+	case MY66000_OPS_SRC2:
+	  frag = match_register (&sp, errmsg, rname_map);
+	  break;
+	case MY66000_OPS_IMMED16:
+	  frag = match_16bit (&sp, errmsg);
+	  break;
+	default:
+	  as_fatal ("operand not handled");
+	}
+      if (*errmsg)
+	return;
+      iword = iword | (frag << info->shift);
+    }
+  p = frag_more (4);
+  memcpy (p, &iword, 4);
+  return;
+}
+
+static void
+encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
 {
   char *p;
   uint32_t iword;
+  my66000_encoding enc;
+  const my66000_opcode_fmt_t *fmtlist;
+  const my66000_fmt_spec_t *spec;
+  const char *fmt;
 
+  /* TODO: Instructions that are found in lower tables.  */
   *errmsg = NULL;
-  iword = opc->p_opc << 26;
-  p = frag_more (4);
-  memcpy (p, &iword, 4);
+  iword = opc->frag_opc;
+  enc = opc->enc;
+  fmtlist = &my66000_opcode_fmt[enc];
+
+  spec = fmtlist->spec;
+
+  /* If we don't have an argument list, we're done.  */
+
+  if (spec->fmt == NULL)
+    {
+      p = frag_more (4);
+      memcpy (p, &iword, 4);
+      return;
+    }
+
+  /* Run over the different operand specifications.  */
+  for (spec = fmtlist->spec; spec->fmt; spec++)
+    {
+      *errmsg = NULL;
+      fmt = spec->fmt;
+      match_arglist (iword, fmt, str, errmsg);
+      if (*errmsg == NULL)
+	return;
+    }
+  if (*errmsg == NULL)
+    *errmsg = (_("garbeled operand list"));
 }
 
 /* This routine is called for each instruction to be assembled.  */
@@ -302,6 +391,11 @@ md_assemble (char *str)
   */
 
   opc = (my66000_opc_info_t *) str_hash_find (s_opc_map_1, buffer);
+  if (opc == NULL)
+    {
+      as_bad ("illegal opcode %s\n", buffer);
+      return;
+    }
   err1 = NULL;
   encode_instr (opc, &str[i], &err1);
   if (err1 != NULL)
