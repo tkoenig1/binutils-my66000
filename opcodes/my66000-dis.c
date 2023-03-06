@@ -24,6 +24,7 @@
 #include "sysdep.h"
 #include <stdio.h>
 #include <assert.h>
+#include "safe-ctype.h"
 
 #define STATIC_TABLE
 #define DEFINE_TABLE
@@ -34,6 +35,7 @@
 static fprintf_ftype fpr;
 static void *stream;
 
+#if 0
 inline static int dst (uint32_t word)
 {
   return (word >> 21) & 0x1f;
@@ -69,6 +71,71 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc)
       break;
     }
 }
+#else
+static void
+print_operands (uint32_t iword, my66000_opc_info_t const *opc)
+{
+  my66000_encoding enc = opc->enc;
+  const my66000_opcode_fmt_t *opcode_fmt;
+  const my66000_operand_info_t *op_info;
+  const my66000_fmt_spec_t *spec;
+  uint32_t mask, res;
+  const char *f;
+
+  opcode_fmt = &my66000_opcode_fmt[enc];
+  spec = opcode_fmt->spec;
+  if (spec == NULL)
+    return;
+  fpr (stream,"\t");
+
+  /* Loop over the table of formats until a match is found.  FIXME:
+     This could be made more elegant, and probably faster.  */
+
+  mask = opcode_fmt->frag_mask;
+  while (spec)
+    {
+      res = (spec->frag ^ iword) & mask;
+      if (res == 0)
+	break;
+      spec ++;
+    }
+  if (res != 0)
+    {
+      printf ("Uknonwn_argument list");
+      return;
+    }
+  for (f = spec->fmt; *f; f++)
+    {
+      if (ISUPPER(*f))
+	{
+	  uint32_t val;
+	  op_info = &my66000_operand_table[*f - 'A'];
+	  val = (iword & op_info->mask) >> op_info->shift;
+	  switch (op_info->oper)
+	    {
+	    case MY66000_OPS_DST:
+	    case MY66000_OPS_SRC1:
+	    case MY66000_OPS_SRC2:
+	      /* A register in normal notation.  */
+	      fpr (stream, "%s", my66000_rname[val]);
+	      break;
+	    case MY66000_OPS_RINDEX:
+	      /* An index register.  */
+	      fpr (stream, "%s", my66000_rind[val]);
+	      break;
+	    case MY66000_OPS_IMMED16:
+	      int16_t v = val;
+	      fpr (stream, "%d", v);
+	      break;
+	    default:
+	      fprintf (stderr,"Increased unhappiness\n");
+	    }
+	}
+      else
+	fpr (stream, "%c", *f);
+    }
+}
+#endif
 
 int
 print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
@@ -91,7 +158,6 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   p = &my66000_opc_info[opcode];
 
   q = NULL;
-  iword = 0;
   while (p->sub != NULL)
     {
       opcode = (iword & p->frag_mask) >> p->shift;

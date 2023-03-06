@@ -22,8 +22,9 @@
 #ifndef MY66000_H
 #define MY66000_H
 
-#define MY66000_MAJOR(c) ((c)<<26)
-#define MY66000_MAJOR_MASK (63 << 26)
+#define MY66000_MAJOR_SHIFT 26
+#define MY66000_MAJOR(c) ((c) << MY66000_MAJOR_SHIFT)
+#define MY66000_MAJOR_MASK (63 << MY66000_MAJOR_SHIFT)
 
 typedef enum my66000_encoding
 {
@@ -66,16 +67,8 @@ typedef struct my66000_opc_info_t
 } my66000_opc_info_t;
 
 extern const my66000_opc_info_t my66000_opc_info[];
-extern const my66000_opc_info_t my66000_opc_om6[];
-extern const my66000_opc_info_t my66000_opc_om7[];
-extern const my66000_opc_info_t my66000_opc_op1[];
-extern const my66000_opc_info_t my66000_opc_op2[];
-extern const my66000_opc_info_t my66000_opc_op4[];
-extern const my66000_opc_info_t my66000_opc_op5[];
-extern const my66000_opc_info_t my66000_opc_bb1a[];
-extern const my66000_opc_info_t my66000_opc_bb1b[];
-extern const my66000_opc_info_t my66000_opc_bcnd[];
-extern const my66000_opc_info_t my66000_opc_jt[];
+
+/* List for gathering all the names for the hash table.  */
 
 extern const char *my66000_rname[32];
 extern const char *my66000_rbase[32];
@@ -100,7 +93,7 @@ typedef enum my66000_operands
 typedef struct my66000_operand_info_t
 {
   my66000_operands oper;
-  uint32_t frag_mask;
+  uint32_t mask;
   uint32_t shift;
 } my66000_operand_info_t;
 
@@ -109,7 +102,7 @@ extern const my66000_operand_info_t my66000_operand_table[];
 typedef struct my66000_fmt_spec_t
 {
   char *fmt;
-  uint32_t frag_opc;
+  uint32_t frag;
 } my66000_fmt_spec_t;
 
 typedef struct my66000_opcode_fmt_t
@@ -120,4 +113,7 @@ typedef struct my66000_opcode_fmt_t
 } my66000_opcode_fmt_t;
 
 extern const my66000_opcode_fmt_t my66000_opcode_fmt[];
+extern const my66000_opc_info_t *my66000_opc_info_list[];
+extern const my66000_opc_info_t my66000_opc_info[];
+
 #endif

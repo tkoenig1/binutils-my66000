@@ -107,13 +107,13 @@ build_opc_hashes (const my66000_opc_info_t * table)
 
       if (table[i].name != NULL)
 	{
-	  slot = str_hash_insert (s_opc_map_1, table[i].name, (void *) &table[i], 1);
+	  slot = str_hash_insert (s_opc_map_1, table[i].name, (void *) &table[i], 0);
 	  if (slot != NULL)
 	    {
 	      slot = str_hash_insert (s_opc_map_2, table[i].name,
-				      (void *) &table[i], 1);
+				      (void *) &table[i], 0);
 	      if (slot != NULL) {
-		as_bad (_ ("Internal error: more than two equal opcodes"));
+		as_fatal (_ ("Internal error: more than two equal opcodes: %s"), table[i].name);
 		exit(1);
 	      }
 	    }
@@ -128,19 +128,12 @@ void
 md_begin (void)
 {
    /* Build hashes for looking up the instructions.  */
+  const my66000_opc_info_t **lst = my66000_opc_info_list;
   s_opc_map_1 = str_htab_create ();
   s_opc_map_2 = str_htab_create ();
-  build_opc_hashes (my66000_opc_info);
-  build_opc_hashes (my66000_opc_om6);
-  build_opc_hashes (my66000_opc_om7);
-  build_opc_hashes (my66000_opc_op1);
-  build_opc_hashes (my66000_opc_op2);
-  build_opc_hashes (my66000_opc_op4);
-  build_opc_hashes (my66000_opc_op5);
-  build_opc_hashes (my66000_opc_bb1a);
-  build_opc_hashes (my66000_opc_bb1b);
-  build_opc_hashes (my66000_opc_bcnd);
-  build_opc_hashes (my66000_opc_jt);
+  
+  for (int k=0; lst[k]; k++)
+    build_opc_hashes (lst[k]);
 
   /* Build hash for the register names.  */
   rname_map = str_htab_create ();
@@ -339,7 +332,7 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
       return;
     }
 
-  /* Run over the different operand specifications.  */
+  /* Try to match the different operand specifications.  */
   for (spec = fmtlist->spec; spec->fmt; spec++)
     {
       *errmsg = NULL;
