@@ -178,7 +178,7 @@ match_character (char c, char **ptr, char **errmsg)
   if (*s != c)
     {
       static char errbuf[100];
-      snprintf (errbuf, sizeof(errbuf), "%s: %c", (_("unexpected character")), c);
+      snprintf (errbuf, sizeof(errbuf), "%s: %c", (_("unexpected character")), *s);
       *errmsg = errbuf;
     }
   else
@@ -264,9 +264,10 @@ match_register (char **ptr, char **errmsg, htab_t map)
    length instructions.  */
 
 static void
-match_arglist (uint32_t iword, const char *fmt, char *str, char **errmsg)
+match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
+	       char **errmsg)
 {
-  const char *fp = fmt;
+  const char *fp = spec->fmt;
   char *sp = str;
   const my66000_operand_info_t *info;
   char *p;
@@ -278,7 +279,8 @@ match_arglist (uint32_t iword, const char *fmt, char *str, char **errmsg)
 	{
 	  match_character (*fp, &sp, errmsg);
 	  if (*errmsg)
-	    return;
+	      return;
+
 	  continue;
 	}
 
@@ -298,8 +300,11 @@ match_arglist (uint32_t iword, const char *fmt, char *str, char **errmsg)
 	}
       if (*errmsg)
 	return;
-      iword = iword | (frag << info->shift);
+
+      iword |= frag << info->shift;
     }
+  iword |= spec->frag;
+
   p = frag_more (4);
   memcpy (p, &iword, 4);
   return;
@@ -313,7 +318,6 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
   my66000_encoding enc;
   const my66000_opcode_fmt_t *fmtlist;
   const my66000_fmt_spec_t *spec;
-  const char *fmt;
 
   /* TODO: Instructions that are found in lower tables.  */
   *errmsg = NULL;
@@ -336,8 +340,7 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
   for (spec = fmtlist->spec; spec->fmt; spec++)
     {
       *errmsg = NULL;
-      fmt = spec->fmt;
-      match_arglist (iword, fmt, str, errmsg);
+      match_arglist (iword, spec, str, errmsg);
       if (*errmsg == NULL)
 	return;
     }
@@ -393,7 +396,7 @@ md_assemble (char *str)
   encode_instr (opc, &str[i], &err1);
   if (err1 != NULL)
     {
-      opc = (my66000_opc_info_t *) str_hash_find (s_opc_map_1, buffer);
+      opc = (my66000_opc_info_t *) str_hash_find (s_opc_map_2, buffer);
       if (opc == NULL)
 	{
 	  as_bad ("%s", err1);

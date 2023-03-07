@@ -45,64 +45,117 @@
 #define TT_MASK 7 << TT_OFFS
 
 #define SHFT_MINOR(c) (c) << SHFT_OFFS
-
 #define MINOR(c) (c) << MINOR_OFFS
 
+#define XOP_I_SHFT 15
+#define XOP_I(c) ((c) << XOP_I_SHFT)
+#define XOP_I_MASK XOP_I(1)
+
+#define XOP_S1_SHFT 14
+#define XOP_S1(c) ((c) << XOP_S1_SHFT)
+#define XOP_S1_MASK XOP_S1(1)
+
+#define XOP_S2_SHFT 13
+#define XOP_S2(c) ((c) << XOP_S2_SHFT)
+#define XOP_S2_MASK XOP_S2(1)
+
+/* Bit 12 is the signed bit.  */
+
+#define XOP2_d_SHFT 11
+#define XOP2_d(c) ((c) << XOP2_d_SHFT)
+#define XOP2_d_MASK XOP2_d(1)
+
+#define OPC6_MAJOR MY66000_MAJOR(6)
+#define OPC7_MAJOR MY66000_MAJOR(7)
+
+#define OP2_MAJOR MY66000_MAJOR(10)
 
 const my66000_opc_info_t opc_om6[] =
 {
- { "pb1",  SHFT_MINOR( 0), MY66000_PB1A,  NULL, 0, 0},
- { "pcnd", SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
- { NULL,   SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 4), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 5), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 6), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 7), MY66000_BAD,   NULL, 0, 0},
- { "srl",  SHFT_MINOR( 8), MY66000_SHIFT, NULL, 0, 0},
- { "sra",  SHFT_MINOR( 9), MY66000_SHIFT, NULL, 0, 0},
- { "sll",  SHFT_MINOR(10), MY66000_SHIFT, NULL, 0, 0},
- { "sla",  SHFT_MINOR(11), MY66000_SHIFT, NULL, 0, 0},
- { "bitr", SHFT_MINOR(12), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   SHFT_MINOR(13), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR(14), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR(15), MY66000_BAD,   NULL, 0, 0},
+ { "pb1",  OPC6_MAJOR | SHFT_MINOR( 0), MY66000_PB1A,  NULL, 0, 0},
+ { "pcnd", OPC6_MAJOR | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR( 4), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR( 5), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR( 6), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR( 7), MY66000_BAD,   NULL, 0, 0},
+ { "srl",  OPC6_MAJOR | SHFT_MINOR( 8), MY66000_SHIFT, NULL, 0, 0},
+ { "sra",  OPC6_MAJOR | SHFT_MINOR( 9), MY66000_SHIFT, NULL, 0, 0},
+ { "sll",  OPC6_MAJOR | SHFT_MINOR(10), MY66000_SHIFT, NULL, 0, 0},
+ { "sla",  OPC6_MAJOR | SHFT_MINOR(11), MY66000_SHIFT, NULL, 0, 0},
+ { "bitr", OPC6_MAJOR | SHFT_MINOR(12), MY66000_SHIFT, NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR(13), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR(14), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC6_MAJOR | SHFT_MINOR(15), MY66000_BAD,   NULL, 0, 0},
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
 const my66000_opc_info_t opc_om7[] =
 {
- { "pb1",  SHFT_MINOR( 0), MY66000_PB1B,  NULL, 0, 0},
- { "pcnd", SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
- { NULL,   SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 4), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 5), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 6), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 7), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR( 8), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   SHFT_MINOR( 9), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   SHFT_MINOR(10), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   SHFT_MINOR(11), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   SHFT_MINOR(12), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   SHFT_MINOR(13), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR(14), MY66000_BAD,   NULL, 0, 0},
- { NULL,   SHFT_MINOR(15), MY66000_BAD,   NULL, 0, 0},
+ { "pb1",  OPC7_MAJOR | SHFT_MINOR( 0), MY66000_PB1B,  NULL, 0, 0},
+ { "pcnd", OPC7_MAJOR | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR( 4), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR( 5), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR( 6), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR( 7), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR( 8), MY66000_SHIFT, NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR( 9), MY66000_SHIFT, NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR(10), MY66000_SHIFT, NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR(11), MY66000_SHIFT, NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR(12), MY66000_SHIFT, NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR(13), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR(14), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   OPC7_MAJOR | SHFT_MINOR(15), MY66000_BAD,   NULL, 0, 0},
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
 #define SIGNED_OFFS 12
-#define SIGNED_MASK (1u << SIGNED_OFFS)
 #define SIGNED(c) ((c) << SIGNED_OFFS)
+#define SIGNED_MASK SIGNED (1)
+
+/* The S bit for the XOP2 group forces a different name, and is not
+   adjacent to the minor opcode, so it is not staightforward to
+   encode.  Use separate tables for each instruction, then.  If you
+   add a table here, do not forget to add it to
+   my66000_opc_info_list.  */
+
+
+/* Definition for the various modifier bits in the XOP2 group.  */
+
+#define XOP2_I_OFFS 15
+#define XOP2_I(c) ((c) << XOP2_I_OFFS)
+#define XOP2_I_MASK XOP2_I(1)
+
+#define XOP2_S1_OFFS 14
+#define XOP2_S1(c) ((c) << XOP2_S1_OFFS)
+#define XOP2_S1_MASK XOP2_S1(1)
+
+#define XOP2_S2_OFFS 13
+#define XOP2_S2(c) ((c) << XOP2_S2_OFFS)
+#define XOP2_S2_MASK XOP2_S2(1)
+
+/* The S bit, at position 12, is already used in the opcode tables
+   above.  */
+
+#define XOP2_MOD_MASK (XOP2_I_MASK | XOP2_S1_MASK | XOP2_S2_MASK | XOP2_d_MASK)
+
+const my66000_opc_info_t opc_op1[] =
+{
+  { NULL,   0,              MY66000_END,   NULL, 0, 0}
+};
+
 
 const my66000_opc_info_t opc_add [] =
 {
- {"add",  SIGNED(0), MY66000_OP1, NULL, 0, 0},
- {"adds", SIGNED(1), MY66000_OP1, NULL, 0, 0},
- { NULL,   0,        MY66000_END,   NULL, 0, 0}
+ {"add",  OP2_MAJOR | MINOR(33) | SIGNED(0), MY66000_OP2, NULL, 0, 0},
+ {"adds", OP2_MAJOR | MINOR(33) | SIGNED(1), MY66000_OP2, NULL, 0, 0},
+ { NULL,   0,        MY66000_END, NULL, 0, 0}
 };
   
-const my66000_opc_info_t opc_op1[] =
+const my66000_opc_info_t opc_op2[] =
 {
  { NULL,    MINOR ( 0), MY66000_BAD,  NULL, 0, 0},
  { NULL,    MINOR ( 1), MY66000_BAD,  NULL, 0, 0},
@@ -169,11 +222,6 @@ const my66000_opc_info_t opc_op1[] =
  { NULL,    MINOR (62), MY66000_BAD,  NULL, 0, 0},
  { NULL,    MINOR (63), MY66000_BAD,  NULL, 0, 0},
  { NULL,    0,          MY66000_END,  NULL, 0, 0}
-};
-
-const my66000_opc_info_t opc_op2[] =
-{
-  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
 const my66000_opc_info_t opc_op4[] =
@@ -324,42 +372,63 @@ const char my66000_numtab[32] =
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
   };
 
-#define OPERAND_MASK(width,shift) ((1u << width) - 1) << shift, shift
+#define OPERAND_MASK(width,shift) ((1u << (width)) - 1) << (shift)
+#define OPERAND_ENTRY(width,shift) OPERAND_MASK(width,shift), shift
 
 /* Dept. of dirty tricks: Operands are encoded in the format string
    by capital letters starting with A.  Lookup is then via
    my66000_operand_table[c - 'A'].  An alternative would be to have
-   strings using more descriptive names, like "dst", but that would
-   create unnecessary overhead during parsing.  */
+   strings using more descriptive names, like "dst" and put them in a
+   hash, but that would create unnecessary overhead during
+   parsing.  */
 
 const my66000_operand_info_t my66000_operand_table[] =
 {
- {MY66000_OPS_DST,     OPERAND_MASK ( 5, 21) /* A */ },
- {MY66000_OPS_SRC1,    OPERAND_MASK ( 5, 16) /* B */ },
- {MY66000_OPS_SRC2,    OPERAND_MASK ( 5,  0) /* C */ },
- {MY66000_OPS_RINDEX,  OPERAND_MASK ( 5,  0) /* D */ },
- {MY66000_OPS_IMMED16, OPERAND_MASK (16,  0) /* E */ },
+ {MY66000_OPS_DST,      OPERAND_ENTRY ( 5, 21) /* A */ },
+ {MY66000_OPS_SRC1,     OPERAND_ENTRY ( 5, 16) /* B */ },
+ {MY66000_OPS_SRC2,     OPERAND_ENTRY ( 5,  0) /* C */ },
+ {MY66000_OPS_RINDEX,   OPERAND_ENTRY ( 5,  0) /* D */ },
+ {MY66000_OPS_IMMED16,  OPERAND_ENTRY (16,  0) /* E */ },
+ {MY66000_OPS_IMM5_S1,  OPERAND_ENTRY ( 5, 16) /* F */ },
+ {MY66000_OPS_IMM5_S2,  OPERAND_ENTRY ( 5,  0) /* G */ },
+ // {MY66000_OPS_IMM32_S1, OPERAND_ENTRY ( 0,  0) /* H */ },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
    operands.  This section deals with encoding those.  */
 
-/* Tables listing permissible arguments with modifiers.  */
+/* Some patterns have a requirement of zeros where otherwise
+   registers would be.  Compare to my66000_operand_table above.  */
 
-/* For instructions which have no modifiers, the lists have
-   only one entry.  */
+#define SRC1_MASK OPERAND_MASK(5,16)
+#define SRC2_MASK OPERAND_MASK(5, 0)
 
 static const my66000_fmt_spec_t opimm_fmt_list[] =
 {
- { "A,B,#E", 0 },
- { NULL,     0 },
+ { "A,B,#E", 0, 0 },
+ { NULL,     0, 0 },
  
 };
 
 static const my66000_fmt_spec_t mem_fmt_list[] =
 {
- { "A,[B,E]", 0 },
- { NULL,      0 },
+ { "A,[B,E]", 0, 0 },
+ { NULL,      0, 0 },
+};
+
+#define XOP2_MAP (XOP2_I(1) | XOP2_S1(1) | XOP2_S2(1) | XOP2_d(1))
+
+static const my66000_fmt_spec_t op2_fmt_list [] =
+{
+ { "A,B,C",    XOP2_I(0) | XOP2_d(0) | XOP2_S1(0) | XOP2_S2(0) , XOP2_MAP },
+ { "A,B,-C",   XOP2_I(0) | XOP2_d(0) | XOP2_S1(0) | XOP2_S2(1) , XOP2_MAP },
+ { "A,-B,C",   XOP2_I(0) | XOP2_d(0) | XOP2_S1(1) | XOP2_S2(0) , XOP2_MAP },
+ { "A,-B,-C",  XOP2_I(0) | XOP2_d(0) | XOP2_S1(1) | XOP2_S2(1) , XOP2_MAP },
+ /* { "A,B,#F",   XOP2_I(0) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(0) , XOP2_MAP }, */
+ /* { "A,B,#-F",  XOP2_I(0) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(1) , XOP2_MAP }, */
+ /* { "A,#G,C",   XOP2_I(0) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(0) , XOP2_MAP }, */
+ /* { "A,#-G,-C", XOP2_I(0) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(1) , XOP2_MAP }, */
+ { NULL,      0, 0 }, 
 };
 
 /* Warning: Keep this table in the same order as my66000_encoding,
@@ -371,5 +440,6 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { NULL,              MY66000_ILL,        0 },
    { opimm_fmt_list,    MY66000_OPIMM,      0 },
    { mem_fmt_list,      MY66000_MEM,        0 },
+   { op2_fmt_list,      MY66000_OP2,        0 },
    { NULL,	        MY66000_END,        0 },
   };

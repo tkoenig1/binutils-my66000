@@ -33,8 +33,8 @@ typedef enum my66000_encoding
  MY66000_ILL,      /* Reserved as non-opcodes.  */
  MY66000_OPIMM,
  MY66000_MEM,
+ MY66000_OP2,
  MY66000_PB1,
- MY66000_OP1,
  MY66000_BB1A,
  MY66000_BB1B,
  MY66000_PCND,
@@ -59,10 +59,10 @@ typedef enum my66000_encoding
 typedef struct my66000_opc_info_t
 {
   const char *name;
-  int32_t frag_opc;			/* Opcode fragment  */
+  uint32_t frag_opc;			/* Opcode fragment  */
   enum my66000_encoding enc;		/* Encoding.  */
   struct my66000_opc_info_t const *sub; /* Subtable, if applicable.  */
-  int32_t frag_mask;			/* Mask for the subtable opcode.  */
+  uint32_t frag_mask;			/* Mask for the subtable or format opcode.  */
   uint32_t shift;			/* Shift for the subtable.  */
 } my66000_opc_info_t;
 
@@ -80,9 +80,11 @@ extern const char my66000_numtab[32];
 typedef enum my66000_operands
 {
  MY66000_OPS_DST,
- MY66000_OPS_IMMED16,
  MY66000_OPS_SRC1,
  MY66000_OPS_SRC2,
+ MY66000_OPS_IMMED16,
+ MY66000_OPS_IMM5_S1,
+ MY66000_OPS_IMM5_S2,
  MY66000_OPS_RINDEX,
  MY66000_OPS_END
 } my66000_operands;
@@ -103,6 +105,7 @@ typedef struct my66000_fmt_spec_t
 {
   char *fmt;
   uint32_t frag;
+  uint32_t mask;
 } my66000_fmt_spec_t;
 
 typedef struct my66000_opcode_fmt_t

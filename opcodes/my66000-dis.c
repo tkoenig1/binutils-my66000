@@ -79,36 +79,35 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc)
   const my66000_opcode_fmt_t *opcode_fmt;
   const my66000_operand_info_t *op_info;
   const my66000_fmt_spec_t *spec;
-  uint32_t mask, res;
   const char *f;
+  uint32_t res;
 
   opcode_fmt = &my66000_opcode_fmt[enc];
   spec = opcode_fmt->spec;
   if (spec == NULL)
     return;
-  fpr (stream,"\t");
 
   /* Loop over the table of formats until a match is found.  FIXME:
      This could be made more elegant, and probably faster.  */
 
-  mask = opcode_fmt->frag_mask;
   while (spec)
     {
-      res = (spec->frag ^ iword) & mask;
+      res = (spec->frag ^ iword) & spec->mask;
       if (res == 0)
 	break;
+
       spec ++;
     }
   if (res != 0)
-    {
-      printf ("Uknonwn_argument list");
       return;
-    }
+
   for (f = spec->fmt; *f; f++)
     {
       if (ISUPPER(*f))
 	{
 	  uint32_t val;
+	  int16_t v;;
+
 	  op_info = &my66000_operand_table[*f - 'A'];
 	  val = (iword & op_info->mask) >> op_info->shift;
 	  switch (op_info->oper)
@@ -124,7 +123,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc)
 	      fpr (stream, "%s", my66000_rind[val]);
 	      break;
 	    case MY66000_OPS_IMMED16:
-	      int16_t v = val;
+	      v = val;
 	      fpr (stream, "%d", v);
 	      break;
 	    default:
@@ -144,7 +143,8 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   int length;
   bfd_byte buffer[4];
   uint32_t iword, opcode;
-  my66000_opc_info_t const *p, *q, *opc;
+  my66000_opc_info_t const *p, *tab, *found;
+  uint32_t shift, mask;
 
   fpr = info->fprintf_func;
   stream = info->stream;
@@ -154,22 +154,30 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
   length = 4;
   iword = (uint32_t) bfd_getl32 (buffer);
-  opcode = iword >> 26;
-  p = &my66000_opc_info[opcode];
-
-  q = NULL;
-  while (p->sub != NULL)
+  shift = MY66000_MAJOR_SHIFT;
+  mask = MY66000_MAJOR_MASK;
+  tab = &my66000_opc_info[0];
+  found = NULL;
+  do
     {
-      opcode = (iword & p->frag_mask) >> p->shift;
-      if (p->name && p->sub)
-	q = p;
-      p = &p->sub[opcode];
+      opcode = (iword & mask) >> shift;
+      p = &tab[opcode];
+      if (p->name)
+	  found = p;
+
+      tab = p->sub;
+      mask = p->frag_mask;
+      shift = p->shift;
+    } while(tab);
+
+  if (found)
+    {
+      fpr (stream, "%s\t", p->name);
+      print_operands (iword, p);
     }
+  else
+    opcodes_error_handler ("Error: unknown opcode %8.8x", iword);
 
-  opc = q ? q : p;
-  fpr (stream, "%s\t", opc->name);
-
-  print_operands (iword, opc);
   return length;
 
  fail:
