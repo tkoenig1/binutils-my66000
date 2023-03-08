@@ -35,43 +35,6 @@
 static fprintf_ftype fpr;
 static void *stream;
 
-#if 0
-inline static int dst (uint32_t word)
-{
-  return (word >> 21) & 0x1f;
-}
-
-inline static int
-src1 (uint32_t word)
-{
-  return (word >> 16) & 0x1f;
-}
-
-inline static int
-immed16 (uint32_t word)
-{
-  int16_t a = word;
-  return a;
-}
-
-static void
-print_operands (uint32_t iword, my66000_opc_info_t const *opc)
-{
-  switch (opc->enc)
-    {
-    case MY66000_MEM:
-      fpr (stream,"%s,[%s,%d]", my66000_rname[dst(iword)], my66000_rname[src1(iword)],
-	   immed16(iword));
-      break;
-    case MY66000_OPIMM:
-      fpr (stream,"%s,%s,#%d", my66000_rname[dst(iword)], my66000_rname[src1(iword)],
-	   immed16(iword));
-      break;
-    default:
-      break;
-    }
-}
-#else
 static void
 print_operands (uint32_t iword, my66000_opc_info_t const *opc)
 {
@@ -118,11 +81,16 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc)
 	      /* A register in normal notation.  */
 	      fpr (stream, "%s", my66000_rname[val]);
 	      break;
+
 	    case MY66000_OPS_RINDEX:
 	      /* An index register.  */
 	      fpr (stream, "%s", my66000_rind[val]);
 	      break;
-	    case MY66000_OPS_IMMED16:
+
+	    case MY66000_OPS_IMM16:
+	    case MY66000_OPS_I1:
+	    case MY66000_OPS_I2:
+	      /* A 16-bit or 5-bit constant, the code works for both.  */
 	      v = val;
 	      fpr (stream, "%d", v);
 	      break;
@@ -134,7 +102,6 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc)
 	fpr (stream, "%c", *f);
     }
 }
-#endif
 
 int
 print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
@@ -151,6 +118,8 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
   if ((status = info->read_memory_func (addr, buffer, 4, info)))
     goto fail;
+
+  info->bytes_per_chunk = 4;
 
   length = 4;
   iword = (uint32_t) bfd_getl32 (buffer);

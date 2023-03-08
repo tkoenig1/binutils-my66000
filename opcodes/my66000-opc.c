@@ -388,9 +388,9 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_SRC1,     OPERAND_ENTRY ( 5, 16) /* B */ },
  {MY66000_OPS_SRC2,     OPERAND_ENTRY ( 5,  0) /* C */ },
  {MY66000_OPS_RINDEX,   OPERAND_ENTRY ( 5,  0) /* D */ },
- {MY66000_OPS_IMMED16,  OPERAND_ENTRY (16,  0) /* E */ },
- {MY66000_OPS_IMM5_S1,  OPERAND_ENTRY ( 5, 16) /* F */ },
- {MY66000_OPS_IMM5_S2,  OPERAND_ENTRY ( 5,  0) /* G */ },
+ {MY66000_OPS_IMM16,    OPERAND_ENTRY (16,  0) /* E */ },
+ {MY66000_OPS_I1,       OPERAND_ENTRY ( 5, 16) /* F */ },
+ {MY66000_OPS_I2,       OPERAND_ENTRY ( 5,  0) /* G */ },
  // {MY66000_OPS_IMM32_S1, OPERAND_ENTRY ( 0,  0) /* H */ },
 };
 
@@ -424,10 +424,10 @@ static const my66000_fmt_spec_t op2_fmt_list [] =
  { "A,B,-C",   XOP2_I(0) | XOP2_d(0) | XOP2_S1(0) | XOP2_S2(1) , XOP2_MAP },
  { "A,-B,C",   XOP2_I(0) | XOP2_d(0) | XOP2_S1(1) | XOP2_S2(0) , XOP2_MAP },
  { "A,-B,-C",  XOP2_I(0) | XOP2_d(0) | XOP2_S1(1) | XOP2_S2(1) , XOP2_MAP },
- /* { "A,B,#F",   XOP2_I(0) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(0) , XOP2_MAP }, */
- /* { "A,B,#-F",  XOP2_I(0) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(1) , XOP2_MAP }, */
- /* { "A,#G,C",   XOP2_I(0) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(0) , XOP2_MAP }, */
- /* { "A,#-G,-C", XOP2_I(0) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(1) , XOP2_MAP }, */
+ { "A,B,#F",   XOP2_I(0) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(0) , XOP2_MAP },
+ { "A,#G,C",   XOP2_I(0) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(1) , XOP2_MAP },
+ { "A,B,#-F",  XOP2_I(0) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(0) , XOP2_MAP },
+ { "A,#-G,C",  XOP2_I(0) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(1) , XOP2_MAP },
  { NULL,      0, 0 }, 
 };
 

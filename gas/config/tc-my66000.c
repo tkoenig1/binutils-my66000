@@ -177,8 +177,9 @@ match_character (char c, char **ptr, char **errmsg)
 
   if (*s != c)
     {
-      static char errbuf[100];
-      snprintf (errbuf, sizeof(errbuf), "%s: %c", (_("unexpected character")), *s);
+      static char errbuf[40];
+      snprintf (errbuf, sizeof(errbuf),
+		(_("unexpected character '%c', expecting '%c'")), *s, c);
       *errmsg = errbuf;
     }
   else
@@ -187,14 +188,14 @@ match_character (char c, char **ptr, char **errmsg)
 
 /* Match a 16-bit constant, including sign.  */
 
-static int
+static uint16_t
 match_16bit (char **ptr, char **errmsg)
 {
   int i;
   char *s = *ptr;
   bool neg;
   uint64_t val;
-  int16_t ret;
+  uint16_t ret;
 
   if (*s == '-')
     {
@@ -217,6 +218,27 @@ match_16bit (char **ptr, char **errmsg)
   ret = neg ? -val : val;
   *ptr = &s[i];
   return ret;
+}
+
+/* Match a five-bit positive constant.  */
+
+static int
+match_5bit (char **ptr, char **errmsg)
+{
+  char *s = *ptr;
+  uint64_t val = 0;
+  int i;
+
+  for (i=0; ISDIGIT(s[i]); i++)
+    val = 10 * val + (s[i] - '0');
+  if (val > 31)
+    {
+      static char errbuf[] = "Constant out of range";
+      *errmsg = errbuf;
+      return 0;
+    }
+  *ptr = &s[i];
+  return val;
 }
 
 /* Match a register name from map and return its number, or, on
@@ -246,7 +268,7 @@ match_register (char **ptr, char **errmsg, htab_t map)
   if (rp == NULL)
     {
       static char errbuf[100];
-      snprintf (errbuf, sizeof(errbuf), "%s: %s", (_("bad register name")), s);
+      snprintf (errbuf, sizeof(errbuf), "%s: %s", (_("bad register name")), buf);
       *errmsg = errbuf;
       reg = 0;  /* Error will be reported via errmsg anyway.  */
     }
@@ -271,6 +293,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   char *sp = str;
   const my66000_operand_info_t *info;
   char *p;
+  int length = 4;
 
   for (; *fp; fp++)
     {
@@ -292,11 +315,15 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_SRC2:
 	  frag = match_register (&sp, errmsg, rname_map);
 	  break;
-	case MY66000_OPS_IMMED16:
+	case MY66000_OPS_IMM16:
 	  frag = match_16bit (&sp, errmsg);
 	  break;
+	case MY66000_OPS_I1:
+	case MY66000_OPS_I2:
+	  frag = match_5bit (&sp, errmsg);
+	  break;
 	default:
-	  as_fatal ("operand not handled");
+	  as_fatal ("operand %c not handled", *fp);
 	}
       if (*errmsg)
 	return;
@@ -305,7 +332,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
     }
   iword |= spec->frag;
 
-  p = frag_more (4);
+  p = frag_more (length);
   memcpy (p, &iword, 4);
   return;
 }
@@ -380,8 +407,8 @@ md_assemble (char *str)
      is complicated a bit because "add r1,r22,#1234" is also valid
      with a 32 bit or even a 64-bit immediate.  The strategy is to
      look up a first variant.  If this gives an error, check if there
-     is a second variant.  If it doesn't exist, queue the error from
-     the first attempt and try the second variant.
+     is a second variant.  If it doesn't exist, issue the latest
+     error.
 
      Note: The ordering of what is put into each map matters in this.
   */
