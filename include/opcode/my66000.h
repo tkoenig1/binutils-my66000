@@ -97,6 +97,8 @@ typedef struct my66000_operand_info_t
   my66000_operands oper;
   uint32_t mask;
   uint32_t shift;
+  const char * desc;
+  char letter;
 } my66000_operand_info_t;
 
 extern const my66000_operand_info_t my66000_operand_table[];

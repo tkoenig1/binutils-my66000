@@ -384,13 +384,13 @@ const char my66000_numtab[32] =
 
 const my66000_operand_info_t my66000_operand_table[] =
 {
- {MY66000_OPS_DST,      OPERAND_ENTRY ( 5, 21) /* A */ },
- {MY66000_OPS_SRC1,     OPERAND_ENTRY ( 5, 16) /* B */ },
- {MY66000_OPS_SRC2,     OPERAND_ENTRY ( 5,  0) /* C */ },
- {MY66000_OPS_RINDEX,   OPERAND_ENTRY ( 5,  0) /* D */ },
- {MY66000_OPS_IMM16,    OPERAND_ENTRY (16,  0) /* E */ },
- {MY66000_OPS_I1,       OPERAND_ENTRY ( 5, 16) /* F */ },
- {MY66000_OPS_I2,       OPERAND_ENTRY ( 5,  0) /* G */ },
+ {MY66000_OPS_DST,      OPERAND_ENTRY ( 5, 21), "Destination register",    'A' },
+ {MY66000_OPS_SRC1,     OPERAND_ENTRY ( 5, 16), "Source register 1",       'B' },
+ {MY66000_OPS_SRC2,     OPERAND_ENTRY ( 5,  0), "Source register 2",       'C' },
+ {MY66000_OPS_RINDEX,   OPERAND_ENTRY ( 5,  0), "Inded register",          'D' },
+ {MY66000_OPS_IMM16,    OPERAND_ENTRY (16,  0), "16-bit immediate",        'E' },
+ {MY66000_OPS_I1,       OPERAND_ENTRY ( 5, 16), "5-bit constant source 1", 'F' },
+ {MY66000_OPS_I2,       OPERAND_ENTRY ( 5,  0), "5-bit constant source 2", 'G' },
  // {MY66000_OPS_IMM32_S1, OPERAND_ENTRY ( 0,  0) /* H */ },
 };
 
