@@ -21,10 +21,12 @@
 #ifndef _ELF_MY66000_H
 #define _ELF_MY66000_H
 
-#include "elf/relc-macros.h"
+#include "elf/reloc-macros.h"
+
 /* Relocations.  */
 START_RELOC_NUMBERS (elf_my66000_reloc_type)
-  RELOC_NUMBER (R_MY66000_NONE, 0)
+  RELOC_NUMBER (R_MY66000_NONE,    0)
+  RELOC_NUMBER (R_MY66000_PCREL16, 0)
 END_RELOC_NUMBERS (R_MY66000_max)
 
 #endif
