@@ -50,7 +50,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 
   /* 16 bit PC-relative relocation, shifted two bits.  */
   HOWTO (R_MY66000_PCREL16,	/* type  */
-	 2,			/* rightshift  */
+	 0,			/* rightshift  */
 	 2,			/* size  */
 	 16,			/* bitsize  */
 	 true,			/* pc_relative */
@@ -61,6 +61,21 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xffff,		/* dst_mask  */
+	 true),			/* pcrel_offset  */
+
+  /* 26 bit PC-relative relocation, shifted two bits.  */
+  HOWTO (R_MY66000_PCREL26,	/* type  */
+	 0,			/* rightshift  */
+	 4,			/* size  */
+	 26,			/* bitsize  */
+	 true,			/* pc_relative */
+	 0,			/* bitpos  */
+	 complain_overflow_signed, /* complain_on_overflow  */
+	 bfd_elf_generic_reloc, /* special function  */
+	 "R_MY66000_PCREL26",	/* name  */
+	 false,			/* partial_inplace */
+	 0,			/* src_mask  */
+	 0x3ffffff,		/* dst_mask  */
 	 true),			/* pcrel_offset  */
 };
 
@@ -76,6 +91,7 @@ static const my66000_reloc_map_t my66000_reloc_map[] =
 {
  {BFD_RELOC_NONE,      	 R_MY66000_NONE},
  {BFD_RELOC_16_PCREL_S2, R_MY66000_PCREL16},
+ {BFD_RELOC_26_PCREL_S2, R_MY66000_PCREL26},
 };
 
 static reloc_howto_type *
