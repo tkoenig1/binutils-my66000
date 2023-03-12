@@ -36,7 +36,9 @@
 #define XOP4_MASK 7 << XOP4_OFFS
 
 #define BB1_OFFS 21
+#define BB1_MINOR(c) ((c) << BB1_OFFS)
 #define BB1_MASK 31 << BB1_OFFS
+
 
 #define BCND_OFFS 21
 #define BCND_MASK 31 << BCND_OFFS
@@ -244,15 +246,81 @@ const my66000_opc_info_t opc_jt[] =
   { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
+/* FIXME: Disassembling is ambigous.  */
+
+/* The two halves of the branch on bit instructions.  */
 const my66000_opc_info_t opc_bb1a[] =
 {
-  { NULL,   0,              MY66000_END,   NULL, 0, 0}
+ { "bne",  MY66000_MAJOR(24) | BB1_MINOR( 0), MY66000_BB1A, NULL, 0, 0},
+ { "beq",  MY66000_MAJOR(24) | BB1_MINOR( 1), MY66000_BB1A, NULL, 0, 0},
+ { "bgt",  MY66000_MAJOR(24) | BB1_MINOR( 2), MY66000_BB1A, NULL, 0, 0},
+ { "bge",  MY66000_MAJOR(24) | BB1_MINOR( 3), MY66000_BB1A, NULL, 0, 0},
+ { "blt",  MY66000_MAJOR(24) | BB1_MINOR( 4), MY66000_BB1A, NULL, 0, 0},
+ { "ble",  MY66000_MAJOR(24) | BB1_MINOR( 5), MY66000_BB1A, NULL, 0, 0},
+ { "bor",  MY66000_MAJOR(24) | BB1_MINOR( 6), MY66000_BB1A, NULL, 0, 0},
+ { "bun",  MY66000_MAJOR(24) | BB1_MINOR( 7), MY66000_BB1A, NULL, 0, 0},
+ { "bnne", MY66000_MAJOR(24) | BB1_MINOR( 8), MY66000_BB1A, NULL, 0, 0},
+ { "bneq", MY66000_MAJOR(24) | BB1_MINOR( 9), MY66000_BB1A, NULL, 0, 0},
+ { "bhi",  MY66000_MAJOR(24) | BB1_MINOR(10), MY66000_BB1A, NULL, 0, 0},
+ { "bhs",  MY66000_MAJOR(24) | BB1_MINOR(11), MY66000_BB1A, NULL, 0, 0},
+ { "blo",  MY66000_MAJOR(24) | BB1_MINOR(12), MY66000_BB1A, NULL, 0, 0},
+ { "bls",  MY66000_MAJOR(24) | BB1_MINOR(13), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(14), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(15), MY66000_BB1A, NULL, 0, 0},
+ { "sin",  MY66000_MAJOR(24) | BB1_MINOR(16), MY66000_BB1A, NULL, 0, 0},
+ { "fin",  MY66000_MAJOR(24) | BB1_MINOR(17), MY66000_BB1A, NULL, 0, 0},
+ { "cin",  MY66000_MAJOR(24) | BB1_MINOR(18), MY66000_BB1A, NULL, 0, 0},
+ { "cin",  MY66000_MAJOR(24) | BB1_MINOR(19), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(20), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(21), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(23), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(24), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(25), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(26), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(27), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(28), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(29), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(30), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   MY66000_MAJOR(24) | BB1_MINOR(31), MY66000_BB1A, NULL, 0, 0},
+ { NULL,   0,                                 MY66000_END , NULL, 0, 0}
 };
 
 const my66000_opc_info_t opc_bb1b[] =
 {
-  { NULL,   0,              MY66000_END,   NULL, 0, 0}
-};
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+  { NULL,   0,                                 MY66000_END , NULL, 0, 0},
+} ;
 
 /* The major table - the only one we export as a global symbol.  */
 
@@ -384,14 +452,14 @@ const char my66000_numtab[32] =
 
 const my66000_operand_info_t my66000_operand_table[] =
 {
- {MY66000_OPS_DST,      OPERAND_ENTRY ( 5, 21), "Destination register",    'A' },
- {MY66000_OPS_SRC1,     OPERAND_ENTRY ( 5, 16), "Source register 1",       'B' },
- {MY66000_OPS_SRC2,     OPERAND_ENTRY ( 5,  0), "Source register 2",       'C' },
- {MY66000_OPS_RINDEX,   OPERAND_ENTRY ( 5,  0), "Inded register",          'D' },
- {MY66000_OPS_IMM16,    OPERAND_ENTRY (16,  0), "16-bit immediate",        'E' },
- {MY66000_OPS_I1,       OPERAND_ENTRY ( 5, 16), "5-bit constant source 1", 'F' },
- {MY66000_OPS_I2,       OPERAND_ENTRY ( 5,  0), "5-bit constant source 2", 'G' },
- // {MY66000_OPS_IMM32_S1, OPERAND_ENTRY ( 0,  0) /* H */ },
+ {MY66000_OPS_DST,    OPERAND_ENTRY ( 5, 21), "Destination register",    'A' },
+ {MY66000_OPS_SRC1,   OPERAND_ENTRY ( 5, 16), "Source register 1",       'B' },
+ {MY66000_OPS_SRC2,   OPERAND_ENTRY ( 5,  0), "Source register 2",       'C' },
+ {MY66000_OPS_RINDEX, OPERAND_ENTRY ( 5,  0), "Inded register",          'D' },
+ {MY66000_OPS_IMM16,  OPERAND_ENTRY (16,  0), "16-bit signed immediate", 'E' },
+ {MY66000_OPS_I1,     OPERAND_ENTRY ( 5, 16), "5-bit constant source 1", 'F' },
+ {MY66000_OPS_I2,     OPERAND_ENTRY ( 5,  0), "5-bit constant source 2", 'G' },
+ {MY66000_OPS_BB1,    OPERAND_ENTRY ( 6, 21), "Bit number",		 'H' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -431,15 +499,23 @@ static const my66000_fmt_spec_t op2_fmt_list [] =
  { NULL,      0, 0 }, 
 };
 
-/* Warning: Keep this table in the same order as my66000_encoding,
-   this will be checked on startup of gas.  */
+static const my66000_fmt_spec_t bb1_fmt_list [] =
+{
+ { "H,B,E", 0, 0},
+ { NULL,    0, 0},
+};
+
+/* Warning: Keep this table in the same order as my66000_encoding in
+   include/opcode/my66000.h, this will be checked on startup of gas.  */
 
 const my66000_opcode_fmt_t my66000_opcode_fmt[] =
   {
-   { NULL,              MY66000_BAD,        0 },
-   { NULL,              MY66000_ILL,        0 },
-   { opimm_fmt_list,    MY66000_OPIMM,      0 },
-   { mem_fmt_list,      MY66000_MEM,        0 },
-   { op2_fmt_list,      MY66000_OP2,        0 },
-   { NULL,	        MY66000_END,        0 },
+   { NULL,              MY66000_BAD,    0 },
+   { NULL,              MY66000_ILL,    0 },
+   { opimm_fmt_list,    MY66000_OPIMM,  0 },
+   { mem_fmt_list,      MY66000_MEM,    0 },
+   { op2_fmt_list,      MY66000_OP2,    0 },
+   { bb1_fmt_list,	MY66000_BB1A,	0 },
+   { bb1_fmt_list,	MY66000_BB1B,	0 },
+   { NULL,	        MY66000_END,    0 },
   };

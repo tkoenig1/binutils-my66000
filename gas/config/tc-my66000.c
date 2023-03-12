@@ -119,7 +119,7 @@ build_opc_hashes (const my66000_opc_info_t * table)
 	    }
 	}
     }
-  
+
 }
 
 static htab_t rname_map;
@@ -131,7 +131,7 @@ md_begin (void)
   const my66000_opc_info_t **lst = my66000_opc_info_list;
   s_opc_map_1 = str_htab_create ();
   s_opc_map_2 = str_htab_create ();
-  
+
   for (int k=0; lst[k]; k++)
     build_opc_hashes (lst[k]);
 
@@ -141,14 +141,14 @@ md_begin (void)
     {
       str_hash_insert (rname_map, my66000_rname[i],
 		       (void *) &my66000_numtab[i], 0);
-      
+
       str_hash_insert (rname_map, my66000_rnum[i],
 		       (void *) &my66000_numtab[i], 0);
     }
 
   /* Internal test for consistency.  We use the enum to index into
-     the opcode fmt table, this needs to be right.  This can be
-     #ifdefed out for later production.  */
+     the opcode fmt table, this needs to be right.  This could be be
+     #ifdefed out for later production, or maybe not.  */
   int count = 0;
   for (const my66000_opcode_fmt_t *p = my66000_opcode_fmt;
        p->enc != MY66000_END; p++)
@@ -161,6 +161,8 @@ md_begin (void)
 }
 
 #define MAX_REG_STR_LEN 3
+
+static char errbuf[100];
 
 /* Match a non-whitespace character required by the syntax.  Issue
    error or advance ptr past the matched character.  */
@@ -177,7 +179,6 @@ match_character (char c, char **ptr, char **errmsg)
 
   if (*s != c)
     {
-      static char errbuf[40];
       snprintf (errbuf, sizeof(errbuf),
 		(_("unexpected character '%c', expecting '%c'")), *s, c);
       *errmsg = errbuf;
@@ -186,38 +187,61 @@ match_character (char c, char **ptr, char **errmsg)
     *ptr = s + 1;
 }
 
-/* Match a 16-bit constant, including sign.  */
+
+static uint64_t
+match_integer (char **ptr, char **errmsg, offsetT minval, offsetT maxval)
+{
+  expressionS ex;
+  char *save, *endp, *str;
+  char saved_char;
+
+  *errmsg = NULL;
+  save = input_line_pointer;
+  str = *ptr;
+
+  /* Drop leading whitespace.  */
+  while (ISSPACE (*str))
+    str++;
+
+  input_line_pointer = str;
+
+  /* Look for a delimiter and make sure that expr sees a
+     null-terminated string.  */
+
+  endp = str;
+  while (1)
+    {
+      if (*endp == '\0' || *endp == ',' || is_end_of_line[(unsigned char) *endp])
+	break;
+      endp++;
+    }
+
+  saved_char = *endp;
+  *endp = '\0';
+  expression_and_evaluate (&ex);
+  *endp = saved_char;
+  input_line_pointer = save;
+  if (ex.X_op != O_constant)
+    {
+      strcpy (errbuf, "Not a constant");
+      *errmsg = errbuf;
+      return 0;
+    }
+  else if (ex.X_add_number < minval || ex.X_add_number > maxval)
+    {
+      strcpy (errbuf, "Constant out of range");
+      *errmsg = errbuf;
+    }
+  *ptr = endp;
+  return ex.X_add_number;
+}
 
 static uint16_t
 match_16bit (char **ptr, char **errmsg)
 {
-  int i;
-  char *s = *ptr;
-  bool neg;
-  uint64_t val;
-  uint16_t ret;
-
-  if (*s == '-')
-    {
-      neg = true;
-      s++;
-    }
-  else
-    neg = false;
-
-  val = 0;
-  for (i=0; ISDIGIT(s[i]); i++)
-    val = 10 * val + (s[i] - '0');
-
-  if ((neg && val > -INT16_MIN) || (!neg && val > INT16_MAX))
-    {
-      static char errbuf[] = "Constant out of range";
-      *errmsg =  errbuf;
-      return 0;
-    }
-  ret = neg ? -val : val;
-  *ptr = &s[i];
-  return ret;
+  uint16_t res;
+  res = match_integer (ptr, errmsg, INT16_MIN, INT16_MAX);
+  return res;
 }
 
 /* Match a five-bit positive constant.  */
@@ -225,20 +249,15 @@ match_16bit (char **ptr, char **errmsg)
 static int
 match_5bit (char **ptr, char **errmsg)
 {
-  char *s = *ptr;
-  uint64_t val = 0;
-  int i;
+  return match_integer (ptr, errmsg, 0, 31);
+}
 
-  for (i=0; ISDIGIT(s[i]); i++)
-    val = 10 * val + (s[i] - '0');
-  if (val > 31)
-    {
-      static char errbuf[] = "Constant out of range";
-      *errmsg = errbuf;
-      return 0;
-    }
-  *ptr = &s[i];
-  return val;
+/* Match a six-bit positive constant.  */
+
+static uint8_t
+match_6bit (char **ptr, char **errmsg)
+{
+  return match_integer (ptr, errmsg, 0, 63);
 }
 
 /* Match a register name from map and return its number, or, on
@@ -267,7 +286,6 @@ match_register (char **ptr, char **errmsg, htab_t map)
   rp = (char *) str_hash_find (map, buf);
   if (rp == NULL)
     {
-      static char errbuf[100];
       snprintf (errbuf, sizeof(errbuf), "%s: %s", (_("bad register name")), buf);
       *errmsg = errbuf;
       reg = 0;  /* Error will be reported via errmsg anyway.  */
@@ -322,6 +340,9 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_I2:
 	  frag = match_5bit (&sp, errmsg);
 	  break;
+	case MY66000_OPS_BB1:
+	  frag = match_6bit (&sp, errmsg);
+	  break;
 	default:
 	  as_fatal ("operand %c not handled", *fp);
 	}
@@ -346,7 +367,6 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
   const my66000_opcode_fmt_t *fmtlist;
   const my66000_fmt_spec_t *spec;
 
-  /* TODO: Instructions that are found in lower tables.  */
   *errmsg = NULL;
   iword = opc->frag_opc;
   enc = opc->enc;
@@ -393,7 +413,7 @@ md_assemble (char *str)
   for (i=0; i<MAX_OP_STR_LEN; i++)
     {
       char c = str[i];
-      if (!c || is_end_of_line[c & 0xff] || ISSPACE(c))
+      if (!c || is_end_of_line[(unsigned char) c] || ISSPACE(c))
 	break;
       buffer[i] = TOLOWER(c);
     }
@@ -404,7 +424,7 @@ md_assemble (char *str)
 
   /* We have up to two times the same assembler name, with different
      encodings, like "add r1, r22,#1234" vs.  "add r1,r22,r17".  This
-     is complicated a bit because "add r1,r22,#1234" is also valid
+     complicates things a bit because "add r1,r22,#1234" is also valid
      with a 32 bit or even a 64-bit immediate.  The strategy is to
      look up a first variant.  If this gives an error, check if there
      is a second variant.  If it doesn't exist, issue the latest

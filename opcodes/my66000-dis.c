@@ -90,7 +90,8 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc)
 	    case MY66000_OPS_IMM16:
 	    case MY66000_OPS_I1:
 	    case MY66000_OPS_I2:
-	      /* A 16-bit or 5-bit constant, the code works for both.  */
+	    case MY66000_OPS_BB1:
+	      /* An integer constant.  */
 	      v = val;
 	      fpr (stream, "%d", v);
 	      break;
@@ -131,6 +132,9 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
     {
       opcode = (iword & mask) >> shift;
       p = &tab[opcode];
+      if (p->enc == MY66000_END)
+	break;
+
       if (p->name)
 	  found = p;
 
@@ -141,8 +145,8 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
   if (found)
     {
-      fpr (stream, "%s\t", p->name);
-      print_operands (iword, p);
+      fpr (stream, "%s\t", found->name);
+      print_operands (iword, found);
     }
   else
     opcodes_error_handler ("Error: unknown opcode %8.8x", iword);
