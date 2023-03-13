@@ -167,9 +167,7 @@ static char errbuf[100];
 /* Match a non-whitespace character required by the syntax.  Issue
    error or advance ptr past the matched character.  */
 
-void match_character (char c, char **ptr, char **errmsg);
-
-void
+static void
 match_character (char c, char **ptr, char **errmsg)
 {
   char *s;
