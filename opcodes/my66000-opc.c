@@ -460,6 +460,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I1,     OPERAND_ENTRY ( 5, 16), "5-bit constant source 1", 'F' },
  {MY66000_OPS_I2,     OPERAND_ENTRY ( 5,  0), "5-bit constant source 2", 'G' },
  {MY66000_OPS_BB1,    OPERAND_ENTRY ( 6, 21), "Bit number",		 'H' },
+ {MY66000_OPS_B16,    OPERAND_ENTRY (16,  0), "16-bit branch target",	 'I' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -501,7 +502,7 @@ static const my66000_fmt_spec_t op2_fmt_list [] =
 
 static const my66000_fmt_spec_t bb1_fmt_list [] =
 {
- { "H,B,E", 0, 0},
+ { "H,B,I", 0, 0},
  { NULL,    0, 0},
 };
 

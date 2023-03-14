@@ -36,7 +36,7 @@ static fprintf_ftype fpr;
 static void *stream;
 
 static void
-print_operands (uint32_t iword, my66000_opc_info_t const *opc)
+print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr)
 {
   my66000_encoding enc = opc->enc;
   const my66000_opcode_fmt_t *opcode_fmt;
@@ -95,6 +95,9 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc)
 	      v = val;
 	      fpr (stream, "%d", v);
 	      break;
+	    case MY66000_OPS_B16:
+	      fpr (stream, "0x%lx", (unsigned long) addr + (val << 2));
+	      break;
 	    default:
 	      fprintf (stderr,"Increased unhappiness\n");
 	    }
@@ -146,7 +149,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   if (found)
     {
       fpr (stream, "%s\t", found->name);
-      print_operands (iword, found);
+      print_operands (iword, found, addr);
     }
   else
     opcodes_error_handler ("Error: unknown opcode %8.8x", iword);

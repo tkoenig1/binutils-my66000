@@ -209,7 +209,8 @@ match_integer (char **ptr, char **errmsg, offsetT minval, offsetT maxval)
   endp = str;
   while (1)
     {
-      if (*endp == '\0' || *endp == ',' || is_end_of_line[(unsigned char) *endp])
+      if (*endp == '\0' || *endp == ',' || *endp == ']'
+	  || is_end_of_line[(unsigned char) *endp])
 	break;
       endp++;
     }
@@ -296,6 +297,59 @@ match_register (char **ptr, char **errmsg, htab_t map)
   return reg;
 }
 
+static uint16_t
+match_16bit_or_label (char **ptr, char **errmsg, expressionS *ex)
+{
+  uint16_t ret;
+  char *endp, *save, *str;
+  char saved_char;
+
+  *errmsg = NULL;
+  save = input_line_pointer;
+  str = *ptr;
+
+  /* Drop leading whitespace.  */
+  while (ISSPACE (*str))
+    str++;
+
+  input_line_pointer = str;
+
+  endp = str;
+  while (1)
+    {
+      if (*endp == '\0' || *endp == ',' || is_end_of_line[(unsigned char) *endp])
+	break;
+      endp++;
+    }
+
+  saved_char = *endp;
+  *endp = '\0';
+  expression (ex);
+  *endp = saved_char;
+  input_line_pointer = save;
+  switch (ex->X_op)
+    {
+    case O_constant:
+      if (ex->X_add_number < INT16_MIN || ex->X_add_number > INT16_MAX)
+	{
+	  strcpy (errbuf, "Constant out of range");
+	  *errmsg = errbuf;
+	  return 0;
+	}
+      ret = ex->X_add_number;
+      break;
+    case O_symbol:
+      ret = 0;
+      break;
+    default:
+      strcpy (errbuf, "Syntax error in branch target");
+      *errmsg = errbuf;
+      return 0;
+    }
+  *ptr = endp;
+  return ret;
+}
+
 /* Attempt a match of the arglist pointed to by str against fmt.  If
    errmsg is set, the match was a failure; otherwise issue issue the
    instruction.  This (eventually) includes handling of variable-
@@ -308,7 +362,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   const char *fp = spec->fmt;
   char *sp = str;
   const my66000_operand_info_t *info;
-  char *p;
+  char *p = NULL;
   int length = 4;
 
   for (; *fp; fp++)
@@ -341,6 +395,23 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_BB1:
 	  frag = match_6bit (&sp, errmsg);
 	  break;
+	case MY66000_OPS_B16:
+	  {
+	    expressionS ex;
+	    frag = match_16bit_or_label (&sp, errmsg, &ex);
+	    if (ex.X_op == O_symbol)
+	      {
+		p = frag_more (length); 
+		fix_new_exp (frag_now,
+			     p - frag_now->fr_literal,  /* where */
+			     2,  /* size.  */
+			     &ex, /* expression.  */
+			     1,  /* pcrel.  */
+			     BFD_RELOC_16_PCREL_S2
+			     );
+	      }
+	  }
+	  break;
 	default:
 	  as_fatal ("operand %c not handled", *fp);
 	}
@@ -351,7 +422,9 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
     }
   iword |= spec->frag;
 
-  p = frag_more (length);
+  if (!p)
+    p = frag_more (length);
+
   memcpy (p, &iword, 4);
   return;
 }
@@ -497,6 +570,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 
 /* The location from which a PC relative jump should be calculated,
    given a PC relative reloc.  */
+
 long
 md_pcrel_from_section (fixS *fixP, segT sec)
 {
@@ -510,11 +584,32 @@ md_pcrel_from_section (fixS *fixP, segT sec)
       return 0;
     }
 
-  return fixP->fx_frag->fr_address + fixP->fx_where;
+  /* Addressing is relative to the start of the instruction.  */
+  return fixP->fx_where;
 }
 
 void
-md_apply_fix (fixS *fixP ATTRIBUTE_UNUSED, valueT * valP ATTRIBUTE_UNUSED, segT seg ATTRIBUTE_UNUSED)
+md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 {
-  /* Empty for now.  */
+  char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
+  uint32_t iword;
+
+  /* Remember value for tc_gen_reloc.  */
+  fixP->fx_addnumber = *valP;
+
+  switch (fixP->fx_r_type)
+    {
+    case BFD_RELOC_16_PCREL_S2:
+      iword = (uint32_t) bfd_getl32 (buf);
+      iword |= *valP >> 2;
+      bfd_putl32 ((bfd_vma) iword, buf);
+      break;
+    default:
+      as_fatal ("Unknown relocation %d", (int) fixP->fx_r_type);
+      break;
+    }
+
+  if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
+    fixP->fx_done = 1;
+
 }
