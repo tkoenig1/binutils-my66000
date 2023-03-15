@@ -297,10 +297,15 @@ match_register (char **ptr, char **errmsg, htab_t map)
   return reg;
 }
 
-static uint16_t
-match_16bit_or_label (char **ptr, char **errmsg, expressionS *ex)
+/* Match a signed number with n bits or a label.  If it's a signed
+   number, return the result truncated to an unsigned number (if
+   needed).  */
+
+static uint64_t
+match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
+		    uint32_t bit)
 {
-  uint16_t ret;
+  uint64_t ret;
   char *endp, *save, *str;
   char saved_char;
 
@@ -330,13 +335,19 @@ match_16bit_or_label (char **ptr, char **errmsg, expressionS *ex)
   switch (ex->X_op)
     {
     case O_constant:
-      if (ex->X_add_number < INT16_MIN || ex->X_add_number > INT16_MAX)
+      if (bit < 64)
 	{
-	  strcpy (errbuf, "Constant out of range");
-	  *errmsg = errbuf;
-	  return 0;
+	  int64_t minval, maxval;
+	  minval = -(1 << bit);
+	  maxval = (1 << bit) - 1;
+	  if (ex->X_add_number < minval || ex->X_add_number > maxval)
+	    {
+	      strcpy (errbuf, "Constant out of range");
+	      *errmsg = errbuf;
+	      return 0;
+	    }
 	}
-      ret = ex->X_add_number;
+      ret = (uint64_t) ex->X_add_number;
       break;
     case O_symbol:
       ret = 0;
@@ -347,7 +358,22 @@ match_16bit_or_label (char **ptr, char **errmsg, expressionS *ex)
       return 0;
     }
   *ptr = endp;
+  if (bit < 64)
+    ret &= (((uint64_t) 1) << bit) - 1;
+
   return ret;
+}
+
+static uint16_t
+match_16bit_or_label (char **ptr, char **errmsg, expressionS *ex)
+{
+  return match_num_or_label (ptr, errmsg, ex, 16);
+}
+
+static uint32_t
+match_26bit_or_label (char **ptr, char **errmsg, expressionS *ex)
+{
+  return match_num_or_label (ptr, errmsg, ex, 26);
 }
 
 /* Attempt a match of the arglist pointed to by str against fmt.  If
@@ -408,6 +434,23 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 			     &ex, /* expression.  */
 			     1,  /* pcrel.  */
 			     BFD_RELOC_16_PCREL_S2
+			     );
+	      }
+	  }
+	  break;
+	case MY66000_OPS_B26:
+	  {
+	    expressionS ex;
+	    frag = match_26bit_or_label (&sp, errmsg, &ex);
+	    if (ex.X_op == O_symbol)
+	      {
+		p = frag_more (length); 
+		fix_new_exp (frag_now,
+			     p - frag_now->fr_literal,  /* where */
+			     4,  /* size.  */
+			     &ex, /* expression.  */
+			     1,  /* pcrel.  */
+			     BFD_RELOC_26_PCREL_S2
 			     );
 	      }
 	  }
@@ -599,6 +642,7 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 
   switch (fixP->fx_r_type)
     {
+    case BFD_RELOC_26_PCREL_S2:
     case BFD_RELOC_16_PCREL_S2:
       iword = (uint32_t) bfd_getl32 (buf);
       iword |= *valP >> 2;

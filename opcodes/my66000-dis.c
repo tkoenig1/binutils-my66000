@@ -96,6 +96,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr)
 	      fpr (stream, "%d", v);
 	      break;
 	    case MY66000_OPS_B16:
+	    case MY66000_OPS_B26:
 	      fpr (stream, "0x%lx", (unsigned long) addr + (val << 2));
 	      break;
 	    default:

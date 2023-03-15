@@ -357,7 +357,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MY66000_MAJOR(28), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MY66000_MAJOR(29), MY66000_BAD,   NULL, 0, 0},
  { "br",   MY66000_MAJOR(30), MY66000_BR,    NULL, 0, 0},
- { "call", MY66000_MAJOR(31), MY66000_CALL,  NULL, 0, 0},
+ { "call", MY66000_MAJOR(31), MY66000_BR,    NULL, 0, 0},
  { "ldub", MY66000_MAJOR(32), MY66000_MEM,   NULL, 0, 0},
  { "lduh", MY66000_MAJOR(33), MY66000_MEM,   NULL, 0, 0},
  { "lduw", MY66000_MAJOR(34), MY66000_MEM,   NULL, 0, 0},
@@ -461,6 +461,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I2,     OPERAND_ENTRY ( 5,  0), "5-bit constant source 2", 'G' },
  {MY66000_OPS_BB1,    OPERAND_ENTRY ( 6, 21), "Bit number",		 'H' },
  {MY66000_OPS_B16,    OPERAND_ENTRY (16,  0), "16-bit branch target",	 'I' },
+ {MY66000_OPS_B26,    OPERAND_ENTRY (26,  0), "26-bit branch target",	 'J' }, 
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -506,6 +507,12 @@ static const my66000_fmt_spec_t bb1_fmt_list [] =
  { NULL,    0, 0},
 };
 
+static const my66000_fmt_spec_t br_fmt_list [] =
+{
+ { "J",    0,  0},
+ { NULL,   0,  0},
+};
+
 /* Warning: Keep this table in the same order as my66000_encoding in
    include/opcode/my66000.h, this will be checked on startup of gas.  */
 
@@ -518,5 +525,6 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { op2_fmt_list,      MY66000_OP2,    0 },
    { bb1_fmt_list,	MY66000_BB1A,	0 },
    { bb1_fmt_list,	MY66000_BB1B,	0 },
+   { br_fmt_list,       MY66000_BR,     0 },
    { NULL,	        MY66000_END,    0 },
   };
