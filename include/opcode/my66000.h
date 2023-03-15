@@ -37,6 +37,7 @@ typedef enum my66000_encoding
  MY66000_BB1A,
  MY66000_BB1B,
  MY66000_BR,
+ MY66000_OP1,
  MY66000_PB1A,
  MY66000_PB1B,
  MY66000_PCND,
@@ -44,7 +45,7 @@ typedef enum my66000_encoding
  MY66000_JT,
  MY66000_SHIFT,
  MY66000_EXIT,
- MY66000_MEMM,
+ MY66000_MM,
  MY66000_CARRY,
  MY66000_VEC, 
 } my66000_encoding;
@@ -86,6 +87,7 @@ typedef enum my66000_operands
  MY66000_OPS_BB1,
  MY66000_OPS_B16, /* 16-bit branch target.  */
  MY66000_OPS_B26, /* 26-bit branch target.  */
+ MY66000_OPS_SCALE, /* Scale for indexed memory.  */
  MY66000_OPS_RINDEX,
  MY66000_OPS_END
 } my66000_operands;
@@ -98,6 +100,7 @@ typedef struct my66000_operand_info_t
   my66000_operands oper;
   uint32_t mask;
   uint32_t shift;
+  uint32_t size;
   const char * desc;
   char letter;
 } my66000_operand_info_t;

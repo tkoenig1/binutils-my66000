@@ -97,6 +97,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr)
 	      break;
 	    case MY66000_OPS_B16:
 	    case MY66000_OPS_B26:
+	      /* An IP-relative offset.  */
 	      fpr (stream, "0x%lx", (unsigned long) addr + (val << 2));
 	      break;
 	    default:
@@ -128,6 +129,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
   length = 4;
   iword = (uint32_t) bfd_getl32 (buffer);
+  fprintf (stderr,"Disassembling %8.8x\n", iword);
   shift = MY66000_MAJOR_SHIFT;
   mask = MY66000_MAJOR_MASK;
   tab = &my66000_opc_info[0];

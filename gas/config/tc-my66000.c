@@ -260,7 +260,7 @@ match_6bit (char **ptr, char **errmsg)
 }
 
 /* Match a register name from map and return its number, or, on
-   error, return -1 and set errmsg to something useful.  */
+   error, return 0 and set errmsg to something useful.  */
 
 static uint32_t
 match_register (char **ptr, char **errmsg, htab_t map)
