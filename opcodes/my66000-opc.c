@@ -526,7 +526,6 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_BB1,    OPERAND_ENTRY ( 6, 21), "Bit number",		 'H' },
  {MY66000_OPS_B16,    OPERAND_ENTRY (16,  0), "16-bit branch target",	 'I' },
  {MY66000_OPS_B26,    OPERAND_ENTRY (26,  0), "26-bit branch target",	 'J' },
- {MY66000_OPS_SCALE,  OPERAND_ENTRY ( 2, 13), "Scale for load/store",    'K' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -580,7 +579,6 @@ static const my66000_fmt_spec_t br_fmt_list [] =
 
 static const my66000_fmt_spec_t op1_fmt_list [65] =
 {
- { },
 };
 
 /* Where to look up the operand list for a certain instruction format.

@@ -87,7 +87,6 @@ typedef enum my66000_operands
  MY66000_OPS_BB1,
  MY66000_OPS_B16, /* 16-bit branch target.  */
  MY66000_OPS_B26, /* 26-bit branch target.  */
- MY66000_OPS_SCALE, /* Scale for indexed memory.  */
  MY66000_OPS_RINDEX,
  MY66000_OPS_END
 } my66000_operands;

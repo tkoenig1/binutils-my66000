@@ -92,9 +92,11 @@ md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
 /* Maximum instruction length, which is enough in any case  */
 #define MAX_OP_STR_LEN 15
 
-/* Duplicate names for instructions occur at most twice.  */
+/* Duplicate names for instructions occur at most N_MAP times.  */
 
-static htab_t s_opc_map_1, s_opc_map_2;
+#define N_MAP 4
+
+static htab_t s_opc_map[N_MAP];
 
 static void
 build_opc_hashes (const my66000_opc_info_t * table)
@@ -102,21 +104,24 @@ build_opc_hashes (const my66000_opc_info_t * table)
   for (int i=0; table[i].enc != MY66000_END; i++)
     {
       void ** slot;
+      int j;
+
       if (table[i].enc == MY66000_BAD)
 	continue;
 
       if (table[i].name != NULL)
 	{
-	  slot = str_hash_insert (s_opc_map_1, table[i].name, (void *) &table[i], 0);
-	  if (slot != NULL)
+	  /* Loop over the N_MAP available hashmaps and look for a place
+	     to store the name.  */
+	  for (j = 0; j < N_MAP; j++)
 	    {
-	      slot = str_hash_insert (s_opc_map_2, table[i].name,
-				      (void *) &table[i], 0);
-	      if (slot != NULL) {
-		as_fatal (_ ("Internal error: more than two equal opcodes: %s"), table[i].name);
-		exit(1);
-	      }
+	      slot = str_hash_insert (s_opc_map[j], table[i].name, (void *) &table[i], 0);
+	      if (slot == NULL)
+		break;
 	    }
+	  if (j == N_MAP)
+	    as_fatal (_ ("Internal error: more than %d equal opcodes: %s"),
+		      N_MAP, table[i].name);
 	}
     }
 
@@ -129,8 +134,9 @@ md_begin (void)
 {
    /* Build hashes for looking up the instructions.  */
   const my66000_opc_info_t **lst = my66000_opc_info_list;
-  s_opc_map_1 = str_htab_create ();
-  s_opc_map_2 = str_htab_create ();
+
+  for (int j=0; j<N_MAP; j++)
+    s_opc_map[j] = str_htab_create ();
 
   for (int k=0; lst[k]; k++)
     build_opc_hashes (lst[k]);
@@ -516,8 +522,8 @@ md_assemble (char *str)
 {
   my66000_opc_info_t *opc;
   char buffer[MAX_OP_STR_LEN + 1];
-  int i;
-  char *err1, *err2;
+  int i, j;
+  char *errmsg;
 
   /* Drop leading whitespace.  */
   while (ISSPACE (*str))
@@ -536,7 +542,7 @@ md_assemble (char *str)
   if (i == 0)
     as_bad ("%s: %s",_("Illegal instruction"), buffer);
 
-  /* We have up to two times the same assembler name, with different
+  /* We have up to N_MAP times the same assembler name, with different
      encodings, like "add r1, r22,#1234" vs.  "add r1,r22,r17".  This
      complicates things a bit because "add r1,r22,#1234" is also valid
      with a 32 bit or even a 64-bit immediate.  The strategy is to
@@ -547,29 +553,23 @@ md_assemble (char *str)
      Note: The ordering of what is put into each map matters in this.
   */
 
-  opc = (my66000_opc_info_t *) str_hash_find (s_opc_map_1, buffer);
-  if (opc == NULL)
+  for (j = 0; j < N_MAP; j++)
     {
-      as_bad ("illegal opcode %s\n", buffer);
-      return;
-    }
-  err1 = NULL;
-  encode_instr (opc, &str[i], &err1);
-  if (err1 != NULL)
-    {
-      opc = (my66000_opc_info_t *) str_hash_find (s_opc_map_2, buffer);
+      opc = (my66000_opc_info_t *) str_hash_find (s_opc_map[j], buffer);
       if (opc == NULL)
 	{
-	  as_bad ("%s", err1);
+	  as_bad ("illegal opcode %s\n", buffer);
 	  return;
 	}
-      err2 = NULL;
-      encode_instr (opc, &str[i], &err2);
-      if (err2 != NULL)
-	{
-	  as_bad ("%s", err2);
-	  return;
-	}
+      errmsg = NULL;
+      encode_instr (opc, &str[i], &errmsg);
+      if (errmsg == NULL)
+	break;
+    }
+  if (errmsg)
+    {
+      as_bad ("%s", errmsg);
+      return;
     }
 }
 
