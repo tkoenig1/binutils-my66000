@@ -102,7 +102,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 		exit(EXIT_FAILURE);
 	      }
 	    size_1 = op_info->size;
-	    
+
 	  }
 	else if (op_info->seq == 2)
 	  {
@@ -156,7 +156,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    opcodes_error_handler ("Internal error: size");
 	    exit (EXIT_FAILURE);
 	  }
- 
+
 	switch (op_info->oper)
 	  {
 	  case MY66000_OPS_DST:

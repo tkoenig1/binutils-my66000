@@ -169,8 +169,8 @@ const my66000_opc_info_t opc_op1[] =
  { NULL,   MAJOR(9) | MINOR (17), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (18), MY66000_BAD, NULL, 0, 0},
  { "ldm",  MAJOR(9) | MINOR (19), MY66000_MM,  NULL, 0, 0},
- { "stm",  MAJOR(9) | MINOR (20), MY66000_MM,  NULL, 0, 0}, 
- { "mm",   MAJOR(9) | MINOR (21), MY66000_MM,  NULL, 0, 0}, 
+ { "stm",  MAJOR(9) | MINOR (20), MY66000_MM,  NULL, 0, 0},
+ { "mm",   MAJOR(9) | MINOR (21), MY66000_MM,  NULL, 0, 0},
  { "ms",   MAJOR(9) | MINOR (22), MY66000_MM,  NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (23), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (24), MY66000_BAD, NULL, 0, 0},
@@ -223,7 +223,7 @@ const my66000_opc_info_t opc_arith [] =
  {"adds", MAJOR(10) | MINOR(33) | SIGNED(1), MY66000_ARITH, NULL, 0, 0},
  { NULL,   0,        MY66000_END, NULL, 0, 0}
 };
-  
+
 const my66000_opc_info_t opc_op2[] =
 {
  { NULL,    MINOR ( 0), MY66000_BAD,  NULL, 0, 0},
@@ -469,7 +469,7 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  my66000_opc_info, opc_om6, opc_om7, opc_arith, opc_op1, opc_op2, opc_op4,
  opc_op5, opc_bcnd, opc_jt, opc_bb1a, opc_bb1b, opc_mrr, NULL
 };
-  
+
 const char *my66000_rname[32] =
   {
     "r0",  "r1",  "r2",	 "r3",	"r4",  "r5",  "r6",  "r7",
@@ -566,7 +566,7 @@ static const my66000_fmt_spec_t opimm_fmt_list[] =
 {
  { "A,B,#E", 0, 0 },
  { NULL,     0, 0 },
- 
+
 };
 
 static const my66000_fmt_spec_t mem_fmt_list[] =
@@ -603,7 +603,7 @@ static const my66000_fmt_spec_t arith_fmt_list [] =
  { "A,#O,C",   XOP2_BITS (1,1,0,1), XOP2_MASK },
  { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK },
  { "A,#O,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK },
- { NULL,      0, 0 }, 
+ { NULL,      0, 0 },
 };
 
 static const my66000_fmt_spec_t bb1_fmt_list [] =

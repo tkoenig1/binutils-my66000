@@ -478,7 +478,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	      break;
 	    if (ex.X_op == O_symbol)
 	      {
-		p = frag_more (length); 
+		p = frag_more (length);
 		fix_new_exp (frag_now,
 			     p - frag_now->fr_literal,  /* where */
 			     2,  /* size.  */
@@ -497,7 +497,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	      break;
 	    if (ex.X_op == O_symbol)
 	      {
-		p = frag_more (length); 
+		p = frag_more (length);
 		fix_new_exp (frag_now,
 			     p - frag_now->fr_literal,  /* where */
 			     4,  /* size.  */
@@ -544,7 +544,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  imm_st_size = 4;
 	  frag = 0;
 	  break;
- 
+
 	case MY66000_OPS_I64_ST:
 	  val_imm_st = match_32_bit_or_label (&sp, errmsg, &imm_st);
 	  if (*errmsg)
@@ -552,7 +552,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  imm_st_size = 8;
 	  frag = 0;
 	  break;
- 
+
 	default:
 	  as_fatal ("operand %c not handled", *fp);
 	}
