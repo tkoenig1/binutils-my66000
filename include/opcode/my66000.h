@@ -23,7 +23,6 @@
 #define MY66000_H
 
 #define MY66000_MAJOR_SHIFT 26
-#define MY66000_MAJOR(c) ((c) << MY66000_MAJOR_SHIFT)
 #define MY66000_MAJOR_MASK (63 << MY66000_MAJOR_SHIFT)
 
 typedef enum my66000_encoding
@@ -31,13 +30,13 @@ typedef enum my66000_encoding
  MY66000_END = -1,
  MY66000_BAD = 0,  /* Empty.  */
  MY66000_ILL,      /* Reserved as non-opcodes.  */
- MY66000_OPIMM,
- MY66000_MEM,
- MY66000_OP2,
- MY66000_BB1A,
- MY66000_BB1B,
- MY66000_BR,
- MY66000_OP1,
+ MY66000_OPIMM,    /* Arithmetic with a 16-bit immediate.  */
+ MY66000_MEM,      /* Load/store with a 16-bit offset.  */
+ MY66000_ARITH,    /* Arithmetic operations.  */
+ MY66000_BB1A,     /* First half of the Branch on Bit operations.  */
+ MY66000_BB1B,     /* Second half of the abore.  */
+ MY66000_BR,       /* Branch, call etc.  */
+ MY66000_MRR,	   /* Indexed memory operation, [Ra,Rb]  */
  MY66000_PB1A,
  MY66000_PB1B,
  MY66000_PCND,
@@ -45,7 +44,7 @@ typedef enum my66000_encoding
  MY66000_JT,
  MY66000_SHIFT,
  MY66000_EXIT,
- MY66000_MM,
+ MY66000_MM,     /* Load/store multiple.  */
  MY66000_CARRY,
  MY66000_VEC, 
 } my66000_encoding;
@@ -72,9 +71,16 @@ extern const my66000_opc_info_t my66000_opc_info[];
 extern const char *my66000_rname[32];
 extern const char *my66000_rbase[32];
 extern const char *my66000_rind[32];
-extern const char *my66000_rnum[32];
 extern const char my66000_numtab[32];
 
+typedef struct
+{
+  char *name;
+  int num;
+} my66000_reg_alias_t;
+
+extern my66000_reg_alias_t my66000_reg_alias[];
+  
 /* Names of all the different operands the architecture has.  */
 typedef enum my66000_operands
 {
@@ -88,6 +94,19 @@ typedef enum my66000_operands
  MY66000_OPS_B16, /* 16-bit branch target.  */
  MY66000_OPS_B26, /* 26-bit branch target.  */
  MY66000_OPS_RINDEX,
+ MY66000_OPS_RBASE,
+ MY66000_OPS_I32_1,
+ MY66000_OPS_I32_PCREL,
+ MY66000_OPS_I32_2,
+ MY66000_OPS_I32_3,
+ MY66000_OPS_I64_1,
+ MY66000_OPS_I64_PCREL,
+ MY66000_OPS_I64_2,
+ MY66000_OPS_I64_3,
+ MY66000_OPS_S32,
+ MY66000_OPS_S64,
+ MY66000_OPS_I32_ST,
+ MY66000_OPS_I64_ST,
  MY66000_OPS_END
 } my66000_operands;
 
@@ -100,6 +119,7 @@ typedef struct my66000_operand_info_t
   uint32_t mask;
   uint32_t shift;
   uint32_t size;
+  uint32_t seq;
   const char * desc;
   char letter;
 } my66000_operand_info_t;

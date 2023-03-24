@@ -127,7 +127,7 @@ build_opc_hashes (const my66000_opc_info_t * table)
 
 }
 
-static htab_t rname_map;
+static htab_t rname_map, rbase_map, rind_map;
 
 void
 md_begin (void)
@@ -143,13 +143,22 @@ md_begin (void)
 
   /* Build hash for the register names.  */
   rname_map = str_htab_create ();
+  rbase_map = str_htab_create ();
+  rind_map  = str_htab_create ();
   for (int i=0; i<32; i++)
     {
       str_hash_insert (rname_map, my66000_rname[i],
 		       (void *) &my66000_numtab[i], 0);
-
-      str_hash_insert (rname_map, my66000_rnum[i],
+      str_hash_insert (rbase_map, my66000_rbase[i],
 		       (void *) &my66000_numtab[i], 0);
+      str_hash_insert (rind_map, my66000_rind[i],
+		       (void *) &my66000_numtab[i], 0);
+    }
+
+  for (my66000_reg_alias_t * p = my66000_reg_alias; p->name; p++)
+    {
+      str_hash_insert (rname_map, p->name, (void *) &p->num, 0);
+      str_hash_insert (rbase_map, p->name, (void *) &p->num, 0);
     }
 
   /* Internal test for consistency.  We use the enum to index into
@@ -191,6 +200,8 @@ match_character (char c, char **ptr, char **errmsg)
     *ptr = s + 1;
 }
 
+/* Match an integer.  This is done via gas expressions, so
+   that symbols etc can appear in this.  */
 
 static uint64_t
 match_integer (char **ptr, char **errmsg, offsetT minval, offsetT maxval)
@@ -344,8 +355,8 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
       if (bit < 64)
 	{
 	  int64_t minval, maxval;
-	  minval = -(1 << bit);
-	  maxval = (1 << bit) - 1;
+	  minval = -((int64_t) 1 << bit);
+	  maxval = ((int64_t) 1 << bit) - 1;
 	  if (ex->X_add_number < minval || ex->X_add_number > maxval)
 	    {
 	      strcpy (errbuf, "Constant out of range");
@@ -382,10 +393,24 @@ match_26bit_or_label (char **ptr, char **errmsg, expressionS *ex)
   return match_num_or_label (ptr, errmsg, ex, 26);
 }
 
+static uint32_t
+match_32_bit_or_label (char **ptr, char **errmsg, expressionS *ex)
+{
+  return match_num_or_label (ptr, errmsg, ex, 32);
+}
+
+static uint64_t
+match_64_bit_or_label (char **ptr, char **errmsg, expressionS *ex)
+{
+  return match_num_or_label (ptr, errmsg, ex, 64);
+}
+
 /* Attempt a match of the arglist pointed to by str against fmt.  If
    errmsg is set, the match was a failure; otherwise issue issue the
-   instruction.  This (eventually) includes handling of variable-
-   length instructions.  */
+   instruction.
+
+   One issue is the handling of fixups, because we the algorithm here
+   is match-and-reject.  */
 
 static void
 match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
@@ -396,6 +421,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   const my66000_operand_info_t *info;
   char *p = NULL;
   int length = 4;
+  expressionS imm, imm_st;
+  int imm_size = 0, imm_st_size = 0;
+  uint64_t val_imm = 0, val_imm_st = 0;
+  _Bool imm_pcrel = false;
 
   for (; *fp; fp++)
     {
@@ -417,6 +446,12 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_SRC2:
 	  frag = match_register (&sp, errmsg, rname_map);
 	  break;
+	case MY66000_OPS_RINDEX:
+	  frag = match_register (&sp, errmsg, rind_map);
+	  break;
+	case MY66000_OPS_RBASE:
+	  frag = match_register (&sp, errmsg, rbase_map);
+	  break;
 	case MY66000_OPS_IMM16:
 	  frag = match_16bit (&sp, errmsg);
 	  break;
@@ -427,10 +462,20 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_BB1:
 	  frag = match_6bit (&sp, errmsg);
 	  break;
+
+	  /* Dept. of dirty tricks: We use the fact that branches
+	     within the instruction word are always the last
+	     argument.  If we made it this far, we can already
+	     allocate the memory for the instruction.  If that
+	     turns out to be wrong, we'll find out via the internal
+	     error below.  */
+
 	case MY66000_OPS_B16:
 	  {
 	    expressionS ex;
 	    frag = match_16bit_or_label (&sp, errmsg, &ex);
+	    if (*errmsg)
+	      break;
 	    if (ex.X_op == O_symbol)
 	      {
 		p = frag_more (length); 
@@ -448,6 +493,8 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  {
 	    expressionS ex;
 	    frag = match_26bit_or_label (&sp, errmsg, &ex);
+	    if (*errmsg)
+	      break;
 	    if (ex.X_op == O_symbol)
 	      {
 		p = frag_more (length); 
@@ -461,11 +508,61 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	      }
 	  }
 	  break;
+
+	case MY66000_OPS_I32_PCREL:
+	  imm_pcrel = true;
+	  /* Fallthrough.  */
+
+	case MY66000_OPS_I32_1:
+	case MY66000_OPS_I32_2:
+	case MY66000_OPS_I32_3:
+	  val_imm = match_32_bit_or_label (&sp, errmsg, &imm);
+	  if (*errmsg)
+	    break;
+	  imm_size = 4;
+	  frag = 0;
+	  break;
+
+	case MY66000_OPS_I64_PCREL:
+	  imm_pcrel = true;
+	  /* Fallthrough.  */
+
+	case MY66000_OPS_I64_1:
+	case MY66000_OPS_I64_2:
+	case MY66000_OPS_I64_3:
+	  val_imm = match_64_bit_or_label (&sp, errmsg, &imm);
+	  if (*errmsg)
+	    break;
+	  imm_size = 8;
+	  frag = 0;
+	  break;
+
+	case MY66000_OPS_I32_ST:
+	  val_imm_st = match_32_bit_or_label (&sp, errmsg, &imm_st);
+	  if (*errmsg)
+	    break;
+	  imm_st_size = 4;
+	  frag = 0;
+	  break;
+ 
+	case MY66000_OPS_I64_ST:
+	  val_imm_st = match_32_bit_or_label (&sp, errmsg, &imm_st);
+	  if (*errmsg)
+	    break;
+	  imm_st_size = 8;
+	  frag = 0;
+	  break;
+ 
 	default:
 	  as_fatal ("operand %c not handled", *fp);
 	}
       if (*errmsg)
-	return;
+	{
+	  if (p)
+	    as_fatal ("Internal error: failure after memory already allocated");
+
+	  return;
+	}
 
       iword |= frag << info->shift;
     }
@@ -474,7 +571,62 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   if (!p)
     p = frag_more (length);
 
-  memcpy (p, &iword, 4);
+  md_number_to_chars (p, iword, 4);
+
+  /* Handle the immediates.  */
+  if (imm_size > 0)
+    {
+      p = frag_more (imm_size);
+
+      if (imm.X_op == O_symbol)
+	{
+	  int reloc_type;
+	  if (imm_size == 4)
+	    reloc_type = imm_pcrel ? BFD_RELOC_32_PCREL : BFD_RELOC_32;
+	  else
+	    reloc_type = imm_pcrel ? BFD_RELOC_64_PCREL : BFD_RELOC_64;
+
+	  fix_new_exp (frag_now,
+		       p - frag_now->fr_literal,
+		       imm_size,
+		       &imm,
+		       imm_pcrel,
+		       reloc_type
+		       );
+	}
+      else if (imm.X_op == O_constant)
+	{
+	  md_number_to_chars (p, val_imm, imm_size);
+	}
+      else
+	as_fatal ("Weird expression value");
+    }
+  if (imm_st_size > 0)
+    {
+      p = frag_more (imm_st_size);
+      if (imm_st.X_op == O_symbol)
+	{
+	  int reloc_type;
+	  if (imm_st_size == 4)
+	    reloc_type = imm_pcrel ? BFD_RELOC_32_PCREL : BFD_RELOC_32;
+	  else
+	    reloc_type = imm_pcrel ? BFD_RELOC_64_PCREL : BFD_RELOC_64;
+
+	  fix_new_exp (frag_now,
+		       p - frag_now->fr_literal,
+		       imm_st_size,
+		       &imm_st,
+		       imm_pcrel,
+		       reloc_type
+		       );
+	}
+      else if (imm_st.X_op == O_constant)
+	{
+	  md_number_to_chars (p, val_imm_st, imm_st_size);
+	}
+      else
+	as_fatal ("Weird expression value");
+    }
   return;
 }
 
@@ -558,7 +710,10 @@ md_assemble (char *str)
       opc = (my66000_opc_info_t *) str_hash_find (s_opc_map[j], buffer);
       if (opc == NULL)
 	{
-	  as_bad ("illegal opcode %s\n", buffer);
+	  if (errmsg != NULL)
+	    as_bad ("Error for %s: %s", buffer, errmsg);
+	  else
+	    as_bad ("illegal opcode %s\n", buffer);
 	  return;
 	}
       errmsg = NULL;
@@ -581,7 +736,7 @@ md_number_to_chars (char *ptr, valueT use, int nbytes)
 }
 
 /* Translate internal representation of relocation info to BFD target
-   format.  */
+   format.  FIXME: This probably does not work yet.  */
 
 arelent *
 tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)

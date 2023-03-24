@@ -35,20 +35,26 @@
 static fprintf_ftype fpr;
 static void *stream;
 
-static void
-print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr)
+static int
+print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
+		disassemble_info *info)
 {
   my66000_encoding enc = opc->enc;
+  int status;
   const my66000_opcode_fmt_t *opcode_fmt;
   const my66000_operand_info_t *op_info;
   const my66000_fmt_spec_t *spec;
   const char *f;
   uint32_t res;
+  uint32_t size_1, size_2;
+  bfd_byte buf1[8], buf2[8];
+  uint32_t val_32;
+  uint64_t val_64;
 
   opcode_fmt = &my66000_opcode_fmt[enc];
   spec = opcode_fmt->spec;
   if (spec == NULL)
-    return;
+    return 0;
 
   /* Loop over the table of formats until a match is found.  FIXME:
      This could be made more elegant, and probably faster.  */
@@ -62,58 +68,139 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr)
       spec ++;
     }
   if (res != 0)
-      return;
+    return 0;
 
+  if (spec->fmt == NULL)
+    {
+      opcodes_error_handler ("Internal error: empty format string for %s", opc->name);
+      exit (EXIT_FAILURE);
+    }
+
+  /* Look at immediates for the instructions, if any.  */
+
+  size_1 = size_2 = 0;
+  for (f = spec->fmt; *f; f++)
+    {
+      if (ISUPPER (*f)) {
+	op_info = &my66000_operand_table[*f - 'A'];
+	if (op_info->seq == 1)
+	  {
+	    if (size_1 != 0)
+	      {
+		opcodes_error_handler ("Internal error: Duplicate seq 1 for %c",
+				       *f);
+		exit(EXIT_FAILURE);
+	      }
+	    size_1 = op_info->size;
+	    
+	  }
+	else if (op_info->seq == 2)
+	  {
+	    if (size_2 != 0)
+	      {
+		opcodes_error_handler ("Inernal error: Duplicate seq 2 for %c",
+				       *f);
+		exit(EXIT_FAILURE);
+	      }
+	    size_2 = op_info->size;
+	  }
+      }
+    }
+
+  if (size_1 > 0)
+    {
+      status = info->read_memory_func (addr + 4, buf1, size_1, info);
+      if (status != 0)
+	goto fail;
+    }
+  if (size_2 > 0)
+    {
+      status = info->read_memory_func (addr + 4 + size_1, buf2,
+				       size_2, info);
+      if (status != 0)
+	goto fail;
+    }
   for (f = spec->fmt; *f; f++)
     {
       if (ISUPPER(*f))
-	{
-	  uint32_t val;
-	  int16_t v;;
+      {
+	uint32_t val;
+	int16_t v;;
 
-	  op_info = &my66000_operand_table[*f - 'A'];
-	  val = (iword & op_info->mask) >> op_info->shift;
-	  switch (op_info->oper)
-	    {
-	    case MY66000_OPS_DST:
-	    case MY66000_OPS_SRC1:
-	    case MY66000_OPS_SRC2:
-	      /* A register in normal notation.  */
-	      fpr (stream, "%s", my66000_rname[val]);
-	      break;
+	op_info = &my66000_operand_table[*f - 'A'];
+	val = (iword & op_info->mask) >> op_info->shift;
 
-	    case MY66000_OPS_RINDEX:
-	      /* An index register.  */
-	      fpr (stream, "%s", my66000_rind[val]);
-	      break;
+	switch (op_info->size)
+	  {
+	  case 0:
+	    break;
+	  case 4:
+	    val_32 = bfd_getl32 (buf1);
+	    fpr (stream, "%u", val_32);
+	    continue;
+	  case 8:
+	    val_64 = bfd_getl64 (buf1);
+	    fpr (stream, "%lu", val_64);
+	    continue;
+	  default:
+	    opcodes_error_handler ("Internal error: size");
+	    exit (EXIT_FAILURE);
+	  }
+ 
+	switch (op_info->oper)
+	  {
+	  case MY66000_OPS_DST:
+	  case MY66000_OPS_SRC1:
+	  case MY66000_OPS_SRC2:
+	    /* A register in normal notation.  */
+	    fpr (stream, "%s", my66000_rname[val]);
+	    break;
 
-	    case MY66000_OPS_IMM16:
-	    case MY66000_OPS_I1:
-	    case MY66000_OPS_I2:
-	    case MY66000_OPS_BB1:
-	      /* An integer constant.  */
-	      v = val;
-	      fpr (stream, "%d", v);
-	      break;
-	    case MY66000_OPS_B16:
-	    case MY66000_OPS_B26:
-	      /* An IP-relative offset.  */
-	      fpr (stream, "0x%lx", (unsigned long) addr + (val << 2));
-	      break;
-	    default:
-	      fprintf (stderr,"Increased unhappiness\n");
-	    }
-	}
-      else
-	fpr (stream, "%c", *f);
-    }
+	  case MY66000_OPS_RINDEX:
+	    /* An index register.  */
+	    fpr (stream, "%s", my66000_rind[val]);
+	    break;
+
+	  case MY66000_OPS_RBASE:
+	    /* Base register.  */
+	    fpr (stream, "%s", my66000_rbase[val]);
+	    break;
+
+	  case MY66000_OPS_IMM16:
+	  case MY66000_OPS_I1:
+	  case MY66000_OPS_I2:
+	  case MY66000_OPS_BB1:
+	    /* An integer constant.  */
+	    v = val;
+	    fpr (stream, "%d", v);
+	    break;
+	  case MY66000_OPS_B16:
+	  case MY66000_OPS_B26:
+	    /* An IP-relative offset.  */
+	    fpr (stream, "0x%lx", (unsigned long) addr + (val << 2));
+	    break;
+
+	  default:
+	    opcodes_error_handler ("Internal error: Unhandled format '%c' for %s",
+				   *f, opc->name);
+	    exit (EXIT_FAILURE);
+	  }
+      }
+    else
+      fpr (stream, "%c", *f);
+
+  }
+  return size_1 + size_2;
+ fail:
+ info->memory_error_func (status, addr, info);
+ return -1;
 }
 
 int
 print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 {
   int status;
-  int length;
+  int length, o_length;
   bfd_byte buffer[4];
   uint32_t iword, opcode;
   my66000_opc_info_t const *p, *tab, *found;
@@ -129,11 +216,11 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
   length = 4;
   iword = (uint32_t) bfd_getl32 (buffer);
-  fprintf (stderr,"Disassembling %8.8x\n", iword);
   shift = MY66000_MAJOR_SHIFT;
   mask = MY66000_MAJOR_MASK;
   tab = &my66000_opc_info[0];
   found = NULL;
+  o_length = 0;
   do
     {
       opcode = (iword & mask) >> shift;
@@ -152,12 +239,14 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   if (found)
     {
       fpr (stream, "%s\t", found->name);
-      print_operands (iword, found, addr);
+      o_length = print_operands (iword, found, addr, info);
+      if (o_length < 0)
+	goto fail;
     }
   else
     opcodes_error_handler ("Error: unknown opcode %8.8x", iword);
 
-  return length;
+  return o_length + length;
 
  fail:
   info->memory_error_func (status, addr, info);
