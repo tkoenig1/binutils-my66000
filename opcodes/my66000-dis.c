@@ -183,13 +183,13 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    v = val;
 	    fpr (stream, "%d", v);
 	    break;
+	    /* An IP-relative offset.  */
 	  case MY66000_OPS_BB1:
 	  case MY66000_OPS_B16:
-	    fpr (stream, "0x%lx", (unsigned long) addr + (sign_extend(val,16) << 2));
+	    (*info->print_address_func) ((bfd_vma) (addr + (sign_extend(val,16) << 2)), info);
 	    break;
 	  case MY66000_OPS_B26:
-	    /* An IP-relative offset.  */
-	    fpr (stream, "0x%lx", (unsigned long) addr + (sign_extend(val,26) << 2));
+	    (*info->print_address_func) ((bfd_vma) (addr + (sign_extend(val,26) << 2)), info);
 	    break;
 
 	  default:
