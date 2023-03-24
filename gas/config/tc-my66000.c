@@ -627,7 +627,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
       else
 	as_fatal ("Weird expression value");
     }
-  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
+  //  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
   return;
 }
 
