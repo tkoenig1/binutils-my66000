@@ -1,9 +1,0 @@
-2023-02-24  Thomas Koenig  <tkoenig@gcc.gnu.org>
-
-	* my66000.h: Change my66000_opc_info_t.  Add stubs for
-	my66000_opc_om6, my66000_opc_om7, my66000_opc_op1 and
-	my66000_op1_op2.
-
-2023-02-18  Thomas Koenig  <tkoenig@gcc.gnu.org>
-
-	* my66000.h: New file.
