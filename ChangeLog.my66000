@@ -1,19 +1,4 @@
-2023-02-24  Thomas Koenig  <tkoenig@gcc.gnu.org>
-
-	* configure.ac: Build gas.
-	* configure: Regenerated.
-
-2023-02-18  Thomas Koenig  <tkoenig@gcc.gnu.org>
-
-	* configure.ac: Also build opcodes, to not attempt
-	to build gdb.
-	* configure: Regenerated.
-
 2023-02-15  Thomas Koenig  <tkoenig@gcc.gnu.org>
 
 	Initial commit, Skeleton support for BFD.
-	* config.sub: Add my66000.
-	* configure.ac: Add my66000.
-	* configure: Regenerated.
-
 
