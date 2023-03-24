@@ -581,24 +581,28 @@ static const my66000_fmt_spec_t mem_fmt_list[] =
 /* Formats and encoding for the arithmetic and logical instructions
    of the XOP2 group. */
 
+#define XOP2_BITS(I,d,S1,S2) (XOP2_I(I) | XOP2_d(d) | XOP2_S1(S1) | XOP2_S2(S2))
+
+/* This is table 13-2, 2-Operand Specification.  */
+
 static const my66000_fmt_spec_t arith_fmt_list [] =
 {
- { "A,B,C",    XOP2_I(0) | XOP2_d(0) | XOP2_S1(0) | XOP2_S2(0), XOP2_MASK },
- { "A,B,-C",   XOP2_I(0) | XOP2_d(0) | XOP2_S1(0) | XOP2_S2(1), XOP2_MASK },
- { "A,-B,C",   XOP2_I(0) | XOP2_d(0) | XOP2_S1(1) | XOP2_S2(0), XOP2_MASK },
- { "A,-B,-C",  XOP2_I(0) | XOP2_d(0) | XOP2_S1(1) | XOP2_S2(1), XOP2_MASK },
- { "A,B,#F",   XOP2_I(0) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(0), XOP2_MASK },
- { "A,#G,C",   XOP2_I(0) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(1), XOP2_MASK },
- { "A,B,#-F",  XOP2_I(0) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(0), XOP2_MASK },
- { "A,#-G,C",  XOP2_I(0) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(1), XOP2_MASK },
- { "A,B,#M",   XOP2_I(1) | XOP2_d(0) | XOP2_S1(0) | XOP2_S2(0), XOP2_MASK },
- { "A,#L,C",   XOP2_I(1) | XOP2_d(0) | XOP2_S1(0) | XOP2_S2(1), XOP2_MASK },
- { "A,-B,#M",  XOP2_I(1) | XOP2_d(0) | XOP2_S1(1) | XOP2_S2(0), XOP2_MASK },
- { "A,#L,-C",  XOP2_I(1) | XOP2_d(0) | XOP2_S1(1) | XOP2_S2(1), XOP2_MASK },
- { "A,B,#P",   XOP2_I(1) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(0), XOP2_MASK },
- { "A,#O,C",   XOP2_I(1) | XOP2_d(1) | XOP2_S1(0) | XOP2_S2(1), XOP2_MASK },
- { "A,-B,#P",  XOP2_I(1) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(0), XOP2_MASK },
- { "A,#O,-C",  XOP2_I(1) | XOP2_d(1) | XOP2_S1(1) | XOP2_S2(1), XOP2_MASK },
+ { "A,B,C",    XOP2_BITS (0,0,0,0), XOP2_MASK },
+ { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK },
+ { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK },
+ { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK },
+ { "A,B,#F",   XOP2_BITS (0,1,0,0), XOP2_MASK },
+ { "A,#G,C",   XOP2_BITS (0,1,0,1), XOP2_MASK },
+ { "A,B,#-F",  XOP2_BITS (0,1,1,0), XOP2_MASK },
+ { "A,#-G,C",  XOP2_BITS (0,1,1,1), XOP2_MASK },
+ { "A,B,#M",   XOP2_BITS (1,0,0,0), XOP2_MASK },
+ { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK },
+ { "A,-B,#M",  XOP2_BITS (1,0,1,0), XOP2_MASK },
+ { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK },
+ { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK },
+ { "A,#O,C",   XOP2_BITS (1,1,0,1), XOP2_MASK },
+ { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK },
+ { "A,#O,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK },
  { NULL,      0, 0 }, 
 };
 

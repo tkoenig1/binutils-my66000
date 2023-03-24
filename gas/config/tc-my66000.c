@@ -355,8 +355,8 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
       if (bit < 64)
 	{
 	  int64_t minval, maxval;
-	  minval = -((int64_t) 1 << bit);
-	  maxval = ((int64_t) 1 << bit) - 1;
+	  minval = -((int64_t) 1 << (bit - 1));
+	  maxval =  ((int64_t) 1 << (bit - 1)) - 1;
 	  if (ex->X_add_number < minval || ex->X_add_number > maxval)
 	    {
 	      strcpy (errbuf, "Constant out of range");
@@ -627,6 +627,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
       else
 	as_fatal ("Weird expression value");
     }
+  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
   return;
 }
 
@@ -795,12 +796,17 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
   /* Remember value for tc_gen_reloc.  */
   fixP->fx_addnumber = *valP;
 
+  /* FIXME: Look up the masks etc from the tables, eventually.  */
   switch (fixP->fx_r_type)
     {
     case BFD_RELOC_26_PCREL_S2:
+      iword = (uint32_t) bfd_getl32 (buf);
+      iword |= (*valP >> 2) & 0x3ffffff;
+      bfd_putl32 ((bfd_vma) iword, buf);
+      break;
     case BFD_RELOC_16_PCREL_S2:
       iword = (uint32_t) bfd_getl32 (buf);
-      iword |= *valP >> 2;
+      iword |= (*valP >> 2) & 0xffff;
       bfd_putl32 ((bfd_vma) iword, buf);
       break;
     default:

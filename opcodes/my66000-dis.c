@@ -35,6 +35,16 @@
 static fprintf_ftype fpr;
 static void *stream;
 
+/* Sign-extend an n-bit value, for offsets.  */
+static int64_t
+sign_extend (uint64_t a, int32_t bit)
+{
+  if (a & ((uint64_t) 1 << (bit - 1)))
+    return (((uint64_t) -1) << (bit - 1) ) | a;
+  else
+    return a;
+}
+
 static int
 print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 		disassemble_info *info)
@@ -169,15 +179,17 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	  case MY66000_OPS_IMM16:
 	  case MY66000_OPS_I1:
 	  case MY66000_OPS_I2:
-	  case MY66000_OPS_BB1:
 	    /* An integer constant.  */
 	    v = val;
 	    fpr (stream, "%d", v);
 	    break;
+	  case MY66000_OPS_BB1:
 	  case MY66000_OPS_B16:
+	    fpr (stream, "0x%lx", (unsigned long) addr + (sign_extend(val,16) << 2));
+	    break;
 	  case MY66000_OPS_B26:
 	    /* An IP-relative offset.  */
-	    fpr (stream, "0x%lx", (unsigned long) addr + (val << 2));
+	    fpr (stream, "0x%lx", (unsigned long) addr + (sign_extend(val,26) << 2));
 	    break;
 
 	  default:
