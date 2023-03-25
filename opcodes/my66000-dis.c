@@ -82,7 +82,8 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 
   if (spec->fmt == NULL)
     {
-      opcodes_error_handler ("Internal error: empty format string for %s", opc->name);
+      opcodes_error_handler ("Internal error: empty format string for %s",
+			     opc->name);
       exit (EXIT_FAILURE);
     }
 

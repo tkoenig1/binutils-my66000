@@ -571,7 +571,7 @@ static const my66000_fmt_spec_t opimm_fmt_list[] =
 
 static const my66000_fmt_spec_t mem_fmt_list[] =
 {
- { "A,[B]",   0, 0 },
+ { "A,[B]",   0, 0xffff },
  { "A,[B,E]", 0, 0 },
  { NULL,      0, 0 },
 };
