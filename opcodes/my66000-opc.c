@@ -623,7 +623,7 @@ static const my66000_fmt_spec_t br_fmt_list [] =
 
 static const my66000_fmt_spec_t mrr_fmt_list [] =
 {
- { "A,[K,D]",    XOP1_SCALE(0), XOP1_SCALE_MASK},
+ // { "A,[K,D]",    XOP1_SCALE(0), XOP1_SCALE_MASK},
  { "A,[K,D<<0]", XOP1_SCALE(0), XOP1_SCALE_MASK},
  { "A,[K,D<<1]", XOP1_SCALE(1), XOP1_SCALE_MASK},
  { "A,[K,D<<2]", XOP1_SCALE(2), XOP1_SCALE_MASK},
