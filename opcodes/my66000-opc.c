@@ -591,18 +591,21 @@ static const my66000_fmt_spec_t arith_fmt_list [] =
  { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK },
  { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK },
  { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK },
+
  { "A,B,#F",   XOP2_BITS (0,1,0,0), XOP2_MASK },
  { "A,#G,C",   XOP2_BITS (0,1,0,1), XOP2_MASK },
  { "A,B,#-F",  XOP2_BITS (0,1,1,0), XOP2_MASK },
  { "A,#-G,C",  XOP2_BITS (0,1,1,1), XOP2_MASK },
- { "A,B,#M",   XOP2_BITS (1,0,0,0), XOP2_MASK },
+ 
+ { "A,B,#N",   XOP2_BITS (1,0,0,0), XOP2_MASK },
  { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK },
- { "A,-B,#M",  XOP2_BITS (1,0,1,0), XOP2_MASK },
+ { "A,-B,#N",  XOP2_BITS (1,0,1,0), XOP2_MASK },
  { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK },
- { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK },
- { "A,#O,C",   XOP2_BITS (1,1,0,1), XOP2_MASK },
- { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK },
- { "A,#O,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK },
+ 
+ { "A,B,#R",   XOP2_BITS (1,1,0,0), XOP2_MASK },
+ { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK },
+ { "A,-B,#R",  XOP2_BITS (1,1,1,0), XOP2_MASK },
+ { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK },
  { NULL,      0, 0 },
 };
 
@@ -620,11 +623,11 @@ static const my66000_fmt_spec_t br_fmt_list [] =
 
 static const my66000_fmt_spec_t mrr_fmt_list [] =
 {
- { "A,[K]",    XOP1_SCALE(0), XOP1_SCALE_MASK},
- { "A,[K<<0]", XOP1_SCALE(0), XOP1_SCALE_MASK},
- { "A,[K<<1]", XOP1_SCALE(1), XOP1_SCALE_MASK},
- { "A,[K<<2]", XOP1_SCALE(2), XOP1_SCALE_MASK},
- { "A,[K<<3]", XOP1_SCALE(3), XOP1_SCALE_MASK},
+ { "A,[K,D]",    XOP1_SCALE(0), XOP1_SCALE_MASK},
+ { "A,[K,D<<0]", XOP1_SCALE(0), XOP1_SCALE_MASK},
+ { "A,[K,D<<1]", XOP1_SCALE(1), XOP1_SCALE_MASK},
+ { "A,[K,D<<2]", XOP1_SCALE(2), XOP1_SCALE_MASK},
+ { "A,[K,D<<3]", XOP1_SCALE(3), XOP1_SCALE_MASK},
  { NULL, 0, 0 },
 };
 
