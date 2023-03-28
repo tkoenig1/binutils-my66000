@@ -117,7 +117,17 @@ const my66000_opc_info_t opc_om7[] =
 #define XOP1_d(c) ((c) << XOP1_d_SHFT)
 #define XOP1_d_MASK XOP1_d(1)
 
-#define MRR_MASK (XOP1_D_MASK | XOP1_SCALE_MASK | XOP1_L_MASK | XOP1_d_MASK)
+#define MRR_MASK (XOP1_D_MASK | XOP1_SCALE_MASK | XOP1_d_MASK)
+
+/* Mask for rindex=0 */
+
+#define RIND_ZERO_MASK 31
+
+/* Mask for instruction pointer as SRC1.  */
+
+#define IP_MASK (31 << 16)
+
+#define XOP1_BITS(D,scale,d) (XOP1_D(D) | XOP1_SCALE(scale) | XOP1_d(d))
 
 /* Definition for the various modifier bits in the XOP2 group.  */
 
@@ -139,6 +149,11 @@ const my66000_opc_info_t opc_om7[] =
 #define XOP2_d_SHFT 11
 #define XOP2_d(c) ((c) << XOP2_d_SHFT)
 #define XOP2_d_MASK XOP2_d(1)
+
+/* Write the above more compactly.  */
+
+#define XOP2_BITS(I,d,S1,S2) (XOP2_I(I) | XOP2_d(d) | XOP2_S1(S1) | XOP2_S2(S2))
+
 
 const my66000_opc_info_t opc_mrr[] =
 {
@@ -535,20 +550,30 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_SRC2,   OPERAND_ENTRY ( 5,  0), "Source register 2",       'C' },
  {MY66000_OPS_RINDEX, OPERAND_ENTRY ( 5,  0), "Index register",          'D' },
  {MY66000_OPS_IMM16,  OPERAND_ENTRY (16,  0), "16-bit signed immediate", 'E' },
- {MY66000_OPS_I1,     OPERAND_ENTRY ( 5, 16), "5-bit constant source 1", 'F' },
- {MY66000_OPS_I2,     OPERAND_ENTRY ( 5,  0), "5-bit constant source 2", 'G' },
+ {MY66000_OPS_I1,     OPERAND_ENTRY ( 5, 16), "5-bit immediate SRC1",    'F' },
+ {MY66000_OPS_I2,     OPERAND_ENTRY ( 5,  0), "5-bit immediate SRC2",    'G' },
  {MY66000_OPS_BB1,    OPERAND_ENTRY ( 6, 21), "Bit number",		 'H' },
  {MY66000_OPS_B16,    OPERAND_ENTRY (16,  0), "16-bit branch target",	 'I' },
  {MY66000_OPS_B26,    OPERAND_ENTRY (26,  0), "26-bit branch target",	 'J' },
  {MY66000_OPS_RBASE,  OPERAND_ENTRY ( 5, 16), "Base register",           'K' },
  {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",   'L' },
+ /* Right now, the idea is to always issue 64-bit relocations and relax them
+    afterwards.  Hence, this is currenlty unused.  */
+#if 0
  {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel", 'M' },
- {MY66000_OPS_I32_2,     0, 0, 4, 1,          "32-bit immediate SRC2",   'N' },
- {MY66000_OPS_I32_3,     0, 0, 4, 1,          "32-bit immediate SRC3",   'O' },
+#else
+ {0,                     0, 0, 0, 0,           "unused",                 'M' },
+#endif
+ /* N and O currently unused.  */
+ {0,                     0, 0, 0, 0,          "unused",                  'N' },
+ {0,                     0, 0, 0, 0,          "unused",                  'O' },
+
  {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",   'P' },
  {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel", 'Q' },
- {MY66000_OPS_I64_2,     0, 0, 8, 1,          "64-bit immediate SRC2",   'R' },
- {MY66000_OPS_I64_3,     0, 0, 8, 1,          "64-bit immediate SRC3",   'S' },
+ /* Ditto R and S.  */
+ {0,                     0, 0, 0, 0,          "unused",                  'R' },
+ {0,                     0, 0, 0, 0,          "unused",                  'S' },
+
  {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate store",  'T' },
  {MY66000_OPS_I64_ST,    0, 0, 8, 2,          "64-bit immediate store",  'U' },
 };
@@ -578,11 +603,6 @@ static const my66000_fmt_spec_t mem_fmt_list[] =
 
 #define XOP2_MASK (XOP2_I(1) | XOP2_S1(1) | XOP2_S2(1) | XOP2_d(1))
 
-/* Formats and encoding for the arithmetic and logical instructions
-   of the XOP2 group. */
-
-#define XOP2_BITS(I,d,S1,S2) (XOP2_I(I) | XOP2_d(d) | XOP2_S1(S1) | XOP2_S2(S2))
-
 /* This is table 13-2, 2-Operand Specification.  */
 
 static const my66000_fmt_spec_t arith_fmt_list [] =
@@ -597,14 +617,14 @@ static const my66000_fmt_spec_t arith_fmt_list [] =
  { "A,B,#-F",  XOP2_BITS (0,1,1,0), XOP2_MASK },
  { "A,#-G,C",  XOP2_BITS (0,1,1,1), XOP2_MASK },
  
- { "A,B,#N",   XOP2_BITS (1,0,0,0), XOP2_MASK },
+ { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK },
  { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK },
- { "A,-B,#N",  XOP2_BITS (1,0,1,0), XOP2_MASK },
+ { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK },
  { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK },
  
- { "A,B,#R",   XOP2_BITS (1,1,0,0), XOP2_MASK },
+ { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK },
  { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK },
- { "A,-B,#R",  XOP2_BITS (1,1,1,0), XOP2_MASK },
+ { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK },
  { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK },
  { NULL,      0, 0 },
 };
@@ -621,13 +641,28 @@ static const my66000_fmt_spec_t br_fmt_list [] =
  { NULL,   0,  0},
 };
 
+/* Table for load/store with two registers.  */
+
 static const my66000_fmt_spec_t mrr_fmt_list [] =
 {
- // { "A,[K,D]",    XOP1_SCALE(0), XOP1_SCALE_MASK},
- { "A,[K,D<<0]", XOP1_SCALE(0), XOP1_SCALE_MASK},
- { "A,[K,D<<1]", XOP1_SCALE(1), XOP1_SCALE_MASK},
- { "A,[K,D<<2]", XOP1_SCALE(2), XOP1_SCALE_MASK},
- { "A,[K,D<<3]", XOP1_SCALE(3), XOP1_SCALE_MASK},
+ /* Different versions for scaled.  */
+ { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_MASK}, 
+ { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_MASK},
+ { "A,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_MASK},
+ { "A,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_MASK},
+ { "A,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_MASK},
+ { "A,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_MASK},
+ { "A,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_MASK},
+ { "A,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_MASK},
+ { "A,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_MASK},
+
+ /* FIXME:  Relocations for symbols which are not offset
+    with respect to the IP are poorly defined at the moment.  */
+ 
+ /* IP-relative, without register offset, and an IP-relative 32-bit
+    and 64-bit relocations, respectively.  */
+ { "A,[K,L]",      XOP1_BITS(1,0,0), MRR_MASK | RIND_ZERO_MASK | IP_MASK},
+ { "A,[K,Q]",      XOP1_BITS(1,0,1), MRR_MASK | RIND_ZERO_MASK | IP_MASK},
  { NULL, 0, 0 },
 };
 

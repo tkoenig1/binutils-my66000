@@ -339,7 +339,8 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
   endp = str;
   while (1)
     {
-      if (*endp == '\0' || *endp == ',' || is_end_of_line[(unsigned char) *endp])
+      if (*endp == '\0' || *endp == ',' || *endp == ']'
+	  || is_end_of_line[(unsigned char) *endp])
 	break;
       endp++;
     }
@@ -426,6 +427,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   uint64_t val_imm = 0, val_imm_st = 0;
   _Bool imm_pcrel = false;
 
+  //  fprintf (stderr,"match_arglist : '%s' '%s'\n", str, spec->fmt);
   for (; *fp; fp++)
     {
       uint32_t frag;
@@ -514,8 +516,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I32_1:
-	case MY66000_OPS_I32_2:
-	case MY66000_OPS_I32_3:
 	  val_imm = match_32_bit_or_label (&sp, errmsg, &imm);
 	  if (*errmsg)
 	    break;
@@ -528,8 +528,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I64_1:
-	case MY66000_OPS_I64_2:
-	case MY66000_OPS_I64_3:
 	  val_imm = match_64_bit_or_label (&sp, errmsg, &imm);
 	  if (*errmsg)
 	    break;
@@ -561,6 +559,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (p)
 	    as_fatal ("Internal error: failure after memory already allocated");
 
+	  //	  fprintf (stderr, "errmsg = %s\n", *errmsg);
 	  return;
 	}
 
@@ -808,6 +807,9 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
       iword = (uint32_t) bfd_getl32 (buf);
       iword |= (*valP >> 2) & 0xffff;
       bfd_putl32 ((bfd_vma) iword, buf);
+      break;
+    case BFD_RELOC_64_PCREL:
+      bfd_putl64 ((bfd_vma) *valP, buf);
       break;
     default:
       as_fatal ("Unknown relocation %d", (int) fixP->fx_r_type);
