@@ -427,7 +427,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   uint64_t val_imm = 0, val_imm_st = 0;
   _Bool imm_pcrel = false;
 
-  //  fprintf (stderr,"match_arglist : '%s' '%s'\n", str, spec->fmt);
+  fprintf (stderr,"match_arglist : '%s' '%s'\n", str, spec->fmt);
   for (; *fp; fp++)
     {
       uint32_t frag;
@@ -559,13 +559,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (p)
 	    as_fatal ("Internal error: failure after memory already allocated");
 
-	  //	  fprintf (stderr, "errmsg = %s\n", *errmsg);
+	  fprintf (stderr, "errmsg = %s\n", *errmsg);
 	  return;
 	}
 
       iword |= frag << info->shift;
     }
-  iword |= spec->frag;
+  iword |= spec->patt;
 
   if (!p)
     p = frag_more (length);
@@ -585,6 +585,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  else
 	    reloc_type = imm_pcrel ? BFD_RELOC_64_PCREL : BFD_RELOC_64;
 
+	  fprintf (stderr,"imm_pcrel = %d reloc_type = %d\n", imm_pcrel, reloc_type);
 	  fix_new_exp (frag_now,
 		       p - frag_now->fr_literal,
 		       imm_size,
@@ -626,7 +627,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
       else
 	as_fatal ("Weird expression value");
     }
-  //  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
+  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
   return;
 }
 
@@ -807,6 +808,9 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
       iword = (uint32_t) bfd_getl32 (buf);
       iword |= (*valP >> 2) & 0xffff;
       bfd_putl32 ((bfd_vma) iword, buf);
+      break;
+    case BFD_RELOC_32_PCREL:
+      bfd_putl32 ((bfd_vma) *valP, buf);
       break;
     case BFD_RELOC_64_PCREL:
       bfd_putl64 ((bfd_vma) *valP, buf);

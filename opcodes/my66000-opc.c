@@ -188,7 +188,7 @@ const my66000_opc_info_t opc_op1[] =
  { "mm",   MAJOR(9) | MINOR (21), MY66000_MM,  NULL, 0, 0},
  { "ms",   MAJOR(9) | MINOR (22), MY66000_MM,  NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (23), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (24), MY66000_BAD, NULL, 0, 0},
+ { "stb",  MAJOR(9) | MINOR (24), MY66000_BAD, NULL, 0, 0}, /* !!! */
  { NULL,   MAJOR(9) | MINOR (25), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (26), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (27), MY66000_BAD, NULL, 0, 0},
@@ -454,7 +454,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { "std",  MAJOR(43), MY66000_MEM,   NULL, 0, 0},
  { "enter", MAJOR(44), MY66000_EXIT, NULL, 0, 0},
  { "ldm",  MAJOR(45), MY66000_MM,    NULL, 0, 0},
- { "stm",  MAJOR(46), MY66000_MM,   NULL, 0, 0},
+ { "stm",  MAJOR(46), MY66000_MM,    NULL, 0, 0},
  { "ill3", MAJOR(47), MY66000_ILL,   NULL, 0, 0},
  { "ill4", MAJOR(48), MY66000_ILL,   NULL, 0, 0},
  { "add",  MAJOR(49), MY66000_OPIMM, NULL, 0, 0},
@@ -472,7 +472,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { "vec",  MAJOR(61), MY66000_VEC,   NULL, 0, 0},
  { NULL,   MAJOR(62), MY66000_BAD,   NULL, 0, 0},
  { "ill5", MAJOR(63), MY66000_BAD,   NULL, 0, 0},
- { NULL,   0,                 MY66000_END,   NULL, 0, 0},
+ { NULL,   0,         MY66000_END,   NULL, 0, 0},
 };
 
 /* List of all the tables containing opcodes, for initializing the
@@ -559,11 +559,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",   'L' },
  /* Right now, the idea is to always issue 64-bit relocations and relax them
     afterwards.  Hence, this is currenlty unused.  */
-#if 0
  {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel", 'M' },
-#else
- {0,                     0, 0, 0, 0,           "unused",                 'M' },
-#endif
  /* N and O currently unused.  */
  {0,                     0, 0, 0, 0,          "unused",                  'N' },
  {0,                     0, 0, 0, 0,          "unused",                  'O' },
@@ -589,16 +585,16 @@ const my66000_operand_info_t my66000_operand_table[] =
 
 static const my66000_fmt_spec_t opimm_fmt_list[] =
 {
- { "A,B,#E", 0, 0 },
- { NULL,     0, 0 },
+ { "A,B,#E", 0, 0, 0 },
+ { NULL,     0, 0, 0 },
 
 };
 
 static const my66000_fmt_spec_t mem_fmt_list[] =
 {
- { "A,[B]",   0, 0xffff },
- { "A,[B,E]", 0, 0 },
- { NULL,      0, 0 },
+ { "A,[B]",   0, 0xffff, 0 },
+ { "A,[B,E]", 0, 0,      0 },
+ { NULL,      0, 0,      0 },
 };
 
 #define XOP2_MASK (XOP2_I(1) | XOP2_S1(1) | XOP2_S2(1) | XOP2_d(1))
@@ -607,63 +603,63 @@ static const my66000_fmt_spec_t mem_fmt_list[] =
 
 static const my66000_fmt_spec_t arith_fmt_list [] =
 {
- { "A,B,C",    XOP2_BITS (0,0,0,0), XOP2_MASK },
- { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK },
- { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK },
- { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK },
+ { "A,B,C",    XOP2_BITS (0,0,0,0), XOP2_MASK, 0 },
+ { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK, 0 },
+ { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK, 0 },
+ { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK, 0 },
 
- { "A,B,#F",   XOP2_BITS (0,1,0,0), XOP2_MASK },
- { "A,#G,C",   XOP2_BITS (0,1,0,1), XOP2_MASK },
- { "A,B,#-F",  XOP2_BITS (0,1,1,0), XOP2_MASK },
- { "A,#-G,C",  XOP2_BITS (0,1,1,1), XOP2_MASK },
+ { "A,B,#F",   XOP2_BITS (0,1,0,0), XOP2_MASK, 0 },
+ { "A,#G,C",   XOP2_BITS (0,1,0,1), XOP2_MASK, 0 },
+ { "A,B,#-F",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0 },
+ { "A,#-G,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0 },
  
- { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK },
- { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK },
- { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK },
- { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK },
+ { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0 },
+ { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0 },
+ { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK, 0 },
+ { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK, 0 },
  
- { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK },
- { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK },
- { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK },
- { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK },
- { NULL,      0, 0 },
+ { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK, 0 },
+ { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0 },
+ { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0 },
+ { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0 },
+ { NULL,      0, 0, 0 },
 };
 
 static const my66000_fmt_spec_t bb1_fmt_list [] =
 {
- { "H,B,I", 0, 0},
- { NULL,    0, 0},
+ { "H,B,I", 0, 0, 0},
+ { NULL,    0, 0, 0},
 };
 
 static const my66000_fmt_spec_t br_fmt_list [] =
 {
- { "J",    0,  0},
- { NULL,   0,  0},
+ { "J",    0,  0, 0},
+ { NULL,   0,  0, 0},
 };
 
 /* Table for load/store with two registers.  */
 
 static const my66000_fmt_spec_t mrr_fmt_list [] =
 {
- /* Different versions for scaled.  */
- { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_MASK}, 
- { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_MASK},
- { "A,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_MASK},
- { "A,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_MASK},
- { "A,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_MASK},
- { "A,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_MASK},
- { "A,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_MASK},
- { "A,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_MASK},
- { "A,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_MASK},
+ /* Different synatax variants for scaled.  */
+ { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_MASK, 0 }, 
+ { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_MASK, 0 },
+ { "A,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_MASK, 0 },
+ { "A,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_MASK, 0 },
+ { "A,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_MASK, 0 },
+ { "A,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_MASK, 0 },
+ { "A,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_MASK, 0 },
+ { "A,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_MASK, 0 },
+ { "A,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_MASK, 0 },
 
  /* FIXME:  Relocations for symbols which are not offset
     with respect to the IP are poorly defined at the moment.  */
  
  /* IP-relative, without register offset, and an IP-relative 32-bit
     and 64-bit relocations, respectively.  */
- { "A,[K,L]",      XOP1_BITS(1,0,0), MRR_MASK | RIND_ZERO_MASK | IP_MASK},
- { "A,[K,Q]",      XOP1_BITS(1,0,1), MRR_MASK | RIND_ZERO_MASK | IP_MASK},
- { NULL, 0, 0 },
+ { "A,[K,M]",      XOP1_BITS(1,0,0), MRR_MASK | RIND_ZERO_MASK | IP_MASK, 1},
+ { "A,[K,Q]",      XOP1_BITS(1,0,1), MRR_MASK | RIND_ZERO_MASK | IP_MASK, 0},
+ { NULL, 0, 0, 0 },
 };
 
 /* Where to look up the operand list for a certain instruction format.

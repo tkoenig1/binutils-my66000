@@ -71,7 +71,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 
   while (spec)
     {
-      res = (spec->frag ^ iword) & spec->mask;
+      res = (spec->patt ^ iword) & spec->mask;
       if (res == 0)
 	break;
 
@@ -87,7 +87,8 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
       exit (EXIT_FAILURE);
     }
 
-  /* Look at immediates for the instructions, if any.  */
+  /* Look at immediates for the instructions in the format string
+     and mark them.  */
 
   size_1 = size_2 = 0;
   for (f = spec->fmt; *f; f++)

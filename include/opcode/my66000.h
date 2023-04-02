@@ -45,8 +45,10 @@ typedef enum my66000_encoding
  MY66000_SHIFT,
  MY66000_EXIT,
  MY66000_MM,     /* Load/store multiple.  */
+ MY66000_SI,	 /* Store immediate.  */
+ MY66000_SI5,	 /* Store 5-bit immediate.  */
  MY66000_CARRY,
- MY66000_VEC, 
+ MY66000_VEC,
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -80,7 +82,7 @@ typedef struct
 } my66000_reg_alias_t;
 
 extern my66000_reg_alias_t my66000_reg_alias[];
-  
+
 /* Names of all the different operands the architecture has.  */
 typedef enum my66000_operands
 {
@@ -124,9 +126,11 @@ extern const my66000_operand_info_t my66000_operand_table[];
 
 typedef struct my66000_fmt_spec_t
 {
-  char *fmt;
-  uint32_t frag;
-  uint32_t mask;
+  char *fmt;		/* Format.  */
+  uint32_t patt;	/* Bit pattern that has to match... */
+  uint32_t mask;	/* ...under this mask.  */
+  int relax_next;	/* Offset to the next format taking part in
+			   relaxation, if any.  */
 } my66000_fmt_spec_t;
 
 typedef struct my66000_opcode_fmt_t
