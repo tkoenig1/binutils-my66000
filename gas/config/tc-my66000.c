@@ -406,6 +406,9 @@ match_64_bit_or_label (char **ptr, char **errmsg, expressionS *ex)
   return match_num_or_label (ptr, errmsg, ex, 64);
 }
 
+#define RELAX_IMM4 1
+#define RELAX_IMM8 2
+
 /* Attempt a match of the arglist pointed to by str against fmt.  If
    errmsg is set, the match was a failure; otherwise issue issue the
    instruction.
@@ -420,7 +423,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   const char *fp = spec->fmt;
   char *sp = str;
   const my66000_operand_info_t *info;
-  char *p = NULL;
+  char *p = NULL, *p_op;
   int length = 4;
   expressionS imm, imm_st;
   int imm_size = 0, imm_st_size = 0;
@@ -569,23 +572,23 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
   if (!p)
     p = frag_more (length);
-
+  
+  p_op = p;
+  printf ("p = %p\n", p);
   md_number_to_chars (p, iword, 4);
 
+  fprintf (stderr, "iword = %x p = %p\n", iword, p);
   /* Handle the immediates.  */
   if (imm_size > 0)
     {
-      p = frag_more (imm_size);
-
       if (imm.X_op == O_symbol)
 	{
 	  int reloc_type;
-	  if (imm_size == 4)
-	    reloc_type = imm_pcrel ? BFD_RELOC_32_PCREL : BFD_RELOC_32;
-	  else
-	    reloc_type = imm_pcrel ? BFD_RELOC_64_PCREL : BFD_RELOC_64;
+	  gas_assert (imm_size == 4);
+	  reloc_type = imm_pcrel ? BFD_RELOC_32_PCREL : BFD_RELOC_32;
 
-	  fprintf (stderr,"imm_pcrel = %d reloc_type = %d\n", imm_pcrel, reloc_type);
+	  fprintf (stderr,"imm_pcrel = %d reloc_type = %d p_op = %p\n", imm_pcrel, reloc_type, p_op);
+#if 0
 	  fix_new_exp (frag_now,
 		       p - frag_now->fr_literal,
 		       imm_size,
@@ -593,9 +596,20 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 		       imm_pcrel,
 		       reloc_type
 		       );
+#else
+	  char *rv = frag_var (rs_machine_dependent, /* type */
+		    8, /* max_chars */
+		    4,  /* var, the number that is variable. */
+		    RELAX_IMM4, /* subtype  */
+		    imm.X_add_symbol, /* symbol */
+		    imm.X_add_number,    /* offset */
+		    p_op);  /* opcode */
+	  printf ("rv = %p\n", rv);
+#endif
 	}
       else if (imm.X_op == O_constant)
 	{
+	  p = frag_more (imm_size);
 	  md_number_to_chars (p, val_imm, imm_size);
 	}
       else
@@ -649,9 +663,10 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
 
   /* If we don't have an argument list, we're done.  */
 
-  if (spec->fmt == NULL)
+  if (spec == NULL || spec->fmt == NULL)
     {
       p = frag_more (4);
+      fprintf (stderr,"no spec : %p\n", p);
       memcpy (p, &iword, 4);
       return;
     }
@@ -787,6 +802,28 @@ md_pcrel_from_section (fixS *fixP, segT sec)
   return fixP->fx_where;
 }
 
+/* Calculate a PC-relative offset.  These are always relative to the
+   start of the instruction.  */
+
+static offsetT
+calc_relative_offset (fragS *fragP)
+{
+  offsetT target_address = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
+  offsetT opcode_address = fragP->fr_opcode - fragP->fr_literal;
+  return target_address - opcode_address;
+}
+
+/* Check if we know the numeric value of the symbol.  */
+
+static bool
+known_frag_symbol (fragS *fragP, segT segment)
+{
+  return fragP->fr_symbol != NULL
+    && S_IS_DEFINED (fragP->fr_symbol)
+    && !S_IS_WEAK (fragP->fr_symbol)
+    && segment == S_GET_SEGMENT (fragP->fr_symbol);
+}
+
 void
 md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 {
@@ -823,4 +860,77 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
   if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
     fixP->fx_done = 1;
 
+}
+
+/* Calculate the length of an IP-relative offset that can be
+   either 4 or 8 bytes.  If we don't know, return 8.  */
+
+static int
+relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
+{
+  int ret;
+
+  if (known_frag_symbol (fragP, segment))
+    {
+      offsetT val = calc_relative_offset (fragP);
+      if (val > INT32_MIN && val < INT32_MAX)
+	ret = 4;
+      else
+	ret = 8;
+    }
+  else
+    ret = 8;
+
+  if (update)
+      fragP->fr_subtype = ret == 4 ? RELAX_IMM4 : RELAX_IMM8;
+
+  return ret;
+}
+
+int
+md_estimate_size_before_relax (fragS *fragP, segT segment)
+{
+  fragP->fr_var = relaxed_imm_length (fragP, segment, false);
+  return fragP->fr_var;
+}
+
+int
+my66000_relax_frag (segT seg, fragS *fragP,
+		    long stretch ATTRIBUTE_UNUSED)
+{
+  if (fragP->fr_subtype == RELAX_IMM4 || fragP->fr_subtype == RELAX_IMM8)
+    {
+      offsetT old_var = fragP->fr_var;
+      fragP->fr_var = relaxed_imm_length (fragP, seg, true);
+      return fragP->fr_var - old_var;
+    }
+  return 0;
+}
+
+void
+md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
+		 segT sec ATTRIBUTE_UNUSED,
+		 fragS *fragP)
+{
+  uint32_t iword;
+  offsetT val;
+  char *p;
+
+  p = fragP->fr_literal + fragP->fr_fix;
+  //  fprintf (stderr,"md_convert_frag: buf = %p fragP->frag_fix = %ld fragP->frag_var = %ld\n", buf, fragP->fr_fix, fragP->fr_var);
+  memcpy (&iword, fragP->fr_opcode, 4);
+
+  if (known_frag_symbol (fragP, sec))
+    {
+      val = calc_relative_offset (fragP);
+      if (fragP->fr_subtype == RELAX_IMM4)
+	md_number_to_chars (p, val, 4);
+      else
+	md_number_to_chars (p, val, 8);
+    }
+
+  fprintf (stderr, "md_convert_frag: %ld\n", val);
+  fragP->fr_fix += fragP->fr_var;
+  fprintf (stderr,"size of immediate is %u\n", my66000_imm_size(iword));
+  fprintf(stderr, "Will you look at that... %p %x\n", fragP->fr_opcode, iword);
 }

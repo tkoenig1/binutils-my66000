@@ -129,7 +129,7 @@ typedef struct my66000_fmt_spec_t
   char *fmt;		/* Format.  */
   uint32_t patt;	/* Bit pattern that has to match... */
   uint32_t mask;	/* ...under this mask.  */
-  int relax_next;	/* Offset to the next format taking part in
+  _Bool relax_next;	/* Offset to the next format taking part in
 			   relaxation, if any.  */
 } my66000_fmt_spec_t;
 
@@ -143,5 +143,10 @@ typedef struct my66000_opcode_fmt_t
 extern const my66000_opcode_fmt_t my66000_opcode_fmt[];
 extern const my66000_opc_info_t *my66000_opc_info_list[];
 extern const my66000_opc_info_t my66000_opc_info[];
+
+/* Helper functions for relax in the assembler.  */
+
+extern uint32_t my66000_set_imm_size (uint32_t, uint32_t);
+extern int my66000_imm_size (uint32_t);
 
 #endif

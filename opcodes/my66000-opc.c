@@ -21,6 +21,7 @@
 
 #include "sysdep.h"
 #include <stdint.h>
+#include "disassemble.h"
 #include "opcode/my66000.h"
 
 /* Macro so we can fill up the frag_opc, frag_mask and shift
@@ -657,7 +658,7 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
  
  /* IP-relative, without register offset, and an IP-relative 32-bit
     and 64-bit relocations, respectively.  */
- { "A,[K,M]",      XOP1_BITS(1,0,0), MRR_MASK | RIND_ZERO_MASK | IP_MASK, 1},
+ { "A,[K,M]",      XOP1_BITS(0,0,1), MRR_MASK | RIND_ZERO_MASK | IP_MASK, 1},
  { "A,[K,Q]",      XOP1_BITS(1,0,1), MRR_MASK | RIND_ZERO_MASK | IP_MASK, 0},
  { NULL, 0, 0, 0 },
 };
@@ -679,3 +680,54 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { mrr_fmt_list,      MY66000_MRR,    0 },
    { NULL,	        MY66000_END,    0 },
   };
+
+/* Some helper functions for relax in the assembler.  In theory, this
+   is redundant with the tables above. In practice, getting the info
+   out of the table is simply too much hassle.  */
+
+/* Inquire the size of the immediate, if any.  */
+
+int
+my66000_imm_size (uint32_t iword)
+{
+  uint32_t major = (iword & MY66000_MAJOR_MASK);
+  if (major != MAJOR(9) && major != MAJOR (10))
+    return 0;
+
+  if ((iword & XOP1_d_MASK) == 0)
+    return 0;
+
+  return iword & XOP1_D_MASK ? 8 : 4;
+}
+
+/* Set the size of the immediate (with sanity check).  */
+
+uint32_t
+my66000_set_imm_size (uint32_t iword, uint32_t size)
+{
+  uint32_t major = (iword & MY66000_MAJOR_MASK);
+  uint32_t rmask = -1 ^ (XOP1_D_MASK | XOP1_d_MASK);
+  uint32_t ret;
+
+  if (major != MAJOR(9) && major != MAJOR (10))
+    {
+      fprintf (stderr, "Internal error: set_size on illecal opcode %u",
+	       major >> MY66000_MAJOR_SHIFT);
+      exit(EXIT_FAILURE);
+    }
+  ret = iword & rmask;
+  switch (size)
+    {
+    case 4:
+      ret |= XOP1_d_MASK;
+      break;
+    case 8:
+      ret |= XOP1_d_MASK | XOP1_D_MASK;
+      break;
+    default:
+      fprintf (stderr, "Internal error: set_size with illegal size %u",
+	       size);
+      exit(EXIT_FAILURE);
+    }
+  return ret;
+}

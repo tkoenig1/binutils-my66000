@@ -36,13 +36,19 @@
 
 /* These macros must be defined, but it will be a fatal assembler
    error if we ever hit them.  */
-#define md_estimate_size_before_relax(A, B) (as_fatal (_("estimate size\n")), 0)
-#define md_convert_frag(B, S, F)            as_fatal (_("convert_frag\n"))
+#if 0
+#define md_estimate_size_before_relax(A, B) m66000_estimate_size_before_relax (A, B)
 
+#define md_convert_frag(B, S, F)            as_fatal (_("convert_frag\n"))
+#endif
 /* Call md_pcrel_from_section(), not md_pcrel_from().  */
 extern long md_pcrel_from_section (struct fix *, segT);
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
 
 #define md_section_align(SEGMENT, SIZE)     (SIZE)
+
+#define md_relax_frag(segment, fragp, stretch) \
+  my66000_relax_frag (segment, fragp, stretch)
+extern int my66000_relax_frag (asection *, struct frag *, long);
 
 #endif /* TC_MY66000 */
