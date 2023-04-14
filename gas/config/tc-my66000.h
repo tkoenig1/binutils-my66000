@@ -34,13 +34,6 @@
 
 #define md_undefined_symbol(NAME)           0
 
-/* These macros must be defined, but it will be a fatal assembler
-   error if we ever hit them.  */
-#if 0
-#define md_estimate_size_before_relax(A, B) m66000_estimate_size_before_relax (A, B)
-
-#define md_convert_frag(B, S, F)            as_fatal (_("convert_frag\n"))
-#endif
 /* Call md_pcrel_from_section(), not md_pcrel_from().  */
 extern long md_pcrel_from_section (struct fix *, segT);
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)

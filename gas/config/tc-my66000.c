@@ -115,7 +115,8 @@ build_opc_hashes (const my66000_opc_info_t * table)
 	     to store the name.  */
 	  for (j = 0; j < N_MAP; j++)
 	    {
-	      slot = str_hash_insert (s_opc_map[j], table[i].name, (void *) &table[i], 0);
+	      slot = str_hash_insert (s_opc_map[j], table[i].name,
+				      (void *) &table[i], 0);
 	      if (slot == NULL)
 		break;
 	    }
