@@ -36,8 +36,6 @@ const char EXP_CHARS[] = "eEdD";
    as in 0d1.0.  */
 const char FLT_CHARS[] = "dDeExXpP";
 
-// static int pending_reloc;
-
 const pseudo_typeS md_pseudo_table[] =
 {
   {0, 0, 0}
@@ -431,7 +429,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   uint64_t val_imm = 0, val_imm_st = 0;
   _Bool imm_pcrel = false;
 
-  fprintf (stderr,"match_arglist : '%s' '%s'\n", str, spec->fmt);
+  //  fprintf (stderr,"match_arglist : '%s' '%s'\n", str, spec->fmt);
   for (; *fp; fp++)
     {
       uint32_t frag;
@@ -563,7 +561,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (p)
 	    as_fatal ("Internal error: failure after memory already allocated");
 
-	  fprintf (stderr, "errmsg = %s\n", *errmsg);
+	  //	  fprintf (stderr, "errmsg = %s\n", *errmsg);
 	  return;
 	}
 
@@ -575,20 +573,18 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
     p = frag_more (length);
   
   p_op = p;
-  printf ("p = %p\n", p);
+  //  printf ("p = %p\n", p);
   md_number_to_chars (p, iword, 4);
 
-  fprintf (stderr, "iword = %x p = %p\n", iword, p);
+  //  fprintf (stderr, "iword = %x p = %p\n", iword, p);
   /* Handle the immediates.  */
   if (imm_size > 0)
     {
       if (imm.X_op == O_symbol)
 	{
-	  int reloc_type;
 	  gas_assert (imm_size == 4);
-	  reloc_type = imm_pcrel ? BFD_RELOC_32_PCREL : BFD_RELOC_32;
 
-	  fprintf (stderr,"imm_pcrel = %d reloc_type = %d p_op = %p\n", imm_pcrel, reloc_type, p_op);
+	  //	  fprintf (stderr,"imm_pcrel = %d reloc_type = %d p_op = %p\n", imm_pcrel, reloc_type, p_op);
 #if 0
 	  fix_new_exp (frag_now,
 		       p - frag_now->fr_literal,
@@ -598,14 +594,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 		       reloc_type
 		       );
 #else
-	  char *rv = frag_var (rs_machine_dependent, /* type */
+	  frag_var (rs_machine_dependent, /* type */
 		    8, /* max_chars */
 		    4,  /* var, the number that is variable. */
 		    RELAX_IMM4, /* subtype  */
 		    imm.X_add_symbol, /* symbol */
 		    imm.X_add_number,    /* offset */
 		    p_op);  /* opcode */
-	  printf ("rv = %p\n", rv);
 #endif
 	}
       else if (imm.X_op == O_constant)
@@ -642,7 +637,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
       else
 	as_fatal ("Weird expression value");
     }
-  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
+  //  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
   return;
 }
 
@@ -667,7 +662,7 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
   if (spec == NULL || spec->fmt == NULL)
     {
       p = frag_more (4);
-      fprintf (stderr,"no spec : %p\n", p);
+      //      fprintf (stderr,"no spec : %p\n", p);
       memcpy (p, &iword, 4);
       return;
     }
@@ -799,8 +794,21 @@ md_pcrel_from_section (fixS *fixP, segT sec)
       return 0;
     }
 
-  /* Addressing is relative to the start of the instruction.  */
-  return fixP->fx_where;
+  /* Addressing is relative to the start of the instruction, but the fix
+     may be in another frag.  */
+  switch (fixP->fx_r_type)
+    {
+    case BFD_RELOC_26_PCREL_S2:
+    case BFD_RELOC_16_PCREL_S2:
+      return fixP->fx_where + fixP->fx_frag->fr_address;
+ 
+    case BFD_RELOC_32_PCREL:
+    case BFD_RELOC_64_PCREL:
+      return fixP->fx_frag->fr_opcode - fixP->fx_frag->fr_literal;
+    default:
+      as_fatal ("Unknown reloc in md_pcrel_from_section");
+    }
+  
 }
 
 /* Calculate a PC-relative offset.  These are always relative to the
@@ -811,6 +819,10 @@ calc_relative_offset (fragS *fragP)
 {
   offsetT target_address = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
   offsetT opcode_address = fragP->fr_opcode - fragP->fr_literal;
+  //  fprintf (stderr,"S_GET_VALUE = %ld fr_offset= %ld\n", S_GET_VALUE (fragP->fr_symbol),
+  //	   fragP->fr_offset);
+  //  fprintf (stderr,"calc_relative_offset: target_address = %ld, opcode_address = %ld\n",
+  //	   target_address, opcode_address);
   return target_address - opcode_address;
 }
 
@@ -914,24 +926,28 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 		 fragS *fragP)
 {
   uint32_t iword;
-  offsetT val;
-  char *p;
+  expressionS ex;
 
-  p = fragP->fr_literal + fragP->fr_fix;
-  //  fprintf (stderr,"md_convert_frag: buf = %p fragP->frag_fix = %ld fragP->frag_var = %ld\n", buf, fragP->fr_fix, fragP->fr_var);
-  memcpy (&iword, fragP->fr_opcode, 4);
+  iword = bfd_getl32 (fragP->fr_opcode);
 
-  if (known_frag_symbol (fragP, sec))
+  ex.X_op = O_symbol;
+  ex.X_add_symbol = fragP->fr_symbol;
+  ex.X_add_number = fragP->fr_offset;
+  //  offsetT target = S_GET_VALUE (ex.X_add_symbol) + fragP->fr_offset;
+  //  fprintf (stderr,"md_convert_frag: target = %ld\n", target);
+  if (fragP->fr_var == 4)
     {
-      val = calc_relative_offset (fragP);
-      if (fragP->fr_subtype == RELAX_IMM4)
-	md_number_to_chars (p, val, 4);
-      else
-	md_number_to_chars (p, val, 8);
+      fix_new_exp (fragP, fragP->fr_fix, 4, &ex, true, BFD_RELOC_32_PCREL);
+      iword = my66000_set_imm_size (iword, 4);
+    }
+  else
+    {
+      fix_new_exp (fragP, fragP->fr_fix, 8, &ex, true, BFD_RELOC_64_PCREL);
+      iword = my66000_set_imm_size (iword, 8);
     }
 
-  fprintf (stderr, "md_convert_frag: %ld\n", val);
+  md_number_to_chars (fragP->fr_opcode, iword, 4);
   fragP->fr_fix += fragP->fr_var;
-  fprintf (stderr,"size of immediate is %u\n", my66000_imm_size(iword));
-  fprintf(stderr, "Will you look at that... %p %x\n", fragP->fr_opcode, iword);
+  //  fprintf (stderr,"size of immediate is %u\n", my66000_imm_size(iword));
+  //  fprintf(stderr, "Will you look at that... %p %x\n", fragP->fr_opcode, iword);
 }
