@@ -164,6 +164,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	  case MY66000_OPS_DST:
 	  case MY66000_OPS_SRC1:
 	  case MY66000_OPS_SRC2:
+	  case MY66000_OPS_SRC3:
 	    /* A register in normal notation.  */
 	    fpr (stream, "%s", my66000_rname[val]);
 	    break;

@@ -448,6 +448,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_DST:
 	case MY66000_OPS_SRC1:
 	case MY66000_OPS_SRC2:
+	case MY66000_OPS_SRC3:
 	  frag = match_register (&sp, errmsg, rname_map);
 	  break;
 	case MY66000_OPS_RINDEX:

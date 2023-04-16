@@ -34,11 +34,12 @@
 #define SHFT_MASK 15 << SHFT_OFFS
 
 #define MINOR_OFFS 5
-#define MINOR(c) (c) << MINOR_OFFS
+#define MINOR(c) ((c) << MINOR_OFFS)
 #define MINOR_MASK MINOR(63)
 
-#define XOP4_OFFS 12
-#define XOP4_MASK 7 << XOP4_OFFS
+#define XOP4_OFFS 10
+#define XOP4_MINOR(c) ((c) << XOP4_OFFS)
+#define XOP4_MASK XOP4_MINOR(7)
 
 #define BB1_OFFS 21
 #define BB1_MINOR(c) ((c) << BB1_OFFS)
@@ -118,7 +119,7 @@ const my66000_opc_info_t opc_om7[] =
 #define XOP1_d(c) ((c) << XOP1_d_SHFT)
 #define XOP1_d_MASK XOP1_d(1)
 
-#define MRR_MASK (XOP1_D_MASK | XOP1_SCALE_MASK | XOP1_d_MASK)
+#define MRR_FMT_MASK (XOP1_D_MASK | XOP1_SCALE_MASK | XOP1_d_MASK)
 
 /* Mask for rindex=0 */
 
@@ -151,9 +152,16 @@ const my66000_opc_info_t opc_om7[] =
 #define XOP2_d(c) ((c) << XOP2_d_SHFT)
 #define XOP2_d_MASK XOP2_d(1)
 
+#define XOP2_MASK (XOP2_I(1) | XOP2_S1(1) | XOP2_S2(1) | XOP2_d(1))
+
 /* Write the above more compactly.  */
 
 #define XOP2_BITS(I,d,S1,S2) (XOP2_I(I) | XOP2_d(d) | XOP2_S1(S1) | XOP2_S2(S2))
+
+/* FMAC uses some of same bits as XOP2.  */
+
+#define XOP4_BITS(I,S1,S2) (XOP2_I(I) | XOP2_S1(S1) | XOP2_S2(S2))
+#define XOP4_FMT_MASK XOP4_BITS (1,1,1)
 
 
 const my66000_opc_info_t opc_mrr[] =
@@ -309,9 +317,18 @@ const my66000_opc_info_t opc_op2[] =
  { NULL,    0,          MY66000_END,  NULL, 0, 0}
 };
 
+
 const my66000_opc_info_t opc_op4[] =
 {
-  { NULL,   0,              MY66000_END,   NULL, 0, 0}
+ { "fmac",   MAJOR (12) | XOP4_MINOR(0), MY66000_FMAC, NULL, 0, 0 },
+ { NULL,     MAJOR (12) | XOP4_MINOR(1), MY66000_BAD,  NULL, 0, 0 },  /* MPX */
+ { NULL,     MAJOR (12) | XOP4_MINOR(2), MY66000_BAD,  NULL, 0, 0 },  /* INS */
+ { NULL,     MAJOR (12) | XOP4_MINOR(3), MY66000_BAD,  NULL, 0, 0 },  /* empty */
+ { "fmacs",  MAJOR (12) | XOP4_MINOR(4), MY66000_FMAC, NULL, 0, 0 },
+ { NULL,     MAJOR (12) | XOP4_MINOR(5), MY66000_BAD,  NULL, 0, 0 },  /* empty */
+ { NULL,     MAJOR (12) | XOP4_MINOR(6), MY66000_BAD,  NULL, 0, 0 },  /* empty */
+ { NULL,     MAJOR (12) | XOP4_MINOR(7), MY66000_FMAC, NULL, 0, 0 },  /* Loop */
+ { NULL,   0,              MY66000_END,   NULL, 0, 0}, 
 };
 
 const my66000_opc_info_t opc_op5[] =
@@ -468,7 +485,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { "or",   MAJOR(56), MY66000_OPIMM, NULL, 0, 0},
  { "xor",  MAJOR(57), MY66000_OPIMM, NULL, 0, 0},
  { "and",  MAJOR(58), MY66000_OPIMM, NULL, 0, 0},
- { "mov",  MAJOR(59), MY66000_OPIMM, NULL, 0, 0},
+ { "mov",  MAJOR(59), MY66000_MVIMM, NULL, 0, 0},
  { "carry", MAJOR(60), MY66000_CARRY, NULL, 0, 0},
  { "vec",  MAJOR(61), MY66000_VEC,   NULL, 0, 0},
  { NULL,   MAJOR(62), MY66000_BAD,   NULL, 0, 0},
@@ -558,11 +575,8 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_B26,    OPERAND_ENTRY (26,  0), "26-bit branch target",	 'J' },
  {MY66000_OPS_RBASE,  OPERAND_ENTRY ( 5, 16), "Base register",           'K' },
  {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",   'L' },
- /* Right now, the idea is to always issue 64-bit relocations and relax them
-    afterwards.  Hence, this is currenlty unused.  */
  {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel", 'M' },
- /* N and O currently unused.  */
- {0,                     0, 0, 0, 0,          "unused",                  'N' },
+ {MY66000_OPS_SRC3,   OPERAND_ENTRY (5,   5), "Source register 3",       'N' },
  {0,                     0, 0, 0, 0,          "unused",                  'O' },
 
  {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",   'P' },
@@ -591,14 +605,18 @@ static const my66000_fmt_spec_t opimm_fmt_list[] =
 
 };
 
+static const my66000_fmt_spec_t mvimm_fmt_list[] =
+{
+ { "A,#E", 0, 0, 0},
+ { NULL,   0, 0, 0}
+};
+
 static const my66000_fmt_spec_t mem_fmt_list[] =
 {
  { "A,[B]",   0, 0xffff, 0 },
  { "A,[B,E]", 0, 0,      0 },
  { NULL,      0, 0,      0 },
 };
-
-#define XOP2_MASK (XOP2_I(1) | XOP2_S1(1) | XOP2_S2(1) | XOP2_d(1))
 
 /* This is table 13-2, 2-Operand Specification.  */
 
@@ -643,23 +661,23 @@ static const my66000_fmt_spec_t br_fmt_list [] =
 static const my66000_fmt_spec_t mrr_fmt_list [] =
 {
  /* Different synatax variants for scaled.  */
- { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_MASK, 0 }, 
- { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_MASK, 0 },
- { "A,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_MASK, 0 },
- { "A,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_MASK, 0 },
- { "A,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_MASK, 0 },
- { "A,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_MASK, 0 },
- { "A,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_MASK, 0 },
- { "A,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_MASK, 0 },
- { "A,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_MASK, 0 },
+ { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_FMT_MASK, 0 }, 
+ { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_FMT_MASK, 0 },
+ { "A,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_FMT_MASK, 0 },
+ { "A,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_FMT_MASK, 0 },
+ { "A,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_FMT_MASK, 0 },
+ { "A,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_FMT_MASK, 0 },
+ { "A,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_FMT_MASK, 0 },
+ { "A,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_FMT_MASK, 0 },
+ { "A,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_FMT_MASK, 0 },
 
  /* FIXME:  Relocations for symbols which are not offset
     with respect to the IP are poorly defined at the moment.  */
  
  /* IP-relative, without register offset, and an IP-relative 32-bit
     and 64-bit relocations, respectively.  */
- { "A,[K,M]",      XOP1_BITS(0,0,1), MRR_MASK | RIND_ZERO_MASK | IP_MASK, 1},
- { "A,[K,Q]",      XOP1_BITS(1,0,1), MRR_MASK | RIND_ZERO_MASK | IP_MASK, 0},
+ { "A,[K,M]",      XOP1_BITS(0,0,1), MRR_FMT_MASK | RIND_ZERO_MASK | IP_MASK, 1},
+ { "A,[K,Q]",      XOP1_BITS(1,0,1), MRR_FMT_MASK | RIND_ZERO_MASK | IP_MASK, 0},
  { NULL, 0, 0, 0 },
 };
 
@@ -667,17 +685,28 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
    Warning: Keep this table in the same order as my66000_encoding in
    include/opcode/my66000.h, this will be checked on startup of gas.  */
 
+static const my66000_fmt_spec_t fmac_fmt_list [] =
+{
+ { "A,B,C,N",   XOP4_BITS (0,0,0), XOP4_FMT_MASK, 0},
+ { "A,B,C,-N",  XOP4_BITS (0,0,1), XOP4_FMT_MASK, 0},
+ { "A,B,-C,N",  XOP4_BITS (0,1,0), XOP4_FMT_MASK, 0},
+ { "A,B,-C,-N", XOP4_BITS (0,1,1), XOP4_FMT_MASK, 0},
+ { NULL, 0, 0, 0}
+};
+
 const my66000_opcode_fmt_t my66000_opcode_fmt[] =
   {
    { NULL,              MY66000_BAD,    0 },
    { NULL,              MY66000_ILL,    0 },
    { opimm_fmt_list,    MY66000_OPIMM,  0 },
+   { mvimm_fmt_list,	MY66000_MVIMM,  0 },
    { mem_fmt_list,      MY66000_MEM,    0 },
    { arith_fmt_list,    MY66000_ARITH,  0 },
    { bb1_fmt_list,	MY66000_BB1A,	0 },
    { bb1_fmt_list,	MY66000_BB1B,	0 },
    { br_fmt_list,       MY66000_BR,     0 },
    { mrr_fmt_list,      MY66000_MRR,    0 },
+   { fmac_fmt_list,	MY66000_FMAC,   0 },
    { NULL,	        MY66000_END,    0 },
   };
 

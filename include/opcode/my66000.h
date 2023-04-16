@@ -31,12 +31,14 @@ typedef enum my66000_encoding
  MY66000_BAD = 0,  /* Empty.  */
  MY66000_ILL,      /* Reserved as non-opcodes.  */
  MY66000_OPIMM,    /* Arithmetic with a 16-bit immediate.  */
+ MY66000_MVIMM,    /* Move 16-bit immediate.  */
  MY66000_MEM,      /* Load/store with a 16-bit offset.  */
  MY66000_ARITH,    /* Arithmetic operations.  */
  MY66000_BB1A,     /* First half of the Branch on Bit operations.  */
  MY66000_BB1B,     /* Second half of the abore.  */
  MY66000_BR,       /* Branch, call etc.  */
  MY66000_MRR,	   /* Indexed memory operation, [Ra,Rb]  */
+ MY66000_FMAC,     /* FMAC instruction.  */
  MY66000_PB1A,
  MY66000_PB1B,
  MY66000_PCND,
@@ -89,6 +91,7 @@ typedef enum my66000_operands
  MY66000_OPS_DST,
  MY66000_OPS_SRC1,
  MY66000_OPS_SRC2,
+ MY66000_OPS_SRC3,
  MY66000_OPS_IMM16,
  MY66000_OPS_I1,  /* Five-bit immediates.  */
  MY66000_OPS_I2,
