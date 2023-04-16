@@ -54,7 +54,7 @@
 
 #define SHFT_MINOR(c) (c) << SHFT_OFFS
 
-const my66000_opc_info_t opc_om6[] =
+static const my66000_opc_info_t opc_om6[] =
 {
  { "pb1",  MAJOR(6) | SHFT_MINOR( 0), MY66000_PB1A,  NULL, 0, 0},
  { "pcnd", MAJOR(6) | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
@@ -75,7 +75,7 @@ const my66000_opc_info_t opc_om6[] =
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
-const my66000_opc_info_t opc_om7[] =
+static const my66000_opc_info_t opc_om7[] =
 {
  { "pb1",  MAJOR(7) | SHFT_MINOR( 0), MY66000_PB1B,  NULL, 0, 0},
  { "pcnd", MAJOR(7) | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
@@ -164,14 +164,14 @@ const my66000_opc_info_t opc_om7[] =
 #define XOP4_FMT_MASK XOP4_BITS (1,1,1)
 
 
-const my66000_opc_info_t opc_mrr[] =
+static const my66000_opc_info_t opc_mrr[] =
 {
  { "ldub",  MAJOR(9) | MINOR( 0) | XOP1_L(0), MY66000_MRR, NULL, 0, 0},
  { "ldubl", MAJOR(9) | MINOR( 0) | XOP1_L(1), MY66000_MRR, NULL, 0, 0},
  { NULL,   0,        MY66000_END, NULL, 0, 0}
 };
 
-const my66000_opc_info_t opc_op1[] =
+static const my66000_opc_info_t opc_op1[] =
 {
  { NULL,   MAJOR(9) | MINOR ( 0), MY66000_BAD, opc_mrr, XOP1_L_MASK, XOP1_L_SHFT},
  { "lduh", MAJOR(9) | MINOR ( 1), MY66000_MRR, NULL, 0, 0},
@@ -241,14 +241,14 @@ const my66000_opc_info_t opc_op1[] =
 };
 
 
-const my66000_opc_info_t opc_arith [] =
+static const my66000_opc_info_t opc_arith [] =
 {
  {"add",  MAJOR(10) | MINOR(33) | SIGNED(0), MY66000_ARITH, NULL, 0, 0},
  {"adds", MAJOR(10) | MINOR(33) | SIGNED(1), MY66000_ARITH, NULL, 0, 0},
  { NULL,   0,        MY66000_END, NULL, 0, 0}
 };
 
-const my66000_opc_info_t opc_op2[] =
+static const my66000_opc_info_t opc_op2[] =
 {
  { NULL,    MINOR ( 0), MY66000_BAD,  NULL, 0, 0},
  { NULL,    MINOR ( 1), MY66000_BAD,  NULL, 0, 0},
@@ -318,7 +318,7 @@ const my66000_opc_info_t opc_op2[] =
 };
 
 
-const my66000_opc_info_t opc_op4[] =
+static const my66000_opc_info_t opc_op4[] =
 {
  { "fmac",   MAJOR (12) | XOP4_MINOR(0), MY66000_FMAC, NULL, 0, 0 },
  { NULL,     MAJOR (12) | XOP4_MINOR(1), MY66000_BAD,  NULL, 0, 0 },  /* MPX */
@@ -331,17 +331,17 @@ const my66000_opc_info_t opc_op4[] =
  { NULL,   0,              MY66000_END,   NULL, 0, 0}, 
 };
 
-const my66000_opc_info_t opc_op5[] =
+static const my66000_opc_info_t opc_op5[] =
 {
   { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
-const my66000_opc_info_t opc_bcnd[] =
+static const my66000_opc_info_t opc_bcnd[] =
 {
   { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
-const my66000_opc_info_t opc_jt[] =
+static const my66000_opc_info_t opc_jt[] =
 {
   { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
@@ -349,7 +349,7 @@ const my66000_opc_info_t opc_jt[] =
 /* FIXME: Disassembling is ambigous.  */
 
 /* The two halves of the branch on bit instructions.  */
-const my66000_opc_info_t opc_bb1a[] =
+static const my66000_opc_info_t opc_bb1a[] =
 {
  { "bne",  MAJOR(24) | BB1_MINOR( 0), MY66000_BB1A, NULL, 0, 0},
  { "beq",  MAJOR(24) | BB1_MINOR( 1), MY66000_BB1A, NULL, 0, 0},
@@ -385,7 +385,7 @@ const my66000_opc_info_t opc_bb1a[] =
  { NULL,   0,                                 MY66000_END , NULL, 0, 0}
 };
 
-const my66000_opc_info_t opc_bb1b[] =
+static const my66000_opc_info_t opc_bb1b[] =
 {
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
@@ -577,12 +577,10 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",   'L' },
  {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel", 'M' },
  {MY66000_OPS_SRC3,   OPERAND_ENTRY (5,   5), "Source register 3",       'N' },
- {0,                     0, 0, 0, 0,          "unused",                  'O' },
-
+ {MY66000_OPS_I32_HEX,   0, 0, 4, 1,          "32-bit hex immediate",    'O' },
  {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",   'P' },
  {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel", 'Q' },
- /* Ditto R and S.  */
- {0,                     0, 0, 0, 0,          "unused",                  'R' },
+ {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit hex immediate",    'R' },
  {0,                     0, 0, 0, 0,          "unused",                  'S' },
 
  {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate store",  'T' },
@@ -681,9 +679,7 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
  { NULL, 0, 0, 0 },
 };
 
-/* Where to look up the operand list for a certain instruction format.
-   Warning: Keep this table in the same order as my66000_encoding in
-   include/opcode/my66000.h, this will be checked on startup of gas.  */
+/* Table 14: 3-Operand Constant Specification.  */
 
 static const my66000_fmt_spec_t fmac_fmt_list [] =
 {
@@ -691,8 +687,16 @@ static const my66000_fmt_spec_t fmac_fmt_list [] =
  { "A,B,C,-N",  XOP4_BITS (0,0,1), XOP4_FMT_MASK, 0},
  { "A,B,-C,N",  XOP4_BITS (0,1,0), XOP4_FMT_MASK, 0},
  { "A,B,-C,-N", XOP4_BITS (0,1,1), XOP4_FMT_MASK, 0},
+ { "A,B,C,#O",  XOP4_BITS (1,0,0), XOP4_FMT_MASK, 0},
+ { "A,B,#O,N",  XOP4_BITS (1,0,1), XOP4_FMT_MASK, 0},
+ { "A,B,C,#R",  XOP4_BITS (1,1,0), XOP4_FMT_MASK, 0},
+ { "A,B,#R,N",  XOP4_BITS (1,1,1), XOP4_FMT_MASK, 0},
  { NULL, 0, 0, 0}
 };
+
+/* Where to look up the operand list for a certain instruction format.
+   Warning: Keep this table in the same order as my66000_encoding in
+   include/opcode/my66000.h, this will be checked on startup of gas.  */
 
 const my66000_opcode_fmt_t my66000_opcode_fmt[] =
   {

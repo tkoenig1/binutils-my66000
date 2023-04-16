@@ -85,7 +85,9 @@ typedef struct
 
 extern my66000_reg_alias_t my66000_reg_alias[];
 
-/* Names of all the different operands the architecture has.  */
+/* Names of all the different operands the architecture has.  There
+   are quite a few...  */
+
 typedef enum my66000_operands
 {
  MY66000_OPS_DST,
@@ -102,8 +104,10 @@ typedef enum my66000_operands
  MY66000_OPS_RBASE,
  MY66000_OPS_I32_1,
  MY66000_OPS_I32_PCREL,
+ MY66000_OPS_I32_HEX,  /* Hex is only a hint for the disassembler.  */
  MY66000_OPS_I64_1,
  MY66000_OPS_I64_PCREL,
+ MY66000_OPS_I64_HEX,
  MY66000_OPS_S32,
  MY66000_OPS_S64,
  MY66000_OPS_I32_ST,

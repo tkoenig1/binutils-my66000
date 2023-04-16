@@ -519,6 +519,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I32_1:
+	case MY66000_OPS_I32_HEX:
 	  val_imm = match_32_bit_or_label (&sp, errmsg, &imm);
 	  if (*errmsg)
 	    break;
@@ -531,6 +532,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I64_1:
+	case MY66000_OPS_I64_HEX:
 	  val_imm = match_64_bit_or_label (&sp, errmsg, &imm);
 	  if (*errmsg)
 	    break;

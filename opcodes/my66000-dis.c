@@ -138,7 +138,8 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
       {
 	uint32_t val;
 	int16_t v;;
-
+	const char *out_fmt;
+  
 	op_info = &my66000_operand_table[*f - 'A'];
 	val = (iword & op_info->mask) >> op_info->shift;
 
@@ -148,11 +149,13 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    break;
 	  case 4:
 	    val_32 = bfd_getl32 (buf1);
-	    fpr (stream, "%u", val_32);
+	    out_fmt = op_info->oper == MY66000_OPS_I32_HEX ? "0x%8.8x" : "%u";
+	    fpr (stream, out_fmt, val_32);
 	    continue;
 	  case 8:
 	    val_64 = bfd_getl64 (buf1);
-	    fpr (stream, "%lu", val_64);
+	    out_fmt = op_info->oper == MY66000_OPS_I64_HEX ? "0x%16.16lx" : "%u";
+	    fpr (stream, out_fmt, val_64);
 	    continue;
 	  default:
 	    opcodes_error_handler ("Internal error: size");
