@@ -429,7 +429,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   uint64_t val_imm = 0, val_imm_st = 0;
   _Bool imm_pcrel = false;
 
-  //  fprintf (stderr,"match_arglist : '%s' '%s'\n", str, spec->fmt);
+  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
   for (; *fp; fp++)
     {
       uint32_t frag;
@@ -578,6 +578,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   p_op = p;
   //  printf ("p = %p\n", p);
   md_number_to_chars (p, iword, 4);
+  fprintf (stderr, "match_arglist: iword = %8.8x\n", iword);
 
   //  fprintf (stderr, "iword = %x p = %p\n", iword, p);
   /* Handle the immediates.  */
@@ -720,6 +721,7 @@ md_assemble (char *str)
      Note: The ordering of what is put into each map matters in this.
   */
 
+  errmsg = NULL;
   for (j = 0; j < N_MAP; j++)
     {
       opc = (my66000_opc_info_t *) str_hash_find (s_opc_map[j], buffer);
@@ -728,7 +730,7 @@ md_assemble (char *str)
 	  if (errmsg != NULL)
 	    as_bad ("Error for %s: %s", buffer, errmsg);
 	  else
-	    as_bad ("illegal opcode %s\n", buffer);
+	    as_bad ("illegal instruction %s\n", buffer);
 	  return;
 	}
       errmsg = NULL;

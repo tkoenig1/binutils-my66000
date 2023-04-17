@@ -25,6 +25,9 @@
 #define MY66000_MAJOR_SHIFT 26
 #define MY66000_MAJOR_MASK (63 << MY66000_MAJOR_SHIFT)
 
+/* This is for looking up the opcode formats in my66000_opcode_fmt.
+   Ordering matters, see comment there.  */
+
 typedef enum my66000_encoding
 {
  MY66000_END = -1,
@@ -39,6 +42,8 @@ typedef enum my66000_encoding
  MY66000_BR,       /* Branch, call etc.  */
  MY66000_MRR,	   /* Indexed memory operation, [Ra,Rb]  */
  MY66000_FMAC,     /* FMAC instruction.  */
+ MY66000_MUX,      /* MUX and CMOV.  */
+ MY66000_MOV2,     /* Move from SRC2.  */
  MY66000_PB1A,
  MY66000_PB1B,
  MY66000_PCND,
