@@ -92,7 +92,7 @@ md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
 
 /* Duplicate names for instructions occur at most N_MAP times.  */
 
-#define N_MAP 4
+#define N_MAP 5
 
 static htab_t s_opc_map[N_MAP];
 

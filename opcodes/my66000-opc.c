@@ -323,25 +323,25 @@ static const my66000_opc_info_t opc_mpx[] =
  { "mux",  MAJOR (12) | XOP4_MINOR(1) | XOP4_BITS (0,0,0), MY66000_MUX, NULL, 0, 0},
  { "cmov", MAJOR (12) | XOP4_MINOR(1) | XOP4_BITS (0,0,1), MY66000_MUX, NULL, 0, 0},
  { "mov",  MAJOR (12) | XOP4_MINOR(1) | XOP4_BITS (0,1,0), MY66000_MOV2, NULL, 0, 0},
- { NULL, 0, 0, NULL, 0, 0},
- { NULL, 0, 0, NULL, 0, 0},
- { NULL, 0, 0, NULL, 0, 0},
- { NULL, 0, 0, NULL, 0, 0},
- { NULL, 0, 0, NULL, 0, 0},
- { NULL,   0,                                             MY66000_END, NULL, 0, 0},
+ { "mov",  MAJOR (12) | XOP4_MINOR(1) | XOP4_BITS (0,1,1), MY66000_MOV3, NULL, 0, 0},
+ { "mux",  MAJOR (12) | XOP4_MINOR(1) | XOP4_BITS (1,0,0), MY66000_MUX32, NULL, 0, 0},
+ { "mov",  MAJOR (12) | XOP4_MINOR(1) | XOP4_BITS (1,0,1), MY66000_MOV32, NULL, 0, 0},
+ { "mux",  MAJOR (12) | XOP4_MINOR(1) | XOP4_BITS (1,1,0), MY66000_MUX64, NULL, 0, 0},
+ { "mov",  MAJOR (12) | XOP4_MINOR(1) | XOP4_BITS (1,1,1), MY66000_MOV64, NULL, 0, 0},
+ { NULL,   0,                                              MY66000_END, NULL, 0, 0},
 };
 
 static const my66000_opc_info_t opc_op4[] =
 {
- { "fmac",   MAJOR (12) | XOP4_MINOR(0), MY66000_FMAC, NULL, 0, 0 },
+ { "fmac",   MAJOR (12) | XOP4_MINOR(0), MY66000_FMAC, NULL, 0, 0},
  { NULL,     MAJOR (12) | XOP4_MINOR(1), MY66000_BAD,  opc_mpx, XOP4_FMT_MASK,
    XOP4_FMT_SHFT },  /* MPX */
- { NULL,     MAJOR (12) | XOP4_MINOR(2), MY66000_BAD,  NULL, 0, 0 },  /* INS */
- { NULL,     MAJOR (12) | XOP4_MINOR(3), MY66000_BAD,  NULL, 0, 0 },  /* empty */
- { "fmacs",  MAJOR (12) | XOP4_MINOR(4), MY66000_FMAC, NULL, 0, 0 },
- { NULL,     MAJOR (12) | XOP4_MINOR(5), MY66000_BAD,  NULL, 0, 0 },  /* empty */
- { NULL,     MAJOR (12) | XOP4_MINOR(6), MY66000_BAD,  NULL, 0, 0 },  /* empty */
- { NULL,     MAJOR (12) | XOP4_MINOR(7), MY66000_FMAC, NULL, 0, 0 },  /* Loop */
+ { NULL,     MAJOR (12) | XOP4_MINOR(2), MY66000_BAD,  NULL, 0, 0},  /* INS */
+ { NULL,     MAJOR (12) | XOP4_MINOR(3), MY66000_BAD,  NULL, 0, 0},  /* empty */
+ { "fmacs",  MAJOR (12) | XOP4_MINOR(4), MY66000_FMAC, NULL, 0, 0},
+ { NULL,     MAJOR (12) | XOP4_MINOR(5), MY66000_BAD,  NULL, 0, 0},  /* empty */
+ { NULL,     MAJOR (12) | XOP4_MINOR(6), MY66000_BAD,  NULL, 0, 0},  /* empty */
+ { NULL,     MAJOR (12) | XOP4_MINOR(7), MY66000_FMAC, NULL, 0, 0},  /* Loop */
  { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
 
@@ -442,10 +442,10 @@ const my66000_opc_info_t my66000_opc_info[] =
 {
  { "ill0", MAJOR( 0), MY66000_ILL,   NULL, 0, 0},
  { NULL,   MAJOR( 1), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR( 2), MY66000_BAD,   NULL, 0, 0 },
- { NULL,   MAJOR( 3), MY66000_BAD,   NULL, 0, 0 },
- { NULL,   MAJOR( 4), MY66000_BAD,   NULL, 0, 0 },
- { NULL,   MAJOR( 5), MY66000_BAD,   NULL, 0, 0 },
+ { NULL,   MAJOR( 2), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 3), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 4), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 5), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR( 6), MY66000_BAD,   opc_om6, SHFT_MASK, SHFT_OFFS},
  { NULL,   MAJOR( 7), MY66000_BAD,   opc_om7, SHFT_MASK, SHFT_OFFS},
  { NULL,   MAJOR( 8), MY66000_BAD,   NULL, 0, 0},
@@ -612,8 +612,8 @@ const my66000_operand_info_t my66000_operand_table[] =
 
 static const my66000_fmt_spec_t opimm_fmt_list[] =
 {
- { "A,B,#E", 0, 0, 0 },
- { NULL,     0, 0, 0 },
+ { "A,B,#E", 0, 0, 0},
+ { NULL,     0, 0, 0},
 
 };
 
@@ -625,35 +625,35 @@ static const my66000_fmt_spec_t mvimm_fmt_list[] =
 
 static const my66000_fmt_spec_t mem_fmt_list[] =
 {
- { "A,[B]",   0, 0xffff, 0 },
- { "A,[B,E]", 0, 0,      0 },
- { NULL,      0, 0,      0 },
+ { "A,[B]",   0, 0xffff, 0},
+ { "A,[B,E]", 0, 0,      0},
+ { NULL,      0, 0,      0},
 };
 
 /* This is table 13-2, 2-Operand Specification.  */
 
 static const my66000_fmt_spec_t arith_fmt_list [] =
 {
- { "A,B,C",    XOP2_BITS (0,0,0,0), XOP2_MASK, 0 },
- { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK, 0 },
- { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK, 0 },
- { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK, 0 },
+ { "A,B,C",    XOP2_BITS (0,0,0,0), XOP2_MASK, 0},
+ { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK, 0},
+ { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK, 0},
+ { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK, 0},
 
- { "A,B,#F",   XOP2_BITS (0,1,0,0), XOP2_MASK, 0 },
- { "A,#G,C",   XOP2_BITS (0,1,0,1), XOP2_MASK, 0 },
- { "A,B,#-F",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0 },
- { "A,#-G,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0 },
+ { "A,B,#F",   XOP2_BITS (0,1,0,0), XOP2_MASK, 0},
+ { "A,#G,C",   XOP2_BITS (0,1,0,1), XOP2_MASK, 0},
+ { "A,B,#-F",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
+ { "A,#-G,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
 
- { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0 },
- { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0 },
- { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK, 0 },
- { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK, 0 },
+ { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0},
+ { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0},
+ { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK, 0},
+ { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK, 0},
 
- { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK, 0 },
- { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0 },
- { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0 },
- { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0 },
- { NULL,      0, 0, 0 },
+ { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK, 0},
+ { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0},
+ { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0},
+ { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0},
+ { NULL,      0, 0, 0},
 };
 
 static const my66000_fmt_spec_t bb1_fmt_list [] =
@@ -673,15 +673,15 @@ static const my66000_fmt_spec_t br_fmt_list [] =
 static const my66000_fmt_spec_t mrr_fmt_list [] =
 {
  /* Different synatax variants for scaled.  */
- { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_FMT_MASK, 0 },
- { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_FMT_MASK, 0 },
- { "A,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_FMT_MASK, 0 },
- { "A,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_FMT_MASK, 0 },
- { "A,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_FMT_MASK, 0 },
- { "A,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_FMT_MASK, 0 },
- { "A,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_FMT_MASK, 0 },
- { "A,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_FMT_MASK, 0 },
- { "A,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_FMT_MASK, 0 },
+ { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_FMT_MASK, 0},
 
  /* FIXME:  Relocations for symbols which are not offset
     with respect to the IP are poorly defined at the moment.  */
@@ -690,7 +690,7 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
     and 64-bit relocations, respectively.  */
  { "A,[K,M]",      XOP1_BITS(0,0,1), MRR_FMT_MASK | RIND_ZERO_MASK | IP_MASK, 1},
  { "A,[K,Q]",      XOP1_BITS(1,0,1), MRR_FMT_MASK | RIND_ZERO_MASK | IP_MASK, 0},
- { NULL, 0, 0, 0 },
+ { NULL, 0, 0, 0},
 };
 
 /* Table 14: 3-Operand Constant Specification.  */
@@ -710,14 +710,44 @@ static const my66000_fmt_spec_t fmac_fmt_list [] =
 
 static const my66000_fmt_spec_t mux_fmt_list[] =
 {
- { "A,B,C",    0, 0, 0 },
- { NULL,       0, 0, 0 },
+ { "A,B,C",    0, 0, 0},
+ { NULL,       0, 0, 0},
 };
 
 static const my66000_fmt_spec_t mov2_fmt_list[] =
 {
- { "A,B",      0, 0, 0 },
- { NULL,       0, 0, 0 },
+ { "A,C",      0, 0, 0},
+ { NULL,       0, 0, 0},
+};
+
+static const my66000_fmt_spec_t mov3_fmt_list[] =
+{
+ { "A,N",      0, 0, 0},
+ { NULL,       0, 0, 0},
+};
+
+static const my66000_fmt_spec_t mux32_fmt_list[] =
+{
+ { "A,B,#L",   0, 0, 0},
+ { NULL,       0, 0, 0},
+};
+
+static const my66000_fmt_spec_t mov32_fmt_list[] =
+{
+ { "A,#L",     0, 0, 0},
+ { NULL,       0, 0, 0},
+};
+
+static const my66000_fmt_spec_t mux64_fmt_list[] =
+{
+ { "A,B,#P",   0, 0, 0},
+ { NULL,       0, 0, 0},
+};
+
+static const my66000_fmt_spec_t mov64_fmt_list[] =
+{
+ { "A,#P",     0, 0, 0},
+ { NULL,       0, 0, 0},
 };
 
 /* Where to look up the operand list for a certain instruction format.
@@ -726,25 +756,30 @@ static const my66000_fmt_spec_t mov2_fmt_list[] =
 
 const my66000_opcode_fmt_t my66000_opcode_fmt[] =
   {
-   { NULL,              MY66000_BAD,    0 },
-   { NULL,              MY66000_ILL,    0 },
-   { opimm_fmt_list,    MY66000_OPIMM,  0 },
-   { mvimm_fmt_list,	MY66000_MVIMM,  0 },
-   { mem_fmt_list,      MY66000_MEM,    0 },
-   { arith_fmt_list,    MY66000_ARITH,  0 },
-   { bb1_fmt_list,	MY66000_BB1A,	0 },
-   { bb1_fmt_list,	MY66000_BB1B,	0 },
-   { br_fmt_list,       MY66000_BR,     0 },
-   { mrr_fmt_list,      MY66000_MRR,    0 },
-   { fmac_fmt_list,	MY66000_FMAC,   0 },
-   { mux_fmt_list,      MY66000_MUX,    0 },
-   { mov2_fmt_list,     MY66000_MOV2,   0 },
-   { NULL,	        MY66000_END,    0 },
+   { NULL,              MY66000_BAD,    0},
+   { NULL,              MY66000_ILL,    0},
+   { opimm_fmt_list,    MY66000_OPIMM,  0},
+   { mvimm_fmt_list,	MY66000_MVIMM,  0},
+   { mem_fmt_list,      MY66000_MEM,    0},
+   { arith_fmt_list,    MY66000_ARITH,  0},
+   { bb1_fmt_list,	MY66000_BB1A,	0},
+   { bb1_fmt_list,	MY66000_BB1B,	0},
+   { br_fmt_list,       MY66000_BR,     0},
+   { mrr_fmt_list,      MY66000_MRR,    0},
+   { fmac_fmt_list,	MY66000_FMAC,   0},
+   { mux_fmt_list,      MY66000_MUX,    0},
+   { mov2_fmt_list,     MY66000_MOV2,   0},
+   { mov3_fmt_list,     MY66000_MOV3,   0},
+   { mux32_fmt_list,    MY66000_MUX32,  0},
+   { mov32_fmt_list,    MY66000_MOV32,  0},
+   { mux64_fmt_list,    MY66000_MUX64,  0},
+   { mov64_fmt_list,    MY66000_MOV64,  0},
+   { NULL,	        MY66000_END,    0},
   };
 
-/* Some helper functions for relax in the assembler.  In theory, this
-   is redundant with the tables above. In practice, getting the info
-   out of the table is simply too much hassle.  */
+/* Some helper functions for relaxation in the assembler.  In theory,
+   this is redundant with the tables above. In practice, getting the
+   info from the table is simply too much hassle.  */
 
 /* Inquire the size of the immediate, if any.  */
 

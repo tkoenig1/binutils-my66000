@@ -44,6 +44,11 @@ typedef enum my66000_encoding
  MY66000_FMAC,     /* FMAC instruction.  */
  MY66000_MUX,      /* MUX and CMOV.  */
  MY66000_MOV2,     /* Move from SRC2.  */
+ MY66000_MOV3,     /* Move from SRC3.  This is redundant, but we suport it. */
+ MY66000_MUX32,    /* MUX with a 32-bit immediate selector.  */
+ MY66000_MOV32,    /* MOV with a 32-bit immediate.  */
+ MY66000_MUX64,    /* MUX with a 64-bit immediate selector.  */
+ MY66000_MOV64,    /* MOV with a 64-bit immediate.  */
  MY66000_PB1A,
  MY66000_PB1B,
  MY66000_PCND,

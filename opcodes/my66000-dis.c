@@ -154,7 +154,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    continue;
 	  case 8:
 	    val_64 = bfd_getl64 (buf1);
-	    out_fmt = op_info->oper == MY66000_OPS_I64_HEX ? "0x%16.16lx" : "%u";
+	    out_fmt = op_info->oper == MY66000_OPS_I64_HEX ? "0x%16.16lx" : "%lu";
 	    fpr (stream, out_fmt, val_64);
 	    continue;
 	  default:
