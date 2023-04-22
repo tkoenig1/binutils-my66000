@@ -93,7 +93,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
   size_1 = size_2 = 0;
   for (f = spec->fmt; *f; f++)
     {
-      if (ISUPPER (*f)) {
+      if (ISALPHA (*f)) {
 	op_info = &my66000_operand_table[*f - 'A'];
 	if (op_info->seq == 1)
 	  {
@@ -134,7 +134,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
     }
   for (f = spec->fmt; *f; f++)
     {
-      if (ISUPPER(*f))
+      if (ISALPHA(*f))
       {
 	uint32_t val;
 	int16_t v;;
@@ -186,6 +186,8 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	  case MY66000_OPS_I1:
 	  case MY66000_OPS_I2:
 	  case MY66000_OPS_BB1:
+	  case MY66000_OPS_WIDTH:
+	  case MY66000_OPS_OFFSET:
 	    /* An integer constant.  */
 	    v = val;
 	    fpr (stream, "%d", v);

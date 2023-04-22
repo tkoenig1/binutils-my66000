@@ -49,12 +49,12 @@ typedef enum my66000_encoding
  MY66000_MOV32,    /* MOV with a 32-bit immediate.  */
  MY66000_MUX64,    /* MUX with a 64-bit immediate selector.  */
  MY66000_MOV64,    /* MOV with a 64-bit immediate.  */
+ MY66000_SHIFT,    /* Shift formats with 6-bit immediates.  */
  MY66000_PB1A,
  MY66000_PB1B,
  MY66000_PCND,
  MY66000_BCND,
  MY66000_JT,
- MY66000_SHIFT,
  MY66000_EXIT,
  MY66000_MM,     /* Load/store multiple.  */
  MY66000_SI,	 /* Store immediate.  */
@@ -122,6 +122,8 @@ typedef enum my66000_operands
  MY66000_OPS_S64,
  MY66000_OPS_I32_ST,
  MY66000_OPS_I64_ST,
+ MY66000_OPS_WIDTH,
+ MY66000_OPS_OFFSET,
  MY66000_OPS_END
 } my66000_operands;
 

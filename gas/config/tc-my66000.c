@@ -225,7 +225,8 @@ match_integer (char **ptr, char **errmsg, offsetT minval, offsetT maxval)
   endp = str;
   while (1)
     {
-      if (*endp == '\0' || *endp == ',' || *endp == ']'
+      if (*endp == '\0' || *endp == ',' || *endp == ']' || *endp == ':'
+	  || *endp == '<' || *endp == '>'
 	  || is_end_of_line[(unsigned char) *endp])
 	break;
       endp++;
@@ -338,7 +339,8 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
   endp = str;
   while (1)
     {
-      if (*endp == '\0' || *endp == ',' || *endp == ']'
+      if (*endp == '\0' || *endp == ',' || *endp == ']' || *endp == ':'
+	  || *endp == '<' || *endp == '>'
 	  || is_end_of_line[(unsigned char) *endp])
 	break;
       endp++;
@@ -433,7 +435,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   for (; *fp; fp++)
     {
       uint32_t frag;
-      if (!ISUPPER(*fp))
+      if (!ISALPHA(*fp))
 	{
 	  match_character (*fp, &sp, errmsg);
 	  if (*errmsg)
@@ -465,6 +467,8 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  frag = match_5bit (&sp, errmsg);
 	  break;
 	case MY66000_OPS_BB1:
+	case MY66000_OPS_WIDTH:
+	case MY66000_OPS_OFFSET:
 	  frag = match_6bit (&sp, errmsg);
 	  break;
 

@@ -64,11 +64,11 @@ static const my66000_opc_info_t opc_om6[] =
  { NULL,   MAJOR(6) | SHFT_MINOR( 5), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 6), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 7), MY66000_BAD,   NULL, 0, 0},
- { "srl",  MAJOR(6) | SHFT_MINOR( 8), MY66000_SHIFT, NULL, 0, 0},
- { "sra",  MAJOR(6) | SHFT_MINOR( 9), MY66000_SHIFT, NULL, 0, 0},
- { "sll",  MAJOR(6) | SHFT_MINOR(10), MY66000_SHIFT, NULL, 0, 0},
- { "sla",  MAJOR(6) | SHFT_MINOR(11), MY66000_SHIFT, NULL, 0, 0},
- { "bitr", MAJOR(6) | SHFT_MINOR(12), MY66000_SHIFT, NULL, 0, 0},
+ { NULL,   MAJOR(6) | SHFT_MINOR( 8), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(6) | SHFT_MINOR( 9), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(6) | SHFT_MINOR(10), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(6) | SHFT_MINOR(11), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(6) | SHFT_MINOR(12), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR(13), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR(14), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR(15), MY66000_BAD,   NULL, 0, 0},
@@ -81,15 +81,15 @@ static const my66000_opc_info_t opc_om7[] =
  { "pcnd", MAJOR(7) | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(7) | SHFT_MINOR( 4), MY66000_BAD,   NULL, 0, 0},
+ { "smr",  MAJOR(7) | SHFT_MINOR( 4), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 5), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(7) | SHFT_MINOR( 6), MY66000_BAD,   NULL, 0, 0},
+ { "rot",  MAJOR(7) | SHFT_MINOR( 6), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 7), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(7) | SHFT_MINOR( 8), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   MAJOR(7) | SHFT_MINOR( 9), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   MAJOR(7) | SHFT_MINOR(10), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   MAJOR(7) | SHFT_MINOR(11), MY66000_SHIFT, NULL, 0, 0},
- { NULL,   MAJOR(7) | SHFT_MINOR(12), MY66000_SHIFT, NULL, 0, 0},
+ { "srl",  MAJOR(7) | SHFT_MINOR( 8), MY66000_SHIFT, NULL, 0, 0},
+ { "sra",  MAJOR(7) | SHFT_MINOR( 9), MY66000_SHIFT, NULL, 0, 0},
+ { "sll",  MAJOR(7) | SHFT_MINOR(10), MY66000_SHIFT, NULL, 0, 0},
+ { "sla",  MAJOR(7) | SHFT_MINOR(11), MY66000_SHIFT, NULL, 0, 0},
+ { "bitr", MAJOR(7) | SHFT_MINOR(12), MY66000_SHIFT, NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR(13), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR(14), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR(15), MY66000_BAD,   NULL, 0, 0},
@@ -590,7 +590,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_RBASE,  OPERAND_ENTRY ( 5, 16), "Base register",           'K' },
  {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",   'L' },
  {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel", 'M' },
- {MY66000_OPS_SRC3,   OPERAND_ENTRY (5,   5), "Source register 3",       'N' },
+ {MY66000_OPS_SRC3,   OPERAND_ENTRY ( 5,  5), "Source register 3",       'N' },
  {MY66000_OPS_I32_HEX,   0, 0, 4, 1,          "32-bit hex immediate",    'O' },
  {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",   'P' },
  {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel", 'Q' },
@@ -599,6 +599,9 @@ const my66000_operand_info_t my66000_operand_table[] =
 
  {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate store",  'T' },
  {MY66000_OPS_I64_ST,    0, 0, 8, 2,          "64-bit immediate store",  'U' },
+ {MY66000_OPS_WIDTH,   OPERAND_ENTRY ( 6, 6), "6-bit width",		 'V' },
+ {MY66000_OPS_OFFSET,  OPERAND_ENTRY ( 6, 0), "6-bit offset",		 'W' },
+ {MY66000_OPS_W_BITR,  OPERAND_ENTRY ( 6, 6), "6-bit power of two",      'X' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -750,6 +753,12 @@ static const my66000_fmt_spec_t mov64_fmt_list[] =
  { NULL,       0, 0, 0},
 };
 
+static const my66000_fmt_spec_t shift_fmt_list[] =
+{
+ { "A,B,<V:W>", 0, 0, 0},
+ { NULL,        0, 0, 0}
+};
+
 /* Where to look up the operand list for a certain instruction format.
    Warning: Keep this table in the same order as my66000_encoding in
    include/opcode/my66000.h, this will be checked on startup of gas.  */
@@ -774,6 +783,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { mov32_fmt_list,    MY66000_MOV32,  0},
    { mux64_fmt_list,    MY66000_MUX64,  0},
    { mov64_fmt_list,    MY66000_MOV64,  0},
+   { shift_fmt_list,    MY66000_SHIFT,  0},
    { NULL,	        MY66000_END,    0},
   };
 
