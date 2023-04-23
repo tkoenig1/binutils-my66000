@@ -24,7 +24,7 @@
 #include "disassemble.h"
 #include "opcode/my66000.h"
 
-/* Macro so we can fill up the frag_opc, frag_mask and shift
+/* Macro so we can fill up the patt_opc, patt_mask and shift
    members more easily.  */
 
 #define MAJOR(c) ((c) << MY66000_MAJOR_SHIFT)
@@ -53,6 +53,129 @@
 #define TT_MASK 7 << TT_OFFS
 
 #define SHFT_MINOR(c) (c) << SHFT_OFFS
+
+const my66000_opc_info_t my66000_opc_info_special[];
+const my66000_opc_info_t my66000_opc_info[];
+static const my66000_opc_info_t opc_om6[];
+static const my66000_opc_info_t opc_om7[];
+static const my66000_opc_info_t opc_mrr[];
+static const my66000_opc_info_t opc_op1[];
+static const my66000_opc_info_t opc_arith[];
+static const my66000_opc_info_t opc_op2[];
+static const my66000_opc_info_t opc_mpx[];
+static const my66000_opc_info_t opc_op4[];
+static const my66000_opc_info_t opc_op5[];
+static const my66000_opc_info_t opc_bcnd[];
+static const my66000_opc_info_t opc_jt[];
+static const my66000_opc_info_t opc_bb1a[];
+static const my66000_opc_info_t opc_bb1b[];
+
+/* List of all the tables containing opcodes, for initializing the
+   hashtabs for gas.  Keep up to date if you add anything below,
+   otherwise the instructions will not be found.  The order in this
+   table is the order in which opcodes will be searched for.  Easiest
+   if you keep this in the same order as the declarations above.  */
+
+const my66000_opc_info_t *my66000_opc_info_list[] =
+{
+ my66000_opc_info_special,
+ my66000_opc_info,
+ opc_om6,
+ opc_om7,
+ opc_mrr,
+ opc_op1,
+ opc_arith,
+ opc_op2,
+ opc_mpx,
+ opc_op4,
+ opc_op5,
+ opc_bcnd,
+ opc_jt,
+ opc_bb1a,
+ opc_bb1b,
+};
+
+/* Table for special opcodes which are not well suited for recursive
+   table lookup.  Will be looked at first by the assembler
+   and disassembler.  */
+
+const my66000_opc_info_t my66000_opc_info_special[] =
+{
+ /* nop is "or r0, r0, #0000" . */
+  { "nop", MAJOR(56), MY66000_EMPTY, NULL, 0, 0},
+  { NULL,  0,         MY66000_END,   NULL, 0, 0},
+};
+
+/* The major table - the only one we export as a global symbol.  */
+
+const my66000_opc_info_t my66000_opc_info[] =
+{
+ { "ill0", MAJOR( 0), MY66000_ILL,   NULL, 0, 0},
+ { NULL,   MAJOR( 1), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 2), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 3), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 4), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 5), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 6), MY66000_BAD,   opc_om6, SHFT_MASK, SHFT_OFFS},
+ { NULL,   MAJOR( 7), MY66000_BAD,   opc_om7, SHFT_MASK, SHFT_OFFS},
+ { NULL,   MAJOR( 8), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 9), MY66000_MEM,   opc_op1, MINOR_MASK, MINOR_OFFS},
+ { NULL,   MAJOR(10), MY66000_BAD,   opc_op2, MINOR_MASK, MINOR_OFFS},
+ { NULL,   MAJOR(11), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(12), MY66000_BAD,   opc_op4, XOP4_MASK, XOP4_OFFS},
+ { NULL,   MAJOR(13), MY66000_BAD,   opc_op5, MINOR_MASK, MINOR_OFFS},
+ { NULL,   MAJOR(14), MY66000_BAD,   NULL, 0, 0},
+ { "ill1", MAJOR(15), MY66000_ILL,   NULL, 0, 0},
+ { "ill2", MAJOR(16), MY66000_ILL,   NULL, 0, 0},
+ { NULL,   MAJOR(17), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(18), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(19), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(20), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(21), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(22), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(23), MY66000_BAD,   NULL, 0, 0},
+ { "bb1",  MAJOR(24), MY66000_BB1A,  opc_bb1a, BB1_MASK,  BB1_OFFS},
+ { "bb1",  MAJOR(25), MY66000_BB1B,  opc_bb1b, BB1_MASK,  BB1_OFFS},
+ { "bcnd", MAJOR(26), MY66000_BCND,  opc_bcnd, BCND_MASK, BCND_OFFS},
+ { NULL,   MAJOR(27), MY66000_BAD,   opc_jt,   TT_MASK,   TT_OFFS},
+ { NULL,   MAJOR(28), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(29), MY66000_BAD,   NULL, 0, 0},
+ { "br",   MAJOR(30), MY66000_BR,    NULL, 0, 0},
+ { "call", MAJOR(31), MY66000_BR,    NULL, 0, 0},
+ { "ldub", MAJOR(32), MY66000_MEM,   NULL, 0, 0},
+ { "lduh", MAJOR(33), MY66000_MEM,   NULL, 0, 0},
+ { "lduw", MAJOR(34), MY66000_MEM,   NULL, 0, 0},
+ { "ldd",  MAJOR(35), MY66000_MEM,   NULL, 0, 0},
+ { "ldsb", MAJOR(36), MY66000_MEM,   NULL, 0, 0},
+ { "ldsh", MAJOR(37), MY66000_MEM,   NULL, 0, 0},
+ { "ldsw", MAJOR(38), MY66000_MEM,   NULL, 0, 0},
+ { "exit", MAJOR(39), MY66000_EXIT,  NULL, 0, 0},
+ { "stb",  MAJOR(40), MY66000_MEM,   NULL, 0, 0},
+ { "sth",  MAJOR(41), MY66000_MEM,   NULL, 0, 0},
+ { "stw",  MAJOR(42), MY66000_MEM,   NULL, 0, 0},
+ { "std",  MAJOR(43), MY66000_MEM,   NULL, 0, 0},
+ { "enter", MAJOR(44), MY66000_EXIT, NULL, 0, 0},
+ { "ldm",  MAJOR(45), MY66000_MM,    NULL, 0, 0},
+ { "stm",  MAJOR(46), MY66000_MM,    NULL, 0, 0},
+ { "ill3", MAJOR(47), MY66000_ILL,   NULL, 0, 0},
+ { "ill4", MAJOR(48), MY66000_ILL,   NULL, 0, 0},
+ { "add",  MAJOR(49), MY66000_OPIMM, NULL, 0, 0},
+ { "mul",  MAJOR(50), MY66000_OPIMM, NULL, 0, 0},
+ { "div",  MAJOR(51), MY66000_OPIMM, NULL, 0, 0},
+ { "cmp",  MAJOR(52), MY66000_OPIMM, NULL, 0, 0},
+ { NULL,   MAJOR(53), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(54), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(55), MY66000_BAD,   NULL, 0, 0},
+ { "or",   MAJOR(56), MY66000_OPIMM, NULL, 0, 0},
+ { "xor",  MAJOR(57), MY66000_OPIMM, NULL, 0, 0},
+ { "and",  MAJOR(58), MY66000_OPIMM, NULL, 0, 0},
+ { "mov",  MAJOR(59), MY66000_MVIMM, NULL, 0, 0},
+ { "carry", MAJOR(60), MY66000_CARRY, NULL, 0, 0},
+ { "vec",  MAJOR(61), MY66000_VEC,   NULL, 0, 0},
+ { NULL,   MAJOR(62), MY66000_BAD,   NULL, 0, 0},
+ { "ill5", MAJOR(63), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   0,         MY66000_END,   NULL, 0, 0},
+};
 
 static const my66000_opc_info_t opc_om6[] =
 {
@@ -241,6 +364,10 @@ static const my66000_opc_info_t opc_op1[] =
  { NULL,  0,              MY66000_END,   NULL, 0, 0}
 };
 
+
+/* For this table, we make an exception - it is indexed with
+   only the S bit, so we use offsets into the middle of the
+   table.  */
 
 static const my66000_opc_info_t opc_arith[] =
 {
@@ -436,86 +563,6 @@ static const my66000_opc_info_t opc_bb1b[] =
   { NULL,   0,                                 MY66000_END , NULL, 0, 0},
 } ;
 
-/* The major table - the only one we export as a global symbol.  */
-
-const my66000_opc_info_t my66000_opc_info[] =
-{
- { "ill0", MAJOR( 0), MY66000_ILL,   NULL, 0, 0},
- { NULL,   MAJOR( 1), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR( 2), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR( 3), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR( 4), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR( 5), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR( 6), MY66000_BAD,   opc_om6, SHFT_MASK, SHFT_OFFS},
- { NULL,   MAJOR( 7), MY66000_BAD,   opc_om7, SHFT_MASK, SHFT_OFFS},
- { NULL,   MAJOR( 8), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR( 9), MY66000_MEM,   opc_op1, MINOR_MASK, MINOR_OFFS},
- { NULL,   MAJOR(10), MY66000_BAD,   opc_op2, MINOR_MASK, MINOR_OFFS},
- { NULL,   MAJOR(11), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(12), MY66000_BAD,   opc_op4, XOP4_MASK, XOP4_OFFS},
- { NULL,   MAJOR(13), MY66000_BAD,   opc_op5, MINOR_MASK, MINOR_OFFS},
- { NULL,   MAJOR(14), MY66000_BAD,   NULL, 0, 0},
- { "ill1", MAJOR(15), MY66000_ILL,   NULL, 0, 0},
- { "ill2", MAJOR(16), MY66000_ILL,   NULL, 0, 0},
- { NULL,   MAJOR(17), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(18), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(19), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(20), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(21), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(22), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(23), MY66000_BAD,   NULL, 0, 0},
- { "bb1",  MAJOR(24), MY66000_BB1A,  opc_bb1a, BB1_MASK,  BB1_OFFS},
- { "bb1",  MAJOR(25), MY66000_BB1B,  opc_bb1b, BB1_MASK,  BB1_OFFS},
- { "bcnd", MAJOR(26), MY66000_BCND,  opc_bcnd, BCND_MASK, BCND_OFFS},
- { NULL,   MAJOR(27), MY66000_BAD,   opc_jt,   TT_MASK,   TT_OFFS},
- { NULL,   MAJOR(28), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(29), MY66000_BAD,   NULL, 0, 0},
- { "br",   MAJOR(30), MY66000_BR,    NULL, 0, 0},
- { "call", MAJOR(31), MY66000_BR,    NULL, 0, 0},
- { "ldub", MAJOR(32), MY66000_MEM,   NULL, 0, 0},
- { "lduh", MAJOR(33), MY66000_MEM,   NULL, 0, 0},
- { "lduw", MAJOR(34), MY66000_MEM,   NULL, 0, 0},
- { "ldd",  MAJOR(35), MY66000_MEM,   NULL, 0, 0},
- { "ldsb", MAJOR(36), MY66000_MEM,   NULL, 0, 0},
- { "ldsh", MAJOR(37), MY66000_MEM,   NULL, 0, 0},
- { "ldsw", MAJOR(38), MY66000_MEM,   NULL, 0, 0},
- { "exit", MAJOR(39), MY66000_EXIT,  NULL, 0, 0},
- { "stb",  MAJOR(40), MY66000_MEM,   NULL, 0, 0},
- { "sth",  MAJOR(41), MY66000_MEM,   NULL, 0, 0},
- { "stw",  MAJOR(42), MY66000_MEM,   NULL, 0, 0},
- { "std",  MAJOR(43), MY66000_MEM,   NULL, 0, 0},
- { "enter", MAJOR(44), MY66000_EXIT, NULL, 0, 0},
- { "ldm",  MAJOR(45), MY66000_MM,    NULL, 0, 0},
- { "stm",  MAJOR(46), MY66000_MM,    NULL, 0, 0},
- { "ill3", MAJOR(47), MY66000_ILL,   NULL, 0, 0},
- { "ill4", MAJOR(48), MY66000_ILL,   NULL, 0, 0},
- { "add",  MAJOR(49), MY66000_OPIMM, NULL, 0, 0},
- { "mul",  MAJOR(50), MY66000_OPIMM, NULL, 0, 0},
- { "div",  MAJOR(51), MY66000_OPIMM, NULL, 0, 0},
- { "cmp",  MAJOR(52), MY66000_OPIMM, NULL, 0, 0},
- { NULL,   MAJOR(53), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(54), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(55), MY66000_BAD,   NULL, 0, 0},
- { "or",   MAJOR(56), MY66000_OPIMM, NULL, 0, 0},
- { "xor",  MAJOR(57), MY66000_OPIMM, NULL, 0, 0},
- { "and",  MAJOR(58), MY66000_OPIMM, NULL, 0, 0},
- { "mov",  MAJOR(59), MY66000_MVIMM, NULL, 0, 0},
- { "carry", MAJOR(60), MY66000_CARRY, NULL, 0, 0},
- { "vec",  MAJOR(61), MY66000_VEC,   NULL, 0, 0},
- { NULL,   MAJOR(62), MY66000_BAD,   NULL, 0, 0},
- { "ill5", MAJOR(63), MY66000_BAD,   NULL, 0, 0},
- { NULL,   0,         MY66000_END,   NULL, 0, 0},
-};
-
-/* List of all the tables containing opcodes, for initializing the
-   hashtabs for gas.  Keep up to date if you add anything above,
-   otherwise the instructions will not be found.  */
-
-const my66000_opc_info_t *my66000_opc_info_list[] =
-{
- my66000_opc_info, opc_om6, opc_om7, opc_arith, opc_op1, opc_op2, opc_op4,
- opc_op5, opc_bcnd, opc_jt, opc_bb1a, opc_bb1b, opc_mrr, opc_mpx, NULL
-};
 
 const char *my66000_rname[32] =
   {
@@ -759,6 +806,11 @@ static const my66000_fmt_spec_t shift_fmt_list[] =
  { NULL,        0, 0, 0}
 };
 
+static const my66000_fmt_spec_t empty_fmt_list[] =
+{
+ { NULL,        0, 0, 0},
+};
+
 /* Where to look up the operand list for a certain instruction format.
    Warning: Keep this table in the same order as my66000_encoding in
    include/opcode/my66000.h, this will be checked on startup of gas.  */
@@ -784,6 +836,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { mux64_fmt_list,    MY66000_MUX64,  0},
    { mov64_fmt_list,    MY66000_MOV64,  0},
    { shift_fmt_list,    MY66000_SHIFT,  0},
+   { empty_fmt_list,    MY66000_EMPTY,  0},
    { NULL,	        MY66000_END,    0},
   };
 

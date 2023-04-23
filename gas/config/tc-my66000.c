@@ -276,6 +276,27 @@ match_6bit (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, 0, 63);
 }
 
+/* Match a six-bit positive constant that is also a power of two.  */
+
+static uint8_t
+match_6bit_p2 (char **ptr, char **errmsg)
+{
+  uint8_t ret;
+  ret = match_integer (ptr, errmsg, 0, 63);
+  if (*errmsg == NULL)
+    {
+      switch (ret)
+	{
+	case 1: case 2: case 4: case 8: case 16:
+	  return ret;
+	default:
+	  sprintf (errbuf, "Illegal constant %u", ret);
+	  break;
+	}
+    }
+  return ret;
+}
+
 /* Match a register name from map and return its number, or, on
    error, return 0 and set errmsg to something useful.  */
 
@@ -472,6 +493,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  frag = match_6bit (&sp, errmsg);
 	  break;
 
+	case MY66000_OPS_W_BITR:
+	  frag = match_6bit_p2 (&sp, errmsg);
+	  break;
+
 	  /* Dept. of dirty tricks: We use the fact that branches
 	     within the instruction word are always the last
 	     argument.  If we made it this far, we can already
@@ -659,7 +684,7 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
   const my66000_fmt_spec_t *spec;
 
   *errmsg = NULL;
-  iword = opc->frag_opc;
+  iword = opc->patt_opc;
   enc = opc->enc;
   fmtlist = &my66000_opcode_fmt[enc];
 

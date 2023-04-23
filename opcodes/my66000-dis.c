@@ -139,7 +139,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	uint32_t val;
 	int16_t v;;
 	const char *out_fmt;
-  
+
 	op_info = &my66000_operand_table[*f - 'A'];
 	val = (iword & op_info->mask) >> op_info->shift;
 
@@ -192,6 +192,23 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    v = val;
 	    fpr (stream, "%d", v);
 	    break;
+	  case MY66000_OPS_W_BITR:
+	    /* Six-bit contsant, has to be a power of two.  */
+	    v = val;
+	    switch (v)
+	      {
+	      case 1:
+	      case 2:
+	      case 4:
+	      case 8:
+	      case 16:
+	      case 32:
+		fpr (stream, "%d", v);
+		break;
+	      default:
+		return -1;
+	      }
+	    break;
 	    /* An IP-relative offset.  */
 	  case MY66000_OPS_B16:
 	    (*info->print_address_func) ((bfd_vma) (addr + (sign_extend(val,16) << 2)), info);
@@ -232,10 +249,20 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   if ((status = info->read_memory_func (addr, buffer, 4, info)))
     goto fail;
 
+  iword = (uint32_t) bfd_getl32 (buffer);
   info->bytes_per_chunk = 4;
 
+  /* Run through the special table before anything else.  */
+  for (p = my66000_opc_info_special; p->enc != MY66000_END; p++)
+    {
+      if (p->patt_opc == iword)
+	{
+	  fpr (stream, "%s", p->name);
+	  return 4;
+	}
+    }
+
   length = 4;
-  iword = (uint32_t) bfd_getl32 (buffer);
   shift = MY66000_MAJOR_SHIFT;
   mask = MY66000_MAJOR_MASK;
   tab = &my66000_opc_info[0];
@@ -252,7 +279,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 	  found = p;
 
       tab = p->sub;
-      mask = p->frag_mask;
+      mask = p->patt_mask;
       shift = p->shift;
     } while(tab);
 

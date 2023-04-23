@@ -25,8 +25,9 @@
 #define MY66000_MAJOR_SHIFT 26
 #define MY66000_MAJOR_MASK (63 << MY66000_MAJOR_SHIFT)
 
-/* This is for looking up the opcode formats in my66000_opcode_fmt.
-   Ordering matters, see comment there.  */
+/* This is for looking up the opcode formats in my66000_opcode_fmt
+   in my66000_opc.c . If you add an encoding here, you also have to
+   add it there at the identical place.  */
 
 typedef enum my66000_encoding
 {
@@ -50,6 +51,7 @@ typedef enum my66000_encoding
  MY66000_MUX64,    /* MUX with a 64-bit immediate selector.  */
  MY66000_MOV64,    /* MOV with a 64-bit immediate.  */
  MY66000_SHIFT,    /* Shift formats with 6-bit immediates.  */
+ MY66000_EMPTY,    /* No argument list.  */
  MY66000_PB1A,
  MY66000_PB1B,
  MY66000_PCND,
@@ -64,17 +66,17 @@ typedef enum my66000_encoding
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
-   contains the fragment opcode, a constant giving the operand
+   contains the opcode pattern, a constant giving the operand
    encoding, a subtable of instructions and the mask and shift of the
    instructions of the subtable, so they can be looked up.  */
 
 typedef struct my66000_opc_info_t
 {
-  const char *name;
-  uint32_t frag_opc;			/* Opcode fragment  */
+  const char *name;			/* Name.  */
+  uint32_t patt_opc;			/* Opcode bit pattern.  */
   enum my66000_encoding enc;		/* Encoding.  */
   struct my66000_opc_info_t const *sub; /* Subtable, if applicable.  */
-  uint32_t frag_mask;			/* Mask for the subtable or format opcode.  */
+  uint32_t patt_mask;			/* Mask for the subtable or format opcode.  */
   uint32_t shift;			/* Shift for the subtable.  */
 } my66000_opc_info_t;
 
@@ -124,6 +126,7 @@ typedef enum my66000_operands
  MY66000_OPS_I64_ST,
  MY66000_OPS_WIDTH,
  MY66000_OPS_OFFSET,
+ MY66000_OPS_W_BITR,
  MY66000_OPS_END
 } my66000_operands;
 
@@ -162,6 +165,7 @@ typedef struct my66000_opcode_fmt_t
 extern const my66000_opcode_fmt_t my66000_opcode_fmt[];
 extern const my66000_opc_info_t *my66000_opc_info_list[];
 extern const my66000_opc_info_t my66000_opc_info[];
+extern const my66000_opc_info_t my66000_opc_info_special[];
 
 /* Helper functions for relax in the assembler.  */
 
