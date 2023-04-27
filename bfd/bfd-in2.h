@@ -2238,12 +2238,13 @@ i.e., byte displacements shifted right two bits.  The 30-bit word
 displacement (<<32_PCREL_S2>> -- 32 bits, shifted 2) is used on the
 SPARC.  (SPARC tools generally refer to this as <<WDISP30>>.)  The
 signed 16-bit displacement is used on the MIPS, the 23-bit
-displacement is used on the Alpha and the 26-bit one is for
+displacement is used on the Alpha and the 8 and 26 bits are for
 My66000.  */
   BFD_RELOC_32_PCREL_S2,
   BFD_RELOC_16_PCREL_S2,
   BFD_RELOC_23_PCREL_S2,
   BFD_RELOC_26_PCREL_S2,
+  BFD_RELOC_8_PCREL_S2,
 
 /* High 22 bits and low 10 bits of 32-bit value, placed into lower bits of
 the target word.  These are used on the SPARC.  */

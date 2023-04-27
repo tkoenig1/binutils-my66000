@@ -899,6 +899,18 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_64_PCREL:
       bfd_putl64 ((bfd_vma) *valP, buf);
       break;
+    case BFD_RELOC_8:
+      *buf = *valP;
+      break;
+    case BFD_RELOC_16:
+      bfd_putl16 ((bfd_vma) *valP, buf);
+      break;
+    case BFD_RELOC_32:
+      bfd_putl32 ((bfd_vma) *valP, buf);
+      break;
+    case BFD_RELOC_64:
+      bfd_putl64 ((bfd_vma) *valP, buf);
+      break;
     default:
       as_fatal ("Unknown relocation %d", (int) fixP->fx_r_type);
       break;

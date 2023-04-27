@@ -31,6 +31,11 @@
 #define ELF_MACHINE_CODE	EM_MY66000
 #define ELF_MAXPAGESIZE		1
 
+/* The fabled HOWTO table.
+
+   Warning: This is indexed by the reloc numbers defined
+   in include/elf/my66000.h.  Keep in sync.  */
+
 static reloc_howto_type my66000_elf_howto_table [] =
 {
  /* Do-nothing relocation.  */
@@ -40,13 +45,28 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 0,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
+	 complain_overflow_dont, /* complain on overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_MY66000_NONE",	/* name */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
 	 0,			/* dst_mask */
 	 false),		/* pcrel_offset */
+
+  /* 8 bit PC-relative relocation, shifted two bits.  */
+  HOWTO (R_MY66000_PCREL8,	/* type  */
+	 0,			/* rightshift  */
+	 1,			/* size  */
+	 8,			/* bitsize  */
+	 true,			/* pc_relative */
+	 0,			/* bitpos  */
+	 complain_overflow_signed, /* complain on overflow  */
+	 bfd_elf_generic_reloc, /* special function  */
+	 "R_MY66000_PCREL8",	/* name  */
+	 false,			/* partial_inplace */
+	 0,			/* src_mask  */
+	 0xff,			/* dst_mask  */
+	 true),			/* pcrel_offset  */
 
   /* 16 bit PC-relative relocation, shifted two bits.  */
   HOWTO (R_MY66000_PCREL16,	/* type  */
@@ -55,7 +75,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 16,			/* bitsize  */
 	 true,			/* pc_relative */
 	 0,			/* bitpos  */
-	 complain_overflow_signed, /* complain_on_overflow  */
+	 complain_overflow_signed, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
 	 "R_MY66000_PCREL16",	/* name  */
 	 false,			/* partial_inplace */
@@ -70,7 +90,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 26,			/* bitsize  */
 	 true,			/* pc_relative */
 	 0,			/* bitpos  */
-	 complain_overflow_signed, /* complain_on_overflow  */
+	 complain_overflow_signed, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
 	 "R_MY66000_PCREL26",	/* name  */
 	 false,			/* partial_inplace */
@@ -84,7 +104,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 32,			/* bitsize  */
 	 true,			/* pc_relative */
 	 0,			/* bitpos  */
-	 complain_overflow_signed, /* complain_on_overflow  */
+	 complain_overflow_signed, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
 	 "R_MY66000_PCREL32",	/* name  */
 	 false,			/* partial_inplace */
@@ -98,13 +118,74 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 64,			/* bitsize  */
 	 true,			/* pc_relative */
 	 0,			/* bitpos  */
-	 complain_overflow_signed, /* complain_on_overflow  */
+	 complain_overflow_dont, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
 	 "R_MY66000_PCREL64",	/* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xffffffffffffffff,	/* dst_mask  */
 	 true),			/* pcrel_offset  */
+
+  /* 8 bit relocation, vanilla.  */
+  HOWTO (R_MY66000_8,		/* type  */
+	 0,			/* rightshift  */
+	 1,			/* size  */
+	 8,			/* bitsize  */
+	 false,			/* pc_relative */
+	 0,			/* bitpos  */
+	 complain_overflow_bitfield, /* complain on overflow */
+	 bfd_elf_generic_reloc, /* special function  */
+	 "R_MY66000_PCREL8",	/* name  */
+	 false,			/* partial_inplace */
+	 0,			/* src_mask  */
+	 0xff,			/* dst_mask  */
+	 false),		/* pcrel_offset  */
+
+  /* 16 bit relocation, vanilla.  */
+  HOWTO (R_MY66000_16,		/* type  */
+	 0,			/* rightshift  */
+	 2,			/* size  */
+	 16,			/* bitsize  */
+	 false,			/* pc_relative */
+	 0,			/* bitpos  */
+	 complain_overflow_bitfield, /* complain on overflow */
+	 bfd_elf_generic_reloc, /* special function  */
+	 "R_MY66000_PCREL16",	/* name  */
+	 false,			/* partial_inplace */
+	 0,			/* src_mask  */
+	 0xffff,		/* dst_mask  */
+	 false),		/* pcrel_offset  */
+
+  /* 32 bit relocation, vanilla.  */
+  HOWTO (R_MY66000_32,		/* type  */
+	 0,			/* rightshift  */
+	 4,			/* size  */
+	 32,			/* bitsize  */
+	 false,			/* pc_relative */
+	 0,			/* bitpos  */
+	 complain_overflow_bitfield, /* complain on overflow */
+	 bfd_elf_generic_reloc, /* special function  */
+	 "R_MY66000_PCREL32",	/* name  */
+	 false,			/* partial_inplace */
+	 0,			/* src_mask  */
+	 0xffffffff,		/* dst_mask  */
+	 false),		/* pcrel_offset  */
+
+  /* 64 bit relocation, vanilla.  */
+  HOWTO (R_MY66000_64,		/* type  */
+	 0,			/* rightshift  */
+	 8,			/* size  */
+	 64,			/* bitsize  */
+	 false,			/* pc_relative */
+	 0,			/* bitpos  */
+	 complain_overflow_dont, /* complain on overflow */
+	 bfd_elf_generic_reloc, /* special function  */
+	 "R_MY66000_PCREL64",	/* name  */
+	 false,			/* partial_inplace */
+	 0,			/* src_mask  */
+	 0xffffffffffffffff,	/* dst_mask  */
+	 false),		/* pcrel_offset  */
+
 };
 
 /* Map BFD reloc types to My 66000 ELF reloc types.  */
@@ -115,13 +196,18 @@ typedef struct my66000_reloc_map_t
   unsigned int my66000_reloc_val;
 } my66000_reloc_map_t;
 
-static const my66000_reloc_map_t my66000_reloc_map[] =
+const my66000_reloc_map_t my66000_reloc_map[] =
 {
  {BFD_RELOC_NONE,      	 R_MY66000_NONE},
+ {BFD_RELOC_8_PCREL_S2,  R_MY66000_PCREL8},
  {BFD_RELOC_16_PCREL_S2, R_MY66000_PCREL16},
  {BFD_RELOC_26_PCREL_S2, R_MY66000_PCREL26},
  {BFD_RELOC_32_PCREL,    R_MY66000_PCREL32},
  {BFD_RELOC_64_PCREL,    R_MY66000_PCREL64},
+ {BFD_RELOC_8,           R_MY66000_8},
+ {BFD_RELOC_16,          R_MY66000_16},
+ {BFD_RELOC_32,          R_MY66000_32},
+ {BFD_RELOC_64,          R_MY66000_64},
 };
 
 static reloc_howto_type *
@@ -133,7 +219,7 @@ my66000_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   for (i = sizeof (my66000_reloc_map) / sizeof (my66000_reloc_map[0]);
        i--;)
     if (my66000_reloc_map [i].bfd_reloc_val == code)
-      return & my66000_elf_howto_table [my66000_reloc_map[i].my66000_reloc_val];
+	return & my66000_elf_howto_table [my66000_reloc_map[i].my66000_reloc_val];
 
   return NULL;
 }
@@ -162,7 +248,7 @@ my66000_info_to_howto_rela (bfd *abfd,
 {
   unsigned int r_type;
 
-  r_type = ELF32_R_TYPE (dst->r_info);
+  r_type = ELF64_R_TYPE (dst->r_info);
   if (r_type >= (unsigned int) R_MY66000_max)
     {
       /* xgettext:c-format */
