@@ -66,6 +66,10 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
   if (spec == NULL)
     return 0;
 
+  /* Tab as separator for instructions from operands.  */
+
+  fpr (stream, "%c",'\t');
+
   /* Loop over the table of formats until a match is found.  FIXME:
      This could be made more elegant, and probably faster.  */
 
@@ -285,7 +289,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
   if (found)
     {
-      fpr (stream, "%s\t", found->name);
+      fpr (stream, "%s", found->name);
       o_length = print_operands (iword, found, addr, info);
       if (o_length < 0)
 	goto fail;

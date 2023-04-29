@@ -173,7 +173,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { "carry", MAJOR(60), MY66000_CARRY, NULL, 0, 0},
  { "vec",  MAJOR(61), MY66000_VEC,   NULL, 0, 0},
  { NULL,   MAJOR(62), MY66000_BAD,   NULL, 0, 0},
- { "ill5", MAJOR(63), MY66000_BAD,   NULL, 0, 0},
+ { "ill5", MAJOR(63), MY66000_ILL,   NULL, 0, 0},
  { NULL,   0,         MY66000_END,   NULL, 0, 0},
 };
 
