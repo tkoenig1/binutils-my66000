@@ -260,6 +260,22 @@ match_16bit (char **ptr, char **errmsg)
   return res;
 }
 
+static uint16_t
+match_13bit (char **ptr, char **errmsg)
+{
+  uint16_t res;
+  res = match_integer (ptr, errmsg, 0, (1u<<13) - 1);
+  return res;
+}
+
+static uint16_t
+match_2bit (char **ptr, char **errmsg)
+{
+  uint16_t res;
+  res = match_integer (ptr, errmsg, 0, 3);
+  return res;
+}
+
 /* Match a five-bit positive constant.  */
 
 static int
@@ -483,6 +499,14 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_IMM16:
 	  frag = match_16bit (&sp, errmsg);
 	  break;
+	case MY66000_OPS_IMM13:
+	  frag = match_13bit (&sp, errmsg);
+	  if (frag & 0x7)
+	    *errmsg = _("Incorrect alignment of disp13");
+	  break;
+	case MY66000_OPS_FL_ENTER:
+	  frag = match_2bit (&sp, errmsg);
+	  break;
 	case MY66000_OPS_I1:
 	case MY66000_OPS_I2:
 	  frag = match_5bit (&sp, errmsg);
@@ -523,6 +547,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	      }
 	  }
 	  break;
+
 	case MY66000_OPS_B26:
 	  {
 	    expressionS ex;
@@ -586,24 +611,28 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 
 	default:
-	  as_fatal ("operand %c not handled", *fp);
-	}
-      if (*errmsg)
-	{
-	  if (p)
-	    as_fatal ("Internal error: failure after memory already allocated");
-
-	  //	  fprintf (stderr, "errmsg = %s\n", *errmsg);
-	  return;
+	  as_fatal ("operand '%c' not handled", *fp);
 	}
 
       iword |= frag << info->shift;
     }
+  if (*sp != '\0')
+    *errmsg = _("junk at end of argument list");
+
+  if (*errmsg)
+    {
+      if (p)
+	as_fatal ("Internal error: failure after memory already allocated");
+
+      //      fprintf (stderr, "errmsg = %s\n", *errmsg);
+      return;
+    }
+
   iword |= spec->patt;
 
   if (!p)
     p = frag_more (length);
-  
+
   p_op = p;
   //  printf ("p = %p\n", p);
   md_number_to_chars (p, iword, 4);
@@ -835,14 +864,14 @@ md_pcrel_from_section (fixS *fixP, segT sec)
     case BFD_RELOC_26_PCREL_S2:
     case BFD_RELOC_16_PCREL_S2:
       return fixP->fx_where + fixP->fx_frag->fr_address;
- 
+
     case BFD_RELOC_32_PCREL:
     case BFD_RELOC_64_PCREL:
       return fixP->fx_frag->fr_opcode - fixP->fx_frag->fr_literal;
     default:
       as_fatal ("Unknown reloc in md_pcrel_from_section");
     }
-  
+
 }
 
 /* Calculate a PC-relative offset.  These are always relative to the

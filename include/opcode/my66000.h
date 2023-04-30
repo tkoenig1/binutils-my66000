@@ -52,6 +52,7 @@ typedef enum my66000_encoding
  MY66000_MOV64,    /* MOV with a 64-bit immediate.  */
  MY66000_SHIFT,    /* Shift formats with 6-bit immediates.  */
  MY66000_EMPTY,    /* No argument list.  */
+ MY66000_ENTER,    /* Enter instruction.  */
  MY66000_PB1A,
  MY66000_PB1B,
  MY66000_PCND,
@@ -127,6 +128,8 @@ typedef enum my66000_operands
  MY66000_OPS_WIDTH,
  MY66000_OPS_OFFSET,
  MY66000_OPS_W_BITR,
+ MY66000_OPS_IMM13, /* 13-bit immediate for enter.  */
+ MY66000_OPS_FL_ENTER, /* Flag value for enter.  */
  MY66000_OPS_END
 } my66000_operands;
 

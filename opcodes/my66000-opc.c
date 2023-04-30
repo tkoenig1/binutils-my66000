@@ -149,12 +149,12 @@ const my66000_opc_info_t my66000_opc_info[] =
  { "ldsb", MAJOR(36), MY66000_MEM,   NULL, 0, 0},
  { "ldsh", MAJOR(37), MY66000_MEM,   NULL, 0, 0},
  { "ldsw", MAJOR(38), MY66000_MEM,   NULL, 0, 0},
- { "exit", MAJOR(39), MY66000_EXIT,  NULL, 0, 0},
+ { "exit", MAJOR(39), MY66000_ENTER, NULL, 0, 0},
  { "stb",  MAJOR(40), MY66000_MEM,   NULL, 0, 0},
  { "sth",  MAJOR(41), MY66000_MEM,   NULL, 0, 0},
  { "stw",  MAJOR(42), MY66000_MEM,   NULL, 0, 0},
  { "std",  MAJOR(43), MY66000_MEM,   NULL, 0, 0},
- { "enter", MAJOR(44), MY66000_EXIT, NULL, 0, 0},
+ { "enter", MAJOR(44), MY66000_ENTER, NULL, 0, 0},
  { "ldm",  MAJOR(45), MY66000_MM,    NULL, 0, 0},
  { "stm",  MAJOR(46), MY66000_MM,    NULL, 0, 0},
  { "ill3", MAJOR(47), MY66000_ILL,   NULL, 0, 0},
@@ -287,6 +287,10 @@ static const my66000_opc_info_t opc_om7[] =
 #define XOP4_FMT_MASK XOP4_BITS (1,1,1)
 #define XOP4_FMT_SHFT 13
 
+/* Mask for ENTER, there are three bits, bit number two has to be
+   zero.  */
+#define ENTER_MASK 7
+#define ENTER_UNUSED 4
 
 static const my66000_opc_info_t opc_mrr[] =
 {
@@ -608,11 +612,10 @@ const char my66000_numtab[32] =
 #define OPERAND_ENTRY(width,shift) OPERAND_MASK(width,shift), shift, 0, 0
 
 /* Dept. of dirty tricks: Operands are encoded in the format string
-   by capital letters starting with A.  Lookup is then via
+   by letters starting with A.  Lookup is then via
    my66000_operand_table[c - 'A'].  An alternative would be to have
    strings using more descriptive names, like "dst" and put them in a
-   hash, but that would create unnecessary overhead during
-   parsing.
+   hash, but that would create unnecessary overhead during parsing.
 
    The ordering is not otherwise significant, it just happens to be the
    way it came up during development.
@@ -624,31 +627,31 @@ const char my66000_numtab[32] =
 
 const my66000_operand_info_t my66000_operand_table[] =
 {
- {MY66000_OPS_DST,    OPERAND_ENTRY ( 5, 21), "Destination register",    'A' },
- {MY66000_OPS_SRC1,   OPERAND_ENTRY ( 5, 16), "Source register 1",       'B' },
- {MY66000_OPS_SRC2,   OPERAND_ENTRY ( 5,  0), "Source register 2",       'C' },
- {MY66000_OPS_RINDEX, OPERAND_ENTRY ( 5,  0), "Index register",          'D' },
- {MY66000_OPS_IMM16,  OPERAND_ENTRY (16,  0), "16-bit signed immediate", 'E' },
- {MY66000_OPS_I1,     OPERAND_ENTRY ( 5, 16), "5-bit immediate SRC1",    'F' },
- {MY66000_OPS_I2,     OPERAND_ENTRY ( 5,  0), "5-bit immediate SRC2",    'G' },
- {MY66000_OPS_BB1,    OPERAND_ENTRY ( 6, 21), "Bit number",		 'H' },
- {MY66000_OPS_B16,    OPERAND_ENTRY (16,  0), "16-bit branch target",	 'I' },
- {MY66000_OPS_B26,    OPERAND_ENTRY (26,  0), "26-bit branch target",	 'J' },
- {MY66000_OPS_RBASE,  OPERAND_ENTRY ( 5, 16), "Base register",           'K' },
- {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",   'L' },
- {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel", 'M' },
- {MY66000_OPS_SRC3,   OPERAND_ENTRY ( 5,  5), "Source register 3",       'N' },
- {MY66000_OPS_I32_HEX,   0, 0, 4, 1,          "32-bit hex immediate",    'O' },
- {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",   'P' },
- {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel", 'Q' },
- {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit hex immediate",    'R' },
- {0,                     0, 0, 0, 0,          "unused",                  'S' },
-
- {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate store",  'T' },
- {MY66000_OPS_I64_ST,    0, 0, 8, 2,          "64-bit immediate store",  'U' },
- {MY66000_OPS_WIDTH,   OPERAND_ENTRY ( 6, 6), "6-bit width",		 'V' },
- {MY66000_OPS_OFFSET,  OPERAND_ENTRY ( 6, 0), "6-bit offset",		 'W' },
- {MY66000_OPS_W_BITR,  OPERAND_ENTRY ( 6, 6), "6-bit power of two",      'X' },
+ {MY66000_OPS_DST,    OPERAND_ENTRY ( 5, 21), "Destination register",     'A' },
+ {MY66000_OPS_SRC1,   OPERAND_ENTRY ( 5, 16), "Source register 1",        'B' },
+ {MY66000_OPS_SRC2,   OPERAND_ENTRY ( 5,  0), "Source register 2",        'C' },
+ {MY66000_OPS_RINDEX, OPERAND_ENTRY ( 5,  0), "Index register",           'D' },
+ {MY66000_OPS_IMM16,  OPERAND_ENTRY (16,  0), "16-bit signed immediate",  'E' },
+ {MY66000_OPS_I1,     OPERAND_ENTRY ( 5, 16), "5-bit immediate SRC1",     'F' },
+ {MY66000_OPS_I2,     OPERAND_ENTRY ( 5,  0), "5-bit immediate SRC2",     'G' },
+ {MY66000_OPS_BB1,    OPERAND_ENTRY ( 6, 21), "Bit number",		  'H' },
+ {MY66000_OPS_B16,    OPERAND_ENTRY (16,  0), "16-bit branch target",	  'I' },
+ {MY66000_OPS_B26,    OPERAND_ENTRY (26,  0), "26-bit branch target",	  'J' },
+ {MY66000_OPS_RBASE,  OPERAND_ENTRY ( 5, 16), "Base register",            'K' },
+ {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",    'L' },
+ {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel",  'M' },
+ {MY66000_OPS_SRC3,   OPERAND_ENTRY ( 5,  5), "Source register 3",        'N' },
+ {MY66000_OPS_I32_HEX,   0, 0, 4, 1,          "32-bit hex immediate",     'O' },
+ {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",    'P' },
+ {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel",  'Q' },
+ {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit hex immediate",     'R' },
+ {MY66000_OPS_IMM13,  OPERAND_ENTRY (13, 0),  "13-bit aligned immediate", 'S' },
+ {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate store",   'T' },
+ {MY66000_OPS_I64_ST,    0, 0, 8, 2,          "64-bit immediate store",   'U' },
+ {MY66000_OPS_WIDTH,   OPERAND_ENTRY ( 6, 6), "6-bit width",		  'V' },
+ {MY66000_OPS_OFFSET,  OPERAND_ENTRY ( 6, 0), "6-bit offset",		  'W' },
+ {MY66000_OPS_W_BITR,  OPERAND_ENTRY ( 6, 6), "6-bit power of two",       'X' },
+ {MY66000_OPS_FL_ENTER, OPERAND_ENTRY (2, 0), "Enter flags",		  'Y' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -811,9 +814,17 @@ static const my66000_fmt_spec_t empty_fmt_list[] =
  { NULL,        0, 0, 0},
 };
 
-/* Where to look up the operand list for a certain instruction format.
-   Warning: Keep this table in the same order as my66000_encoding in
-   include/opcode/my66000.h, this will be checked on startup of gas.  */
+static const my66000_fmt_spec_t enter_fmt_list[] =
+{
+ { "A,B,S",   0, ENTER_MASK, 0},
+ { "A,B,S,Y", 0, ENTER_UNUSED, 0},
+ { NULL,      0, 0, 0},
+};
+
+/* Where to look up the operand list for a certain instruction
+   format.  Warning: Keep this table in the same order as enum
+   my66000_encoding in include/opcode/my66000.h, this will be checked
+   on startup of gas.  */
 
 const my66000_opcode_fmt_t my66000_opcode_fmt[] =
   {
@@ -837,6 +848,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { mov64_fmt_list,    MY66000_MOV64,  0},
    { shift_fmt_list,    MY66000_SHIFT,  0},
    { empty_fmt_list,    MY66000_EMPTY,  0},
+   { enter_fmt_list,    MY66000_ENTER,  0},
    { NULL,	        MY66000_END,    0},
   };
 

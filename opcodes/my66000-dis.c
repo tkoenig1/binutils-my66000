@@ -186,12 +186,19 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    fpr (stream, "%s", my66000_rbase[val]);
 	    break;
 
+	    
+	  case MY66000_OPS_IMM13:
+	    /* Special case, the lower-order bits are used as flags.  */
+	    val &= ~0x7;
+	    /* Fallthrough */
+	    
 	  case MY66000_OPS_IMM16:
 	  case MY66000_OPS_I1:
 	  case MY66000_OPS_I2:
 	  case MY66000_OPS_BB1:
 	  case MY66000_OPS_WIDTH:
 	  case MY66000_OPS_OFFSET:
+	  case MY66000_OPS_FL_ENTER:
 	    /* An integer constant.  */
 	    v = val;
 	    fpr (stream, "%d", v);
