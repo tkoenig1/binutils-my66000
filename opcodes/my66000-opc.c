@@ -134,8 +134,8 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MAJOR(21), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(22), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(23), MY66000_BAD,   NULL, 0, 0},
- { "bb1",  MAJOR(24), MY66000_BB1A,  opc_bb1a, BB1_MASK,  BB1_OFFS},
- { "bb1",  MAJOR(25), MY66000_BB1B,  opc_bb1b, BB1_MASK,  BB1_OFFS},
+ { "bb1",  MAJOR(24), MY66000_BB1,   opc_bb1a, BB1_MASK,  BB1_OFFS},
+ { "bb1",  MAJOR(25), MY66000_BB1 ,  opc_bb1b, BB1_MASK,  BB1_OFFS},
  { "bcnd", MAJOR(26), MY66000_BCND,  opc_bcnd, BCND_MASK, BCND_OFFS},
  { NULL,   MAJOR(27), MY66000_BAD,   opc_jt,   TT_MASK,   TT_OFFS},
  { NULL,   MAJOR(28), MY66000_BAD,   NULL, 0, 0},
@@ -179,7 +179,7 @@ const my66000_opc_info_t my66000_opc_info[] =
 
 static const my66000_opc_info_t opc_om6[] =
 {
- { "pb1",  MAJOR(6) | SHFT_MINOR( 0), MY66000_PB1A,  NULL, 0, 0},
+ { "pb1",  MAJOR(6) | SHFT_MINOR( 0), MY66000_PB1,  NULL, 0, 0},
  { "pcnd", MAJOR(6) | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
@@ -200,7 +200,7 @@ static const my66000_opc_info_t opc_om6[] =
 
 static const my66000_opc_info_t opc_om7[] =
 {
- { "pb1",  MAJOR(7) | SHFT_MINOR( 0), MY66000_PB1B,  NULL, 0, 0},
+ { "pb1",  MAJOR(7) | SHFT_MINOR( 0), MY66000_PB1,   NULL, 0, 0},
  { "pcnd", MAJOR(7) | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
@@ -496,52 +496,52 @@ static const my66000_opc_info_t opc_jt[] =
 /* The two halves of the branch on bit instructions.  */
 static const my66000_opc_info_t opc_bb1a[] =
 {
- { "bne",  MAJOR(24) | BB1_MINOR( 0), MY66000_BB1A, NULL, 0, 0},
- { "beq",  MAJOR(24) | BB1_MINOR( 1), MY66000_BB1A, NULL, 0, 0},
- { "bgt",  MAJOR(24) | BB1_MINOR( 2), MY66000_BB1A, NULL, 0, 0},
- { "bge",  MAJOR(24) | BB1_MINOR( 3), MY66000_BB1A, NULL, 0, 0},
- { "blt",  MAJOR(24) | BB1_MINOR( 4), MY66000_BB1A, NULL, 0, 0},
- { "ble",  MAJOR(24) | BB1_MINOR( 5), MY66000_BB1A, NULL, 0, 0},
- { "bor",  MAJOR(24) | BB1_MINOR( 6), MY66000_BB1A, NULL, 0, 0},
- { "bun",  MAJOR(24) | BB1_MINOR( 7), MY66000_BB1A, NULL, 0, 0},
- { "bnne", MAJOR(24) | BB1_MINOR( 8), MY66000_BB1A, NULL, 0, 0},
- { "bneq", MAJOR(24) | BB1_MINOR( 9), MY66000_BB1A, NULL, 0, 0},
- { "bhi",  MAJOR(24) | BB1_MINOR(10), MY66000_BB1A, NULL, 0, 0},
- { "bhs",  MAJOR(24) | BB1_MINOR(11), MY66000_BB1A, NULL, 0, 0},
- { "blo",  MAJOR(24) | BB1_MINOR(12), MY66000_BB1A, NULL, 0, 0},
- { "bls",  MAJOR(24) | BB1_MINOR(13), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(14), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(15), MY66000_BB1A, NULL, 0, 0},
- { "sin",  MAJOR(24) | BB1_MINOR(16), MY66000_BB1A, NULL, 0, 0},
- { "fin",  MAJOR(24) | BB1_MINOR(17), MY66000_BB1A, NULL, 0, 0},
- { "cin",  MAJOR(24) | BB1_MINOR(18), MY66000_BB1A, NULL, 0, 0},
- { "cin",  MAJOR(24) | BB1_MINOR(19), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(20), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(21), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(23), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(24), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(25), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(26), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(27), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(28), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(29), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(30), MY66000_BB1A, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(31), MY66000_BB1A, NULL, 0, 0},
+ { "beq",  MAJOR(24) | BB1_MINOR( 0), MY66000_BCMP, NULL, 0, 0},
+ { "bneq", MAJOR(24) | BB1_MINOR( 1), MY66000_BCMP, NULL, 0, 0},
+ { "bne",  MAJOR(24) | BB1_MINOR( 2), MY66000_BCMP, NULL, 0, 0},
+ { "bnne", MAJOR(24) | BB1_MINOR( 3), MY66000_BCMP, NULL, 0, 0},
+ { "bge",  MAJOR(24) | BB1_MINOR( 4), MY66000_BCMP, NULL, 0, 0},
+ { "bnge", MAJOR(24) | BB1_MINOR( 5), MY66000_BCMP, NULL, 0, 0},
+ { "blt",  MAJOR(24) | BB1_MINOR( 6), MY66000_BCMP, NULL, 0, 0},
+ { "bnlt", MAJOR(24) | BB1_MINOR( 7), MY66000_BCMP, NULL, 0, 0},
+ { "bgt",  MAJOR(24) | BB1_MINOR( 8), MY66000_BCMP, NULL, 0, 0},
+ { "bngt", MAJOR(24) | BB1_MINOR( 9), MY66000_BCMP, NULL, 0, 0},
+ { "ble",  MAJOR(24) | BB1_MINOR(10), MY66000_BCMP, NULL, 0, 0},
+ { "bnle", MAJOR(24) | BB1_MINOR(11), MY66000_BCMP, NULL, 0, 0},
+ { "bhs",  MAJOR(24) | BB1_MINOR(12), MY66000_BCMP, NULL, 0, 0},
+ { "blo",  MAJOR(24) | BB1_MINOR(13), MY66000_BCMP, NULL, 0, 0},
+ { "bhi",  MAJOR(24) | BB1_MINOR(14), MY66000_BCMP, NULL, 0, 0},
+ { "bls",  MAJOR(24) | BB1_MINOR(15), MY66000_BCMP, NULL, 0, 0},
+ { "bor",  MAJOR(24) | BB1_MINOR(16), MY66000_BCMP, NULL, 0, 0},
+ { "bnor", MAJOR(24) | BB1_MINOR(17), MY66000_BCMP, NULL, 0, 0},
+ { "bto",  MAJOR(24) | BB1_MINOR(18), MY66000_BCMP, NULL, 0, 0},
+ { "bnto", MAJOR(24) | BB1_MINOR(19), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(20), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(21), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(23), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(24), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(25), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(26), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(27), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(28), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(29), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(30), MY66000_BCMP, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(31), MY66000_BCMP, NULL, 0, 0},
  { NULL,   0,                                 MY66000_END , NULL, 0, 0}
 };
 
 static const my66000_opc_info_t opc_bb1b[] =
 {
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+ { "bsnan", MAJOR(25) | BB1_MINOR( 0), MY66000_BCMP, NULL, 0, 0},
+ { "bqnan", MAJOR(25) | BB1_MINOR( 1), MY66000_BCMP, NULL, 0, 0},
+ { "bminf", MAJOR(25) | BB1_MINOR( 2), MY66000_BCMP, NULL, 0, 0},
+ { "bmnor", MAJOR(25) | BB1_MINOR( 3), MY66000_BCMP, NULL, 0, 0},
+ { "bmde",  MAJOR(25) | BB1_MINOR( 4), MY66000_BCMP, NULL, 0, 0},
+ { "bmze",  MAJOR(25) | BB1_MINOR( 5), MY66000_BCMP, NULL, 0, 0},
+ { "bpze",  MAJOR(25) | BB1_MINOR( 6), MY66000_BCMP, NULL, 0, 0},
+ { "bpde",  MAJOR(25) | BB1_MINOR( 7), MY66000_BCMP, NULL, 0, 0},
+ { "bpnor", MAJOR(25) | BB1_MINOR( 8), MY66000_BCMP, NULL, 0, 0},
+ { "bpinf", MAJOR(25) | BB1_MINOR( 9), MY66000_BCMP, NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
@@ -620,8 +620,8 @@ const char my66000_numtab[32] =
    The ordering is not otherwise significant, it just happens to be the
    way it came up during development.
 
-   Immediates have a size and a sequence (important for output of the
-   disassembler).
+   Immediates have a size and a sequence (for where to put them into
+   the instruction stream).
 
 */
 
@@ -641,10 +641,10 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",    'L' },
  {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel",  'M' },
  {MY66000_OPS_SRC3,   OPERAND_ENTRY ( 5,  5), "Source register 3",        'N' },
- {MY66000_OPS_I32_HEX,   0, 0, 4, 1,          "32-bit hex immediate",     'O' },
+ {MY66000_OPS_I32_HEX,   0, 0, 4, 1,          "32-bit float immediate",   'O' },
  {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",    'P' },
  {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel",  'Q' },
- {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit hex immediate",     'R' },
+ {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit float immediate",   'R' },
  {MY66000_OPS_IMM13,  OPERAND_ENTRY (13, 0),  "13-bit aligned immediate", 'S' },
  {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate store",   'T' },
  {MY66000_OPS_I64_ST,    0, 0, 8, 2,          "64-bit immediate store",   'U' },
@@ -652,6 +652,13 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_OFFSET,  OPERAND_ENTRY ( 6, 0), "6-bit offset",		  'W' },
  {MY66000_OPS_W_BITR,  OPERAND_ENTRY ( 6, 6), "6-bit power of two",       'X' },
  {MY66000_OPS_FL_ENTER, OPERAND_ENTRY (2, 0), "Enter flags",		  'Y' },
+ {MY66000_OPS_FLT32,   0, 0, 4, 1,            "32-bit float",             'Z' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '[' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '\\' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   ']' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '^' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '_' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '\'' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -719,6 +726,12 @@ static const my66000_fmt_spec_t br_fmt_list [] =
 {
  { "J",    0,  0, 0},
  { NULL,   0,  0, 0},
+};
+
+static const my66000_fmt_spec_t bcmp_fmt_list [] =
+{
+ {"B,I", 0, 0, 0},
+ { NULL,    0, 0, 0},
 };
 
 /* Table for load/store with two registers.  */
@@ -834,8 +847,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { mvimm_fmt_list,	MY66000_MVIMM,  0},
    { mem_fmt_list,      MY66000_MEM,    0},
    { arith_fmt_list,    MY66000_ARITH,  0},
-   { bb1_fmt_list,	MY66000_BB1A,	0},
-   { bb1_fmt_list,	MY66000_BB1B,	0},
+   { bb1_fmt_list,	MY66000_BB1,	0},
    { br_fmt_list,       MY66000_BR,     0},
    { mrr_fmt_list,      MY66000_MRR,    0},
    { fmac_fmt_list,	MY66000_FMAC,   0},
@@ -849,6 +861,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { shift_fmt_list,    MY66000_SHIFT,  0},
    { empty_fmt_list,    MY66000_EMPTY,  0},
    { enter_fmt_list,    MY66000_ENTER,  0},
+   { bcmp_fmt_list,     MY66000_BCMP,   0},
    { NULL,	        MY66000_END,    0},
   };
 

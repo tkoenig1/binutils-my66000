@@ -351,13 +351,14 @@ match_register (char **ptr, char **errmsg, htab_t map)
   return reg;
 }
 
-/* Match a signed number with n bits or a label.  If it's a signed
-   number, return the result truncated to an unsigned number (if
-   needed).  */
+/* Match number with n bits or a label.  If it is a signed number,
+   return the result truncated to an unsigned number (if needed).  If
+   "vanilla" is set, the number is unsigned, and no labels are
+   accepted.  */
 
 static uint64_t
 match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
-		    uint32_t bit)
+		    uint32_t bit, bool vanilla)
 {
   uint64_t ret;
   char *endp, *save, *str;
@@ -394,8 +395,16 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
       if (bit < 64)
 	{
 	  int64_t minval, maxval;
-	  minval = -((int64_t) 1 << (bit - 1));
-	  maxval =  ((int64_t) 1 << (bit - 1)) - 1;
+	  if (vanilla)
+	    {
+	      minval = 0;
+	      maxval = ((int64_t) 1 << bit) - 1;
+	    }
+	  else
+	    {
+	      minval = -((int64_t) 1 << (bit - 1));
+	      maxval =  ((int64_t) 1 << (bit - 1)) - 1;
+	    }
 	  if (ex->X_add_number < minval || ex->X_add_number > maxval)
 	    {
 	      strcpy (errbuf, "Constant out of range");
@@ -406,11 +415,13 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
       ret = (uint64_t) ex->X_add_number;
       break;
     case O_symbol:
+      if (vanilla)
+	goto syntax;
+
       ret = 0;
       break;
     default:
-      strcpy (errbuf, "Syntax error in branch target");
-      *errmsg = errbuf;
+      goto syntax;
       return 0;
     }
   *ptr = endp;
@@ -418,30 +429,47 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
     ret &= (((uint64_t) 1) << bit) - 1;
 
   return ret;
+
+ syntax:
+  strcpy (errbuf, "Syntax error constant");
+      *errmsg = errbuf;
+      return 0;
 }
 
 static uint16_t
 match_16bit_or_label (char **ptr, char **errmsg, expressionS *ex)
 {
-  return match_num_or_label (ptr, errmsg, ex, 16);
+  return match_num_or_label (ptr, errmsg, ex, 16, false);
 }
 
 static uint32_t
 match_26bit_or_label (char **ptr, char **errmsg, expressionS *ex)
 {
-  return match_num_or_label (ptr, errmsg, ex, 26);
+  return match_num_or_label (ptr, errmsg, ex, 26, false);
 }
 
 static uint32_t
 match_32_bit_or_label (char **ptr, char **errmsg, expressionS *ex)
 {
-  return match_num_or_label (ptr, errmsg, ex, 32);
+  return match_num_or_label (ptr, errmsg, ex, 32, false);
 }
 
 static uint64_t
 match_64_bit_or_label (char **ptr, char **errmsg, expressionS *ex)
 {
-  return match_num_or_label (ptr, errmsg, ex, 64);
+  return match_num_or_label (ptr, errmsg, ex, 64, false);
+}
+
+static uint64_t
+match_32_bit_vanilla (char **ptr, char **errmsg, expressionS *ex)
+{
+  return match_num_or_label (ptr, errmsg, ex, 32, true);
+}
+
+static uint64_t
+match_64_bit_vanilla (char **ptr, char **errmsg, expressionS *ex)
+{
+  return match_num_or_label (ptr, errmsg, ex, 64, true);
 }
 
 #define RELAX_IMM4 1
@@ -573,11 +601,26 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I32_1:
-	case MY66000_OPS_I32_HEX:
 	  val_imm = match_32_bit_or_label (&sp, errmsg, &imm);
 	  if (*errmsg)
 	    break;
 	  imm_size = 4;
+	  frag = 0;
+	  break;
+
+	case MY66000_OPS_I32_HEX:
+	  val_imm = match_32_bit_vanilla (&sp, errmsg, &imm);
+	  if (*errmsg)
+	    break;
+	  imm_size = 4;
+	  frag = 0;
+	  break;
+
+	case MY66000_OPS_I64_HEX:
+	  val_imm = match_64_bit_vanilla (&sp, errmsg, &imm);
+	  if (*errmsg)
+	    break;
+	  imm_size = 8;
 	  frag = 0;
 	  break;
 
@@ -586,7 +629,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I64_1:
-	case MY66000_OPS_I64_HEX:
 	  val_imm = match_64_bit_or_label (&sp, errmsg, &imm);
 	  if (*errmsg)
 	    break;

@@ -38,8 +38,7 @@ typedef enum my66000_encoding
  MY66000_MVIMM,    /* Move 16-bit immediate.  */
  MY66000_MEM,      /* Load/store with a 16-bit offset.  */
  MY66000_ARITH,    /* Arithmetic operations.  */
- MY66000_BB1A,     /* First half of the Branch on Bit operations.  */
- MY66000_BB1B,     /* Second half of the abore.  */
+ MY66000_BB1,      /* Branch on bit set, explicit bit.  */
  MY66000_BR,       /* Branch, call etc.  */
  MY66000_MRR,	   /* Indexed memory operation, [Ra,Rb]  */
  MY66000_FMAC,     /* FMAC instruction.  */
@@ -53,8 +52,8 @@ typedef enum my66000_encoding
  MY66000_SHIFT,    /* Shift formats with 6-bit immediates.  */
  MY66000_EMPTY,    /* No argument list.  */
  MY66000_ENTER,    /* Enter instruction.  */
- MY66000_PB1A,
- MY66000_PB1B,
+ MY66000_BCMP,     /* Branch on explicit compare.  */
+ MY66000_PB1,
  MY66000_PCND,
  MY66000_BCND,
  MY66000_JT,
@@ -130,6 +129,8 @@ typedef enum my66000_operands
  MY66000_OPS_W_BITR,
  MY66000_OPS_IMM13, /* 13-bit immediate for enter.  */
  MY66000_OPS_FL_ENTER, /* Flag value for enter.  */
+ MY66000_OPS_FLT32,    /* 32-bit floating point.  */
+ MY66000_OPS_INVALID,  /* Invalid, used for non-letters.  */
  MY66000_OPS_END
 } my66000_operands;
 
