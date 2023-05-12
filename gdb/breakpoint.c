@@ -53,6 +53,7 @@
 #include "memattr.h"
 #include "ada-lang.h"
 #include "top.h"
+#include "ui.h"
 #include "valprint.h"
 #include "jit.h"
 #include "parser-defs.h"
@@ -3137,7 +3138,7 @@ update_inserted_breakpoint_locations (void)
   if (error_flag)
     {
       target_terminal::ours_for_output ();
-      error_stream (tmp_error_stream);
+      error (("%s"), tmp_error_stream.c_str ());
     }
 }
 
@@ -3234,7 +3235,7 @@ insert_breakpoint_locations (void)
 You may have requested too many hardware breakpoints/watchpoints.\n");
 	}
       target_terminal::ours_for_output ();
-      error_stream (tmp_error_stream);
+      error (("%s"), tmp_error_stream.c_str ());
     }
 }
 
@@ -4984,7 +4985,7 @@ static bool
 breakpoint_cond_eval (expression *exp)
 {
   scoped_value_mark mark;
-  return value_true (evaluate_expression (exp));
+  return value_true (exp->evaluate ());
 }
 
 /* Allocate a new bpstat.  Link it to the FIFO list by BS_LINK_POINTER.  */

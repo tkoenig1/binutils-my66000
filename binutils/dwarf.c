@@ -659,14 +659,13 @@ fetch_indexed_string (uint64_t idx,
     return (dwo ? _("<no .debug_str.dwo section>")
 		: _("<no .debug_str section>"));
 
-  index_offset = idx * offset_size;
-
-  if (this_set != NULL)
-    index_offset += this_set->section_offsets [DW_SECT_STR_OFFSETS];
-
-  index_offset += str_offsets_base;
-
-  if (index_offset + offset_size > index_section->size)
+  if (_mul_overflow (idx, offset_size, &index_offset)
+      || (this_set != NULL
+	  && ((index_offset += this_set->section_offsets [DW_SECT_STR_OFFSETS])
+	      < this_set->section_offsets [DW_SECT_STR_OFFSETS]))
+      || (index_offset += str_offsets_base) < str_offsets_base
+      || index_offset + offset_size < offset_size
+      || index_offset + offset_size > index_section->size)
     {
       warn (_("string index of %" PRIu64 " converts to an offset of %#" PRIx64
 	      " which is too big for section %s"),
@@ -674,11 +673,6 @@ fetch_indexed_string (uint64_t idx,
 
       return _("<string index too big>");
     }
-
-  /* FIXME: If we are being paranoid then we should also check to see if
-     IDX references an entry beyond the end of the string table pointed to
-     by STR_OFFSETS_BASE.  (Since there can be more than one string table
-     in a DWARF string section).  */
 
   str_offset = byte_get (index_section->start + index_offset, offset_size);
 
@@ -2731,7 +2725,7 @@ read_and_display_attr_value (unsigned long attribute,
 		  if (idx != (uint64_t) -1)
 		    idx += (offset_size == 8) ? 20 : 12;
 		}
-	      else if (debug_info_p == NULL)
+	      else if (debug_info_p == NULL || dwarf_version > 4)
 		{
 		  idx = fetch_indexed_value (uvalue, loclists, 0);
 		}
@@ -4676,7 +4670,7 @@ display_debug_lines_raw (struct dwarf_section *  section,
 	  while (data < end_of_sequence)
 	    {
 	      unsigned char op_code;
-	      int64_t adv;
+	      int adv;
 	      uint64_t uladv;
 
 	      printf ("  [0x%08tx]", data - start);
@@ -4723,7 +4717,7 @@ display_debug_lines_raw (struct dwarf_section *  section,
 		    }
 		  adv = (op_code % linfo.li_line_range) + linfo.li_line_base;
 		  state_machine_regs.line += adv;
-		  printf (_(" and Line by %" PRId64 " to %d"),
+		  printf (_(" and Line by %d to %d"),
 			  adv, state_machine_regs.line);
 		  if (verbose_view || state_machine_regs.view)
 		    printf (_(" (view %u)\n"), state_machine_regs.view);
@@ -4788,7 +4782,7 @@ display_debug_lines_raw (struct dwarf_section *  section,
 		  case DW_LNS_advance_line:
 		    READ_SLEB (adv, data, end);
 		    state_machine_regs.line += adv;
-		    printf (_("  Advance Line by %" PRId64 " to %d\n"),
+		    printf (_("  Advance Line by %d to %d\n"),
 			    adv, state_machine_regs.line);
 		    break;
 
@@ -4808,7 +4802,7 @@ display_debug_lines_raw (struct dwarf_section *  section,
 		  case DW_LNS_negate_stmt:
 		    adv = state_machine_regs.is_stmt;
 		    adv = ! adv;
-		    printf (_("  Set is_stmt to %" PRId64 "\n"), adv);
+		    printf (_("  Set is_stmt to %d\n"), adv);
 		    state_machine_regs.is_stmt = adv;
 		    break;
 

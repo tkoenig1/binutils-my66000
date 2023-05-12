@@ -159,6 +159,7 @@ software in general.  We will miss him.
 * Emacs::                       Using @value{GDBN} under @sc{gnu} Emacs
 * GDB/MI::                      @value{GDBN}'s Machine Interface.
 * Annotations::                 @value{GDBN}'s annotation interface.
+* Debugger Adapter Protocol::	The Debugger Adapter Protocol.
 * JIT Interface::               Using the JIT debugging interface.
 * In-Process Agent::            In-Process Agent
 
@@ -3654,6 +3655,7 @@ program's ``main thread'' even if the program is not multi-threaded.
 
 @vindex $_thread@r{, convenience variable}
 @vindex $_gthread@r{, convenience variable}
+@vindex $_inferior_thread_count@r{, convenience variable}
 The debugger convenience variables @samp{$_thread} and
 @samp{$_gthread} contain, respectively, the per-inferior thread number
 and the global thread number of the current thread.  You may find this
@@ -5976,7 +5978,7 @@ support running commands on the target.
 
 @item set dprintf-function @var{function}
 Set the function to call if the dprintf style is @code{call}.  By
-default its value is @code{printf}.  You may set it to any expression.
+default its value is @code{printf}.  You may set it to any expression
 that @value{GDBN} can evaluate to a function, as per the @code{call}
 command.
 
@@ -20617,6 +20619,14 @@ makes the next @code{continue} command or stepping command execute at
 address @code{0x485}, rather than at the address where your program stopped.
 @xref{Continuing and Stepping, ,Continuing and Stepping}.
 
+However, writing directly to @code{$pc} will only change the value of
+the program-counter register, while using @code{jump} will ensure that
+any additional auxiliary state is also updated.  For example, on
+SPARC, @code{jump} will update both @code{$pc} and @code{$npc}
+registers prior to resuming execution.  When using the approach of
+writing directly to @code{$pc} it is your job to also update the
+@code{$npc} register.
+
 The most common occasion to use the @code{jump} command is to back
 up---perhaps with more breakpoints set---over a portion of a program
 that has already executed, in order to examine its execution in more
@@ -29615,6 +29625,8 @@ the Debugger Adapter Protocol.  This protocol can be used by a
 debugger GUI or an IDE to communicate with @value{GDBN}.  This
 protocol is documented at
 @url{https://microsoft.github.io/debug-adapter-protocol/}.
+@xref{Debugger Adapter Protocol}, for information about @value{GDBN}
+extensions to the protocol.
 
 @item mi
 @cindex mi interpreter
@@ -32206,7 +32218,10 @@ all of the breakpoint locations.
 Initialize the @var{ignore-count}.
 @item -p @var{thread-id}
 Restrict the breakpoint to the thread with the specified global
-@var{thread-id}.
+@var{thread-id}.  @var{thread-id} must be a valid thread-id at the
+time the breakpoint is requested.  Breakpoints created with a
+@var{thread-id} will automatically be deleted when the corresponding
+thread exits.
 @item --qualified
 This option makes @value{GDBN} interpret a function name specified as
 a complete fully-qualified name.
@@ -37994,6 +38009,13 @@ option (@pxref{GDB/MI Program Execution}).
 @item data-disassemble-a-option
 Indicates that the @code{-data-disassemble} command supports the @option{-a}
 option (@pxref{GDB/MI Data Manipulation}).
+@item simple-values-ref-types
+Indicates that the @code{--simple-values} argument to the
+@code{-stack-list-arguments}, @code{-stack-list-locals},
+@code{-stack-list-variables}, and @code{-var-list-children} commands
+takes reference types into account: that is, a value is considered
+simple if it is neither an array, structure, or union, nor a reference
+to an array, structure, or union.
 @end ftable
 
 @findex -list-target-features
@@ -38968,6 +38990,22 @@ line, or @samp{beg} if @var{addr} is at the beginning of the line, and
 source which is being displayed.  The @var{addr} is in the form @samp{0x}
 followed by one or more lowercase hex digits (note that this does not
 depend on the language).
+
+@node Debugger Adapter Protocol
+@chapter Debugger Adapter Protocol
+
+Generally, @value{GDBN} implements the Debugger Adapter Protocol as
+written.  However, in some cases, extensions are either needed or even
+expected.
+
+@value{GDBN} defines a parameter that can be passed to the
+@code{launch} request:
+
+@table @code
+@item program
+If provided, this is a string that specifies the program to use.  This
+corresponds to the @code{file} command.  @xref{Files}.
+@end table
 
 @node JIT Interface
 @chapter JIT Compilation Interface
@@ -41363,6 +41401,13 @@ This option is @samp{on} by default for supported architectures.
 This option is useful for debugging @value{GDBN}'s use of the Pygments
 library when @value{GDBN} is built for an architecture that supports
 styling with the builtin disassembler
+
+@kindex maint info screen
+@cindex show screen characteristics
+@item maint info screen
+Print various characteristics of the screen, such as various notions
+of width and height.
+
 @kindex maint space
 @cindex memory used by commands
 @item maint space @var{value}
