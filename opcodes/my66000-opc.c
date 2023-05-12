@@ -1,4 +1,4 @@
-/* my66000-opc.c -- Definitions for moxie opcodes.
+/* my66000-opc.c -- Definitions for my66000 opcodes.
    Copyright (C) 2023 Free Software Foundation, Inc.
    Contributed by Thomas König (tkoenig@gcc.gnu.org).
 
@@ -47,6 +47,7 @@
 
 
 #define BCND_OFFS 21
+#define BCND_MINOR(c) ((c) << BCND_OFFS)
 #define BCND_MASK 31 << BCND_OFFS
 
 #define TT_OFFS 23
@@ -483,7 +484,40 @@ static const my66000_opc_info_t opc_op5[] =
 
 static const my66000_opc_info_t opc_bcnd[] =
 {
-  { NULL,   0,              MY66000_END,   NULL, 0, 0}
+ { "beq0", MAJOR(26) | BCND_MINOR ( 0), MY66000_BC,  NULL, 0, 0},
+ { "bne0", MAJOR(26) | BCND_MINOR ( 1), MY66000_BC,  NULL, 0, 0},
+ { "bge0", MAJOR(26) | BCND_MINOR ( 2), MY66000_BC,  NULL, 0, 0},
+ { "blt0", MAJOR(26) | BCND_MINOR ( 3), MY66000_BC,  NULL, 0, 0},
+ { "bgt0", MAJOR(26) | BCND_MINOR ( 4), MY66000_BC,  NULL, 0, 0},
+ { "ble0", MAJOR(26) | BCND_MINOR ( 5), MY66000_BC,  NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { "bdeq", MAJOR(26) | BCND_MINOR ( 8), MY66000_BC,  NULL, 0, 0},
+ { "bdne", MAJOR(26) | BCND_MINOR ( 9), MY66000_BC,  NULL, 0, 0},
+ { "bdge", MAJOR(26) | BCND_MINOR (10), MY66000_BC,  NULL, 0, 0},
+ { "bdlt", MAJOR(26) | BCND_MINOR (11), MY66000_BC,  NULL, 0, 0},
+ { "bdgt", MAJOR(26) | BCND_MINOR (12), MY66000_BC,  NULL, 0, 0},
+ { "bdle", MAJOR(26) | BCND_MINOR (13), MY66000_BC,  NULL, 0, 0},
+ { "bdor", MAJOR(26) | BCND_MINOR (14), MY66000_BC,  NULL, 0, 0},
+ { "bfun", MAJOR(26) | BCND_MINOR (15), MY66000_BC,  NULL, 0, 0},
+ { "bfeq", MAJOR(26) | BCND_MINOR (16), MY66000_BC,  NULL, 0, 0},
+ { "bfne", MAJOR(26) | BCND_MINOR (17), MY66000_BC,  NULL, 0, 0},
+ { "bfge", MAJOR(26) | BCND_MINOR (18), MY66000_BC,  NULL, 0, 0},
+ { "bflt", MAJOR(26) | BCND_MINOR (19), MY66000_BC,  NULL, 0, 0},
+ { "bfgt", MAJOR(26) | BCND_MINOR (20), MY66000_BC,  NULL, 0, 0},
+ { "bfle", MAJOR(26) | BCND_MINOR (21), MY66000_BC,  NULL, 0, 0},
+ { "bfor", MAJOR(26) | BCND_MINOR (22), MY66000_BC,  NULL, 0, 0},
+ { "bfun", MAJOR(26) | BCND_MINOR (23), MY66000_BC,  NULL, 0, 0},
+ { "bin",  MAJOR(26) | BCND_MINOR (24), MY66000_BC,  NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL; 0, 0}, 
+ { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
 static const my66000_opc_info_t opc_jt[] =
@@ -496,52 +530,52 @@ static const my66000_opc_info_t opc_jt[] =
 /* The two halves of the branch on bit instructions.  */
 static const my66000_opc_info_t opc_bb1a[] =
 {
- { "beq",  MAJOR(24) | BB1_MINOR( 0), MY66000_BCMP, NULL, 0, 0},
- { "bneq", MAJOR(24) | BB1_MINOR( 1), MY66000_BCMP, NULL, 0, 0},
- { "bne",  MAJOR(24) | BB1_MINOR( 2), MY66000_BCMP, NULL, 0, 0},
- { "bnne", MAJOR(24) | BB1_MINOR( 3), MY66000_BCMP, NULL, 0, 0},
- { "bge",  MAJOR(24) | BB1_MINOR( 4), MY66000_BCMP, NULL, 0, 0},
- { "bnge", MAJOR(24) | BB1_MINOR( 5), MY66000_BCMP, NULL, 0, 0},
- { "blt",  MAJOR(24) | BB1_MINOR( 6), MY66000_BCMP, NULL, 0, 0},
- { "bnlt", MAJOR(24) | BB1_MINOR( 7), MY66000_BCMP, NULL, 0, 0},
- { "bgt",  MAJOR(24) | BB1_MINOR( 8), MY66000_BCMP, NULL, 0, 0},
- { "bngt", MAJOR(24) | BB1_MINOR( 9), MY66000_BCMP, NULL, 0, 0},
- { "ble",  MAJOR(24) | BB1_MINOR(10), MY66000_BCMP, NULL, 0, 0},
- { "bnle", MAJOR(24) | BB1_MINOR(11), MY66000_BCMP, NULL, 0, 0},
- { "bhs",  MAJOR(24) | BB1_MINOR(12), MY66000_BCMP, NULL, 0, 0},
- { "blo",  MAJOR(24) | BB1_MINOR(13), MY66000_BCMP, NULL, 0, 0},
- { "bhi",  MAJOR(24) | BB1_MINOR(14), MY66000_BCMP, NULL, 0, 0},
- { "bls",  MAJOR(24) | BB1_MINOR(15), MY66000_BCMP, NULL, 0, 0},
- { "bor",  MAJOR(24) | BB1_MINOR(16), MY66000_BCMP, NULL, 0, 0},
- { "bnor", MAJOR(24) | BB1_MINOR(17), MY66000_BCMP, NULL, 0, 0},
- { "bto",  MAJOR(24) | BB1_MINOR(18), MY66000_BCMP, NULL, 0, 0},
- { "bnto", MAJOR(24) | BB1_MINOR(19), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(20), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(21), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(23), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(24), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(25), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(26), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(27), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(28), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(29), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(30), MY66000_BCMP, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(31), MY66000_BCMP, NULL, 0, 0},
+ { "beq",  MAJOR(24) | BB1_MINOR( 0), MY66000_BC, NULL, 0, 0},
+ { "bneq", MAJOR(24) | BB1_MINOR( 1), MY66000_BC, NULL, 0, 0},
+ { "bne",  MAJOR(24) | BB1_MINOR( 2), MY66000_BC, NULL, 0, 0},
+ { "bnne", MAJOR(24) | BB1_MINOR( 3), MY66000_BC, NULL, 0, 0},
+ { "bge",  MAJOR(24) | BB1_MINOR( 4), MY66000_BC, NULL, 0, 0},
+ { "bnge", MAJOR(24) | BB1_MINOR( 5), MY66000_BC, NULL, 0, 0},
+ { "blt",  MAJOR(24) | BB1_MINOR( 6), MY66000_BC, NULL, 0, 0},
+ { "bnlt", MAJOR(24) | BB1_MINOR( 7), MY66000_BC, NULL, 0, 0},
+ { "bgt",  MAJOR(24) | BB1_MINOR( 8), MY66000_BC, NULL, 0, 0},
+ { "bngt", MAJOR(24) | BB1_MINOR( 9), MY66000_BC, NULL, 0, 0},
+ { "ble",  MAJOR(24) | BB1_MINOR(10), MY66000_BC, NULL, 0, 0},
+ { "bnle", MAJOR(24) | BB1_MINOR(11), MY66000_BC, NULL, 0, 0},
+ { "bhs",  MAJOR(24) | BB1_MINOR(12), MY66000_BC, NULL, 0, 0},
+ { "blo",  MAJOR(24) | BB1_MINOR(13), MY66000_BC, NULL, 0, 0},
+ { "bhi",  MAJOR(24) | BB1_MINOR(14), MY66000_BC, NULL, 0, 0},
+ { "bls",  MAJOR(24) | BB1_MINOR(15), MY66000_BC, NULL, 0, 0},
+ { "bor",  MAJOR(24) | BB1_MINOR(16), MY66000_BC, NULL, 0, 0},
+ { "bnor", MAJOR(24) | BB1_MINOR(17), MY66000_BC, NULL, 0, 0},
+ { "bto",  MAJOR(24) | BB1_MINOR(18), MY66000_BC, NULL, 0, 0},
+ { "bnto", MAJOR(24) | BB1_MINOR(19), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(20), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(21), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(23), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(24), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(25), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(26), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(27), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(28), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(29), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(30), MY66000_BC, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(31), MY66000_BC, NULL, 0, 0},
  { NULL,   0,                                 MY66000_END , NULL, 0, 0}
 };
 
 static const my66000_opc_info_t opc_bb1b[] =
 {
- { "bsnan", MAJOR(25) | BB1_MINOR( 0), MY66000_BCMP, NULL, 0, 0},
- { "bqnan", MAJOR(25) | BB1_MINOR( 1), MY66000_BCMP, NULL, 0, 0},
- { "bminf", MAJOR(25) | BB1_MINOR( 2), MY66000_BCMP, NULL, 0, 0},
- { "bmnor", MAJOR(25) | BB1_MINOR( 3), MY66000_BCMP, NULL, 0, 0},
- { "bmde",  MAJOR(25) | BB1_MINOR( 4), MY66000_BCMP, NULL, 0, 0},
- { "bmze",  MAJOR(25) | BB1_MINOR( 5), MY66000_BCMP, NULL, 0, 0},
- { "bpze",  MAJOR(25) | BB1_MINOR( 6), MY66000_BCMP, NULL, 0, 0},
- { "bpde",  MAJOR(25) | BB1_MINOR( 7), MY66000_BCMP, NULL, 0, 0},
- { "bpnor", MAJOR(25) | BB1_MINOR( 8), MY66000_BCMP, NULL, 0, 0},
- { "bpinf", MAJOR(25) | BB1_MINOR( 9), MY66000_BCMP, NULL, 0, 0},
+ { "bsnan", MAJOR(25) | BB1_MINOR( 0), MY66000_BC, NULL, 0, 0},
+ { "bqnan", MAJOR(25) | BB1_MINOR( 1), MY66000_BC, NULL, 0, 0},
+ { "bminf", MAJOR(25) | BB1_MINOR( 2), MY66000_BC, NULL, 0, 0},
+ { "bmnor", MAJOR(25) | BB1_MINOR( 3), MY66000_BC, NULL, 0, 0},
+ { "bmde",  MAJOR(25) | BB1_MINOR( 4), MY66000_BC, NULL, 0, 0},
+ { "bmze",  MAJOR(25) | BB1_MINOR( 5), MY66000_BC, NULL, 0, 0},
+ { "bpze",  MAJOR(25) | BB1_MINOR( 6), MY66000_BC, NULL, 0, 0},
+ { "bpde",  MAJOR(25) | BB1_MINOR( 7), MY66000_BC, NULL, 0, 0},
+ { "bpnor", MAJOR(25) | BB1_MINOR( 8), MY66000_BC, NULL, 0, 0},
+ { "bpinf", MAJOR(25) | BB1_MINOR( 9), MY66000_BC, NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
@@ -659,6 +693,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '^' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '_' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '\'' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "unused",                   'a' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -722,13 +757,16 @@ static const my66000_fmt_spec_t bb1_fmt_list [] =
  { NULL,    0, 0, 0},
 };
 
+/* Format for unconditional branches.  */
+
 static const my66000_fmt_spec_t br_fmt_list [] =
 {
  { "J",    0,  0, 0},
  { NULL,   0,  0, 0},
 };
 
-static const my66000_fmt_spec_t bcmp_fmt_list [] =
+/* Formats for conditonal branches.  */
+static const my66000_fmt_spec_t bc_fmt_list [] =
 {
  {"B,I", 0, 0, 0},
  { NULL,    0, 0, 0},
@@ -861,7 +899,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { shift_fmt_list,    MY66000_SHIFT,  0},
    { empty_fmt_list,    MY66000_EMPTY,  0},
    { enter_fmt_list,    MY66000_ENTER,  0},
-   { bcmp_fmt_list,     MY66000_BCMP,   0},
+   { bc_fmt_list,       MY66000_BC,     0},
    { NULL,	        MY66000_END,    0},
   };
 
