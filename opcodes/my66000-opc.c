@@ -530,7 +530,7 @@ static const my66000_opc_info_t opc_bcnd[] =
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
+ { "ret", MAJOR(26) | CND_MINOR (31),  MY66000_EMPTY, NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0}, 
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
@@ -583,37 +583,37 @@ static const my66000_opc_info_t opc_jt[] =
 
 static const my66000_opc_info_t opc_bb1a[] =
 {
- { "beq",  MAJOR(24) | BB1_MINOR( 0), MY66000_BC, NULL, 0, 0},
- { "bneq", MAJOR(24) | BB1_MINOR( 1), MY66000_BC, NULL, 0, 0},
- { "bne",  MAJOR(24) | BB1_MINOR( 2), MY66000_BC, NULL, 0, 0},
- { "bnne", MAJOR(24) | BB1_MINOR( 3), MY66000_BC, NULL, 0, 0},
- { "bge",  MAJOR(24) | BB1_MINOR( 4), MY66000_BC, NULL, 0, 0},
- { "bnge", MAJOR(24) | BB1_MINOR( 5), MY66000_BC, NULL, 0, 0},
- { "blt",  MAJOR(24) | BB1_MINOR( 6), MY66000_BC, NULL, 0, 0},
- { "bnlt", MAJOR(24) | BB1_MINOR( 7), MY66000_BC, NULL, 0, 0},
- { "bgt",  MAJOR(24) | BB1_MINOR( 8), MY66000_BC, NULL, 0, 0},
- { "bngt", MAJOR(24) | BB1_MINOR( 9), MY66000_BC, NULL, 0, 0},
- { "ble",  MAJOR(24) | BB1_MINOR(10), MY66000_BC, NULL, 0, 0},
- { "bnle", MAJOR(24) | BB1_MINOR(11), MY66000_BC, NULL, 0, 0},
- { "bhs",  MAJOR(24) | BB1_MINOR(12), MY66000_BC, NULL, 0, 0},
- { "blo",  MAJOR(24) | BB1_MINOR(13), MY66000_BC, NULL, 0, 0},
- { "bhi",  MAJOR(24) | BB1_MINOR(14), MY66000_BC, NULL, 0, 0},
- { "bls",  MAJOR(24) | BB1_MINOR(15), MY66000_BC, NULL, 0, 0},
- { "bor",  MAJOR(24) | BB1_MINOR(16), MY66000_BC, NULL, 0, 0},
- { "bnor", MAJOR(24) | BB1_MINOR(17), MY66000_BC, NULL, 0, 0},
- { "bto",  MAJOR(24) | BB1_MINOR(18), MY66000_BC, NULL, 0, 0},
- { "bnto", MAJOR(24) | BB1_MINOR(19), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(20), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(21), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(23), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(24), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(25), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(26), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(27), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(28), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(29), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(30), MY66000_BC, NULL, 0, 0},
- { NULL,   MAJOR(24) | BB1_MINOR(31), MY66000_BC, NULL, 0, 0},
+ { "beq",  MAJOR(24) | BB1_MINOR( 0), MY66000_BC,  NULL, 0, 0},
+ { "bneq", MAJOR(24) | BB1_MINOR( 1), MY66000_BC,  NULL, 0, 0},
+ { "bne",  MAJOR(24) | BB1_MINOR( 2), MY66000_BC,  NULL, 0, 0},
+ { "bnne", MAJOR(24) | BB1_MINOR( 3), MY66000_BC,  NULL, 0, 0},
+ { "bge",  MAJOR(24) | BB1_MINOR( 4), MY66000_BC,  NULL, 0, 0},
+ { "bnge", MAJOR(24) | BB1_MINOR( 5), MY66000_BC,  NULL, 0, 0},
+ { "blt",  MAJOR(24) | BB1_MINOR( 6), MY66000_BC,  NULL, 0, 0},
+ { "bnlt", MAJOR(24) | BB1_MINOR( 7), MY66000_BC,  NULL, 0, 0},
+ { "bgt",  MAJOR(24) | BB1_MINOR( 8), MY66000_BC,  NULL, 0, 0},
+ { "bngt", MAJOR(24) | BB1_MINOR( 9), MY66000_BC,  NULL, 0, 0},
+ { "ble",  MAJOR(24) | BB1_MINOR(10), MY66000_BC,  NULL, 0, 0},
+ { "bnle", MAJOR(24) | BB1_MINOR(11), MY66000_BC,  NULL, 0, 0},
+ { "bhs",  MAJOR(24) | BB1_MINOR(12), MY66000_BC,  NULL, 0, 0},
+ { "blo",  MAJOR(24) | BB1_MINOR(13), MY66000_BC,  NULL, 0, 0},
+ { "bhi",  MAJOR(24) | BB1_MINOR(14), MY66000_BC,  NULL, 0, 0},
+ { "bls",  MAJOR(24) | BB1_MINOR(15), MY66000_BC,  NULL, 0, 0},
+ { "bor",  MAJOR(24) | BB1_MINOR(16), MY66000_BC,  NULL, 0, 0},
+ { "bnor", MAJOR(24) | BB1_MINOR(17), MY66000_BC,  NULL, 0, 0},
+ { "bto",  MAJOR(24) | BB1_MINOR(18), MY66000_BC,  NULL, 0, 0},
+ { "bnto", MAJOR(24) | BB1_MINOR(19), MY66000_BC,  NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(20), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(21), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(23), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(24), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(25), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(26), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(27), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(28), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(29), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(30), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(24) | BB1_MINOR(31), MY66000_BAD, NULL, 0, 0},
  { NULL,   0,                         MY66000_END , NULL, 0, 0}
 };
 
@@ -1046,7 +1046,7 @@ static const my66000_fmt_spec_t carry_fmt_list[] =
 
 static const my66000_fmt_spec_t empty_fmt_list[] =
 {
- { NULL,     0, 0, 0},
+ { "",     0, 0, 0},
 };
 
 /* Where to look up the operand list for a certain instruction
