@@ -55,6 +55,10 @@
 
 #define SHFT_MINOR(c) (c) << SHFT_OFFS
 
+#define MOD_OFFS 16
+#define MOD_MINOR(x) ((x) << MOD_OFFS)
+#define MOD_MASK MOD_MINOR (3)
+
 const my66000_opc_info_t my66000_opc_info_special[];
 const my66000_opc_info_t my66000_opc_info[];
 static const my66000_opc_info_t opc_om6[];
@@ -70,6 +74,7 @@ static const my66000_opc_info_t opc_bcnd[];
 static const my66000_opc_info_t opc_jt[];
 static const my66000_opc_info_t opc_bb1a[];
 static const my66000_opc_info_t opc_bb1b[];
+static const my66000_opc_info_t opc_mod[];
 
 /* List of all the tables containing opcodes, for initializing the
    hashtabs for gas.  Keep up to date if you add anything below,
@@ -94,6 +99,8 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_jt,
  opc_bb1a,
  opc_bb1b,
+ opc_mod,
+ NULL,
 };
 
 /* Table for special opcodes which are not well suited for recursive
@@ -171,7 +178,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { "xor",  MAJOR(57), MY66000_OPIMM, NULL, 0, 0},
  { "and",  MAJOR(58), MY66000_OPIMM, NULL, 0, 0},
  { "mov",  MAJOR(59), MY66000_MVIMM, NULL, 0, 0},
- { "carry", MAJOR(60), MY66000_CARRY, NULL, 0, 0},
+ { NULL,   MAJOR(60), MY66000_CARRY, opc_mod, MOD_MASK, MOD_OFFS},
  { "vec",  MAJOR(61), MY66000_VEC,   NULL, 0, 0},
  { NULL,   MAJOR(62), MY66000_BAD,   NULL, 0, 0},
  { "ill5", MAJOR(63), MY66000_ILL,   NULL, 0, 0},
@@ -180,7 +187,7 @@ const my66000_opc_info_t my66000_opc_info[] =
 
 static const my66000_opc_info_t opc_om6[] =
 {
- { "pb1",  MAJOR(6) | SHFT_MINOR( 0), MY66000_PB1,  NULL, 0, 0},
+ { "pb1",  MAJOR(6) | SHFT_MINOR( 0), MY66000_PB1,   NULL, 0, 0},
  { "pcnd", MAJOR(6) | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
@@ -490,8 +497,8 @@ static const my66000_opc_info_t opc_bcnd[] =
  { "blt0", MAJOR(26) | BCND_MINOR ( 3), MY66000_BC,  NULL, 0, 0},
  { "bgt0", MAJOR(26) | BCND_MINOR ( 4), MY66000_BC,  NULL, 0, 0},
  { "ble0", MAJOR(26) | BCND_MINOR ( 5), MY66000_BC,  NULL, 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
  { "bdeq", MAJOR(26) | BCND_MINOR ( 8), MY66000_BC,  NULL, 0, 0},
  { "bdne", MAJOR(26) | BCND_MINOR ( 9), MY66000_BC,  NULL, 0, 0},
  { "bdge", MAJOR(26) | BCND_MINOR (10), MY66000_BC,  NULL, 0, 0},
@@ -509,14 +516,14 @@ static const my66000_opc_info_t opc_bcnd[] =
  { "bfor", MAJOR(26) | BCND_MINOR (22), MY66000_BC,  NULL, 0, 0},
  { "bfun", MAJOR(26) | BCND_MINOR (23), MY66000_BC,  NULL, 0, 0},
  { "bin",  MAJOR(26) | BCND_MINOR (24), MY66000_BC,  NULL, 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0},
- { NULL,    0,                          MY66000_BAD, NULL; 0, 0}, 
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0},
+ { NULL,    0,                          MY66000_BAD, NULL, 0, 0}, 
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
@@ -561,7 +568,7 @@ static const my66000_opc_info_t opc_bb1a[] =
  { NULL,   MAJOR(24) | BB1_MINOR(29), MY66000_BC, NULL, 0, 0},
  { NULL,   MAJOR(24) | BB1_MINOR(30), MY66000_BC, NULL, 0, 0},
  { NULL,   MAJOR(24) | BB1_MINOR(31), MY66000_BC, NULL, 0, 0},
- { NULL,   0,                                 MY66000_END , NULL, 0, 0}
+ { NULL,   0,                         MY66000_END , NULL, 0, 0}
 };
 
 static const my66000_opc_info_t opc_bb1b[] =
@@ -576,31 +583,41 @@ static const my66000_opc_info_t opc_bb1b[] =
  { "bpde",  MAJOR(25) | BB1_MINOR( 7), MY66000_BC, NULL, 0, 0},
  { "bpnor", MAJOR(25) | BB1_MINOR( 8), MY66000_BC, NULL, 0, 0},
  { "bpinf", MAJOR(25) | BB1_MINOR( 9), MY66000_BC, NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,              MY66000_END,   NULL, 0, 0},
-  { NULL,   0,                                 MY66000_END , NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END , NULL, 0, 0},
 } ;
 
+static const my66000_opc_info_t opc_mod[] =
+{
+ { NULL,    0,                        MY66000_BAD, NULL, 0, 0},
+ { "carry", MAJOR(60) | MOD_MINOR(1), MY66000_CARRY, NULL, 0, 0},
+ { NULL,    0,                        MY66000_BAD, NULL, 0, 0},
+ { "thru",  MAJOR(60) | MOD_MINOR(3), MY66000_CARRY, NULL, 0, 0},
+ { NULL,    0,                        MY66000_BAD, NULL, 0, 0},
+ { NULL,   0,                         MY66000_END , NULL, 0, 0},
+ 
+};
 
 const char *my66000_rname[32] =
   {
@@ -693,7 +710,10 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '^' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '_' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '\'' },
- {MY66000_OPS_INVALID, 0, 0, 0, 0,            "unused",                   'a' },
+ {MY66000_OPS_PRTHEN,  OPERAND_ENTRY (8,  8), "predicate then",           'a' },
+ {MY66000_OPS_PRELSE,  OPERAND_ENTRY (8,  0), "predicate else",           'b' },
+ {MY66000_OPS_CARRY,   OPERAND_ENTRY (16, 0), "carry list",               'c' },
+ {MY66000_OPS_TF,      OPERAND_ENTRY (16, 0), "true-false predicate list",'d' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -860,8 +880,10 @@ static const my66000_fmt_spec_t shift_fmt_list[] =
  { NULL,        0, 0, 0}
 };
 
-static const my66000_fmt_spec_t empty_fmt_list[] =
+static const my66000_fmt_spec_t pb1_fmt_list[] =
 {
+ { "H,B,a,b",   0, 0, 0},
+ { "H,B,d",     0, 0, 0},
  { NULL,        0, 0, 0},
 };
 
@@ -871,6 +893,18 @@ static const my66000_fmt_spec_t enter_fmt_list[] =
  { "A,B,S,Y", 0, ENTER_UNUSED, 0},
  { NULL,      0, 0, 0},
 };
+
+static const my66000_fmt_spec_t carry_fmt_list[] =
+{
+ { "A,{c}",  0, 0, 0},
+ { NULL,     0, 0, 0},
+};
+
+static const my66000_fmt_spec_t empty_fmt_list[] =
+{
+ { NULL,     0, 0, 0},
+};
+
 
 /* Where to look up the operand list for a certain instruction
    format.  Warning: Keep this table in the same order as enum
@@ -900,6 +934,8 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { empty_fmt_list,    MY66000_EMPTY,  0},
    { enter_fmt_list,    MY66000_ENTER,  0},
    { bc_fmt_list,       MY66000_BC,     0},
+   { carry_fmt_list,    MY66000_CARRY,  0},
+   { pb1_fmt_list,      MY66000_PB1,    0},
    { NULL,	        MY66000_END,    0},
   };
 

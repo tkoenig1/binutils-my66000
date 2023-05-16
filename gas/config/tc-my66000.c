@@ -87,7 +87,8 @@ md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
   return;
 }
 
-/* Maximum instruction length, which is enough in any case  */
+/* Maximum instruction length, which is enough in any case.  Anything longer
+ will just get truncated.  */
 #define MAX_OP_STR_LEN 15
 
 /* Duplicate names for instructions occur at most N_MAP times.  */
@@ -284,6 +285,15 @@ match_5bit (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, 0, 31);
 }
 
+/* Match an integer between 0 and 8 inclusive, this is for
+   prediate clauses.  */
+
+static int
+match_max8 (char **ptr, char **errmsg)
+{
+  return match_integer (ptr, errmsg, 0, 8);
+}
+
 /* Match a six-bit positive constant.  */
 
 static uint8_t
@@ -311,6 +321,140 @@ match_6bit_p2 (char **ptr, char **errmsg)
 	}
     }
   return ret;
+}
+
+/* Match a modifier list item and set the pointer to the
+   beginning of the next item or the trailing }.  */
+
+static uint8_t
+match_carry_item (char **ptr, char **errmsg)
+{
+  uint16_t ret;
+  bool valid;
+  char *p = *ptr, *pe;
+
+  valid = true;
+  ret = 0;
+  if (p[0] == '-')
+    {
+      ret = 0;
+      pe = &p[1];
+    }
+  else if (TOUPPER(p[0]) == 'I' && TOUPPER(p[1]) != 'O')
+    {
+      ret = 1;
+      pe = &p[1];
+    }
+  else if (TOUPPER(p[0]) == 'O')
+    {
+      ret = 2;
+      pe = &p[1];
+    }
+  else if (TOUPPER(p[0]) == 'I' && TOUPPER(p[1]) == 'O')
+    {
+      ret = 3;
+      pe = &p[2];
+    }
+  else
+    {
+      pe = p;
+      valid = false;
+    }
+
+  if (valid) {
+    if (*pe == ',')
+      *ptr = pe + 1;
+    else if (*pe == '}')
+      *ptr = pe;
+    else
+      valid = false;
+  }
+
+  if (valid)
+    return ret;
+
+  snprintf (errbuf, sizeof(errbuf),
+	    (_("unexpected character '%c' in modifier list")), *pe);
+  *errmsg = errbuf;
+  return 0;
+}
+
+/* The number of carries still active.  */
+
+static int num_carry;
+
+/* Match a carry list.  Issue an error if we are still in another
+   carry list, and record the number of carries found, without
+   trailing '-'. '{' and '}' are already taken care of in the format
+   string.  */
+
+static uint16_t
+match_carry_list (char **ptr, char **errmsg)
+{
+  uint16_t ret = 0;
+
+  for (int shft=0; shft<16; shft += 2)
+    {
+      uint16_t item = match_carry_item (ptr, errmsg);
+      if (*errmsg)
+	{
+	  num_carry = 0;
+	  return 0;
+	}
+
+      if (item != 0)
+	{
+	  ret |= item << shft;
+	  num_carry = (shft >> 1) + 2;
+	}
+
+      if (**ptr == '}')
+	return ret;
+    }
+  snprintf (errbuf, sizeof(errbuf), _("too many items in modifier argument list"));
+  return 0;
+}
+
+static uint16_t
+match_tf_list (char **ptr, char **errmsg)
+{
+  int num_true, num_false;
+  char *str;
+
+  str = *ptr;
+
+  /* Drop leading whitespace.  */
+  while (ISSPACE (*str))
+    str++;
+
+  num_true = 0;
+
+  while (TOUPPER (*str) == 'T')
+    {
+      num_true++;
+      str++;
+    }
+  if (num_true > 8)
+    {
+      strcpy (errbuf, "Too many true values");
+      *errmsg = errbuf;
+      return 0;
+    }
+
+  num_false = 0;
+  while (TOUPPER (*str) == 'F')
+    {
+      num_false++;
+      str++;
+    }
+  if (num_false > 8)
+    {
+      strcpy (errbuf, "Too many false values");
+      *errmsg = errbuf;
+      return 0;
+    }
+  *ptr = str;
+  return (num_true) << 8 | num_false;
 }
 
 /* Match a register name from map and return its number, or, on
@@ -547,6 +691,19 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	case MY66000_OPS_W_BITR:
 	  frag = match_6bit_p2 (&sp, errmsg);
+	  break;
+
+	case MY66000_OPS_CARRY:
+	  frag = match_carry_list (&sp, errmsg);
+	  break;
+
+	case MY66000_OPS_TF:
+	  frag = match_tf_list (&sp, errmsg);
+	  break;
+
+	case MY66000_OPS_PRTHEN:
+	case MY66000_OPS_PRELSE:
+	  frag = match_max8 (&sp, errmsg);
 	  break;
 
 	  /* Dept. of dirty tricks: We use the fact that branches
@@ -821,6 +978,7 @@ md_assemble (char *str)
      Note: The ordering of what is put into each map matters in this.
   */
 
+  //  fprintf (stderr,"%d: %s\n", num_carry, str);
   errmsg = NULL;
   for (j = 0; j < N_MAP; j++)
     {
@@ -828,11 +986,17 @@ md_assemble (char *str)
       if (opc == NULL)
 	{
 	  if (errmsg != NULL)
-	    as_bad ("Error for %s: %s", buffer, errmsg);
+	    as_bad ("%s: %s", buffer, errmsg);
 	  else
-	    as_bad ("illegal instruction %s\n", buffer);
+	    as_bad ("illegal instruction %s", buffer);
 	  return;
 	}
+      if (opc->enc == MY66000_CARRY && num_carry > 0)
+	{
+	  as_bad ("nested carry");
+	  return;
+	}
+
       errmsg = NULL;
       encode_instr (opc, &str[i], &errmsg);
       if (errmsg == NULL)
@@ -843,6 +1007,9 @@ md_assemble (char *str)
       as_bad ("%s", errmsg);
       return;
     }
+    if (num_carry > 0)
+      num_carry --;
+
 }
 
 /* Put number into target byte order.  */

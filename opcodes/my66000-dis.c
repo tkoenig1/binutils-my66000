@@ -35,6 +35,30 @@
 static fprintf_ftype fpr;
 static void *stream;
 
+static const char *carry_modifier[] = {"-","I","O","IO"};
+
+static int start_carry, end_carry;
+static uint32_t carry_mod[8];
+static int carry_reg = -1;
+
+static void
+print_modifier_list (uint32_t io8)
+{
+  uint32_t mod;
+
+  start_carry = 0;
+  while (io8 > 0)
+    {
+      mod = io8 & 3;
+      fpr (stream, "%s", carry_modifier[mod]);
+      carry_mod[end_carry] = mod;
+      io8 = io8 >> 2;
+      if (io8 > 0)
+	fpr (stream, ",");
+      end_carry ++;
+    }
+}
+
 /* Sign-extend an n-bit value, for offsets.  */
 static int64_t
 sign_extend (uint64_t a, int32_t bit)
@@ -60,6 +84,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
   bfd_byte buf1[8], buf2[8];
   uint32_t val_32;
   uint64_t val_64;
+  int dst = -1;
 
   opcode_fmt = &my66000_opcode_fmt[enc];
   spec = opcode_fmt->spec;
@@ -169,6 +194,9 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	switch (op_info->oper)
 	  {
 	  case MY66000_OPS_DST:
+	    /* Remember the SRC1 register for carry.  */
+	    dst = val;
+	    /* Fallthrough. */
 	  case MY66000_OPS_SRC1:
 	  case MY66000_OPS_SRC2:
 	  case MY66000_OPS_SRC3:
@@ -199,6 +227,8 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	  case MY66000_OPS_WIDTH:
 	  case MY66000_OPS_OFFSET:
 	  case MY66000_OPS_FL_ENTER:
+	  case MY66000_OPS_PRTHEN:
+	  case MY66000_OPS_PRELSE:
 	    /* An integer constant.  */
 	    v = val;
 	    fpr (stream, "%d", v);
@@ -228,6 +258,14 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    (*info->print_address_func) ((bfd_vma) (addr + (sign_extend(val,26) << 2)), info);
 	    break;
 
+	  case MY66000_OPS_CARRY:
+	    print_modifier_list (val);
+	    assert (dst != -1);
+	    carry_reg = dst;
+	    //	    fprintf (stderr,"start_carry = %d end_carry = %d reg = %d\n",start_carry,
+	    //		     end_carry, carry_reg);
+	    break;
+
 	  default:
 	    opcodes_error_handler ("Internal error: Unhandled format '%c' for %s",
 				   *f, opc->name);
@@ -242,6 +280,15 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
  fail:
  info->memory_error_func (status, addr, info);
  return -1;
+}
+
+static void
+comment_carry(void)
+{
+
+  if (carry_mod[start_carry] != 0)
+    fpr (stream,"\t%s={%s}", my66000_rname[carry_reg],
+	 carry_modifier[carry_mod[start_carry]]);
 }
 
 int
@@ -296,10 +343,28 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
   if (found)
     {
+      if (found->enc == MY66000_CARRY)
+	{
+	  if (end_carry > 0)
+	    {
+	      opcodes_error_handler ("Overlapping carry not permitted");
+	      return -1;
+	    }
+	}
       fpr (stream, "%s", found->name);
       o_length = print_operands (iword, found, addr, info);
       if (o_length < 0)
 	goto fail;
+      if (found->enc != MY66000_CARRY && end_carry > 0)
+	{
+	  comment_carry ();
+	  start_carry ++;
+	  if (start_carry == end_carry)
+	    {
+	      start_carry = 0;
+	      end_carry = 0;
+	    }
+	}
     }
   else
     opcodes_error_handler ("Error: unknown opcode %8.8x", iword);

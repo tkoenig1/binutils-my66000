@@ -53,7 +53,8 @@ typedef enum my66000_encoding
  MY66000_EMPTY,    /* No argument list.  */
  MY66000_ENTER,    /* Enter instruction.  */
  MY66000_BC,       /* Conditional branch  */
- MY66000_PB1,
+ MY66000_CARRY,    /* Carry modifier.  */
+ MY66000_PB1,      /* Predicate on bit set.  */
  MY66000_PCND,
  MY66000_BCND,
  MY66000_JT,
@@ -61,7 +62,6 @@ typedef enum my66000_encoding
  MY66000_MM,     /* Load/store multiple.  */
  MY66000_SI,	 /* Store immediate.  */
  MY66000_SI5,	 /* Store 5-bit immediate.  */
- MY66000_CARRY,
  MY66000_VEC,
 } my66000_encoding;
 
@@ -127,10 +127,14 @@ typedef enum my66000_operands
  MY66000_OPS_WIDTH,
  MY66000_OPS_OFFSET,
  MY66000_OPS_W_BITR,
- MY66000_OPS_IMM13, /* 13-bit immediate for enter.  */
+ MY66000_OPS_IMM13,    /* 13-bit immediate for enter.  */
  MY66000_OPS_FL_ENTER, /* Flag value for enter.  */
  MY66000_OPS_FLT32,    /* 32-bit floating point.  */
  MY66000_OPS_INVALID,  /* Invalid, used for non-letters.  */
+ MY66000_OPS_CARRY,    /* Instruction modification list.  */
+ MY66000_OPS_TF,       /* True/false list for predicates.  */
+ MY66000_OPS_PRTHEN,   /* "Then" part of predicate.  */
+ MY66000_OPS_PRELSE,   /* "Else" part of predicate.  */
  MY66000_OPS_END
 } my66000_operands;
 
@@ -175,5 +179,6 @@ extern const my66000_opc_info_t my66000_opc_info_special[];
 
 extern uint32_t my66000_set_imm_size (uint32_t, uint32_t);
 extern int my66000_imm_size (uint32_t);
+
 
 #endif
