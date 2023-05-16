@@ -52,9 +52,10 @@ typedef enum my66000_encoding
  MY66000_SHIFT,    /* Shift formats with 6-bit immediates.  */
  MY66000_EMPTY,    /* No argument list.  */
  MY66000_ENTER,    /* Enter instruction.  */
- MY66000_BC,       /* Conditional branch  */
+ MY66000_BC,       /* Conditional branch on bit set, named constant */
  MY66000_CARRY,    /* Carry modifier.  */
- MY66000_PB1,      /* Predicate on bit set.  */
+ MY66000_PB1,      /* Predicate on bit set, explicit bit  */
+ MY66000_PC,       /* Predicate on bit set, named condition.  */
  MY66000_PCND,
  MY66000_BCND,
  MY66000_JT,

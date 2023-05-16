@@ -75,6 +75,8 @@ static const my66000_opc_info_t opc_jt[];
 static const my66000_opc_info_t opc_bb1a[];
 static const my66000_opc_info_t opc_bb1b[];
 static const my66000_opc_info_t opc_mod[];
+static const my66000_opc_info_t opc_pb1a[];
+static const my66000_opc_info_t opc_pb1b[];
 
 /* List of all the tables containing opcodes, for initializing the
    hashtabs for gas.  Keep up to date if you add anything below,
@@ -100,6 +102,8 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_bb1a,
  opc_bb1b,
  opc_mod,
+ opc_pb1a,
+ opc_pb1b,
  NULL,
 };
 
@@ -187,7 +191,7 @@ const my66000_opc_info_t my66000_opc_info[] =
 
 static const my66000_opc_info_t opc_om6[] =
 {
- { "pb1",  MAJOR(6) | SHFT_MINOR( 0), MY66000_PB1,   NULL, 0, 0},
+ { "pb1",  MAJOR(6) | SHFT_MINOR( 0), MY66000_PB1,   opc_pb1a, BB1_MASK, BB1_OFFS},
  { "pcnd", MAJOR(6) | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
@@ -208,7 +212,7 @@ static const my66000_opc_info_t opc_om6[] =
 
 static const my66000_opc_info_t opc_om7[] =
 {
- { "pb1",  MAJOR(7) | SHFT_MINOR( 0), MY66000_PB1,   NULL, 0, 0},
+ { "pb1",  MAJOR(7) | SHFT_MINOR( 0), MY66000_PB1,   opc_pb1b, BB1_MASK, BB1_OFFS},
  { "pcnd", MAJOR(7) | SHFT_MINOR( 1), MY66000_PCND,  NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 2), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 3), MY66000_BAD,   NULL, 0, 0},
@@ -532,9 +536,9 @@ static const my66000_opc_info_t opc_jt[] =
   { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
-/* FIXME: Disassembling is ambigous.  */
+/* The two halves of the branch on bit instructions.  Keep in sync with
+ the predicate on condition codes below.  */
 
-/* The two halves of the branch on bit instructions.  */
 static const my66000_opc_info_t opc_bb1a[] =
 {
  { "beq",  MAJOR(24) | BB1_MINOR( 0), MY66000_BC, NULL, 0, 0},
@@ -583,6 +587,84 @@ static const my66000_opc_info_t opc_bb1b[] =
  { "bpde",  MAJOR(25) | BB1_MINOR( 7), MY66000_BC, NULL, 0, 0},
  { "bpnor", MAJOR(25) | BB1_MINOR( 8), MY66000_BC, NULL, 0, 0},
  { "bpinf", MAJOR(25) | BB1_MINOR( 9), MY66000_BC, NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
+  { NULL,   0,              MY66000_END , NULL, 0, 0},
+} ;
+
+/* The two halves of the predicate on bit instructions.  The
+   names are the same as branch, except that the first letter
+   is 'p' instead of 'b'.  Mind this if condition codes
+   change.  */
+
+static const my66000_opc_info_t opc_pb1a[] =
+{
+ { "peq",  MAJOR(6)  | SHFT_MINOR( 0), MY66000_PC, NULL, 0, 0},
+ { "pneq", MAJOR(6)  | SHFT_MINOR( 1), MY66000_PC, NULL, 0, 0},
+ { "pne",  MAJOR(6)  | SHFT_MINOR( 2), MY66000_PC, NULL, 0, 0},
+ { "pnne", MAJOR(6)  | SHFT_MINOR( 3), MY66000_PC, NULL, 0, 0},
+ { "pge",  MAJOR(6)  | SHFT_MINOR( 4), MY66000_PC, NULL, 0, 0},
+ { "pnge", MAJOR(6)  | SHFT_MINOR( 5), MY66000_PC, NULL, 0, 0},
+ { "plt",  MAJOR(6)  | SHFT_MINOR( 6), MY66000_PC, NULL, 0, 0},
+ { "pnlt", MAJOR(6)  | SHFT_MINOR( 7), MY66000_PC, NULL, 0, 0},
+ { "pgt",  MAJOR(6)  | SHFT_MINOR( 8), MY66000_PC, NULL, 0, 0},
+ { "pngt", MAJOR(6)  | SHFT_MINOR( 9), MY66000_PC, NULL, 0, 0},
+ { "ple",  MAJOR(6)  | SHFT_MINOR(10), MY66000_PC, NULL, 0, 0},
+ { "pnle", MAJOR(6)  | SHFT_MINOR(11), MY66000_PC, NULL, 0, 0},
+ { "phs",  MAJOR(6)  | SHFT_MINOR(12), MY66000_PC, NULL, 0, 0},
+ { "plo",  MAJOR(6)  | SHFT_MINOR(13), MY66000_PC, NULL, 0, 0},
+ { "phi",  MAJOR(6)  | SHFT_MINOR(14), MY66000_PC, NULL, 0, 0},
+ { "pls",  MAJOR(6)  | SHFT_MINOR(15), MY66000_PC, NULL, 0, 0},
+ { "por",  MAJOR(6)  | SHFT_MINOR(16), MY66000_PC, NULL, 0, 0},
+ { "pnor", MAJOR(6)  | SHFT_MINOR(17), MY66000_PC, NULL, 0, 0},
+ { "pto",  MAJOR(6)  | SHFT_MINOR(18), MY66000_PC, NULL, 0, 0},
+ { "pnto", MAJOR(6)  | SHFT_MINOR(19), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(20), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(21), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(23), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(24), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(25), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(26), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(27), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(28), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(29), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(30), MY66000_PC, NULL, 0, 0},
+ { NULL,   MAJOR(6)  | SHFT_MINOR(31), MY66000_PC, NULL, 0, 0},
+ { NULL,   0,                         MY66000_END , NULL, 0, 0}
+};
+
+static const my66000_opc_info_t opc_pb1b[] =
+{
+ { "psnan", MAJOR(7)  | SHFT_MINOR( 0), MY66000_PC, NULL, 0, 0},
+ { "pqnan", MAJOR(7)  | SHFT_MINOR( 1), MY66000_PC, NULL, 0, 0},
+ { "pminf", MAJOR(7)  | SHFT_MINOR( 2), MY66000_PC, NULL, 0, 0},
+ { "pmnor", MAJOR(7)  | SHFT_MINOR( 3), MY66000_PC, NULL, 0, 0},
+ { "pmde",  MAJOR(7)  | SHFT_MINOR( 4), MY66000_PC, NULL, 0, 0},
+ { "pmze",  MAJOR(7)  | SHFT_MINOR( 5), MY66000_PC, NULL, 0, 0},
+ { "ppze",  MAJOR(7)  | SHFT_MINOR( 6), MY66000_PC, NULL, 0, 0},
+ { "ppde",  MAJOR(7)  | SHFT_MINOR( 7), MY66000_PC, NULL, 0, 0},
+ { "ppnor", MAJOR(7)  | SHFT_MINOR( 8), MY66000_PC, NULL, 0, 0},
+ { "ppinf", MAJOR(7)  | SHFT_MINOR( 9), MY66000_PC, NULL, 0, 0},
   { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
   { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
   { NULL,   0,              MY66000_BAD,   NULL, 0, 0},
@@ -887,6 +969,13 @@ static const my66000_fmt_spec_t pb1_fmt_list[] =
  { NULL,        0, 0, 0},
 };
 
+static const my66000_fmt_spec_t pc_fmt_list[] =
+{
+ { "B,a,b",     0, 0, 0},
+ { "B,d",       0, 0, 0},
+ { NULL,        0, 0, 0},
+};
+
 static const my66000_fmt_spec_t enter_fmt_list[] =
 {
  { "A,B,S",   0, ENTER_MASK, 0},
@@ -936,6 +1025,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { bc_fmt_list,       MY66000_BC,     0},
    { carry_fmt_list,    MY66000_CARRY,  0},
    { pb1_fmt_list,      MY66000_PB1,    0},
+   { pc_fmt_list,       MY66000_PC,     0},
    { NULL,	        MY66000_END,    0},
   };
 

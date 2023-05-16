@@ -39,7 +39,6 @@ static const char *carry_modifier[] = {"-","I","O","IO"};
 
 static int start_carry, end_carry;
 static uint32_t carry_mod[8];
-static int carry_reg = -1;
 
 static void
 print_modifier_list (uint32_t io8)
@@ -84,7 +83,6 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
   bfd_byte buf1[8], buf2[8];
   uint32_t val_32;
   uint64_t val_64;
-  int dst = -1;
 
   opcode_fmt = &my66000_opcode_fmt[enc];
   spec = opcode_fmt->spec;
@@ -194,9 +192,6 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	switch (op_info->oper)
 	  {
 	  case MY66000_OPS_DST:
-	    /* Remember the SRC1 register for carry.  */
-	    dst = val;
-	    /* Fallthrough. */
 	  case MY66000_OPS_SRC1:
 	  case MY66000_OPS_SRC2:
 	  case MY66000_OPS_SRC3:
@@ -260,10 +255,6 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 
 	  case MY66000_OPS_CARRY:
 	    print_modifier_list (val);
-	    assert (dst != -1);
-	    carry_reg = dst;
-	    //	    fprintf (stderr,"start_carry = %d end_carry = %d reg = %d\n",start_carry,
-	    //		     end_carry, carry_reg);
 	    break;
 
 	  default:
@@ -287,8 +278,7 @@ comment_carry(void)
 {
 
   if (carry_mod[start_carry] != 0)
-    fpr (stream,"\t%s={%s}", my66000_rname[carry_reg],
-	 carry_modifier[carry_mod[start_carry]]);
+    fpr (stream,"\t; {%s}", carry_modifier[carry_mod[start_carry]]);
 }
 
 int
