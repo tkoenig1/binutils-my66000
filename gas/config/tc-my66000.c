@@ -639,6 +639,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   int imm_size = 0, imm_st_size = 0;
   uint64_t val_imm = 0, val_imm_st = 0;
   _Bool imm_pcrel = false;
+  int prthen = -1, prelse = -1;
 
   //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
   for (; *fp; fp++)
@@ -702,8 +703,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 
 	case MY66000_OPS_PRTHEN:
+	  frag = match_max8 (&sp, errmsg);
+	  prthen = frag;
+	  break;
+
 	case MY66000_OPS_PRELSE:
 	  frag = match_max8 (&sp, errmsg);
+	  prelse = frag;
 	  break;
 
 	  /* Dept. of dirty tricks: We use the fact that branches
@@ -817,6 +823,8 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
     }
   if (*sp != '\0')
     *errmsg = _("junk at end of argument list");
+  else if (prthen == 0 && prelse == 0)
+    *errmsg = _("zer-length predicates not allowed");
 
   if (*errmsg)
     {
