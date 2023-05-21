@@ -93,8 +93,8 @@ extern const char *my66000_rname[32];
 extern const char *my66000_rbase[32];
 extern const char *my66000_rind[32];
 extern const char my66000_numtab[32];
-const char *my66000_hr_rw[16];
-const char *my66000_hr_ro[16] ;
+extern const char *my66000_hr_rw[16];
+extern const char *my66000_hr_ro[16] ;
 
 typedef struct
 {

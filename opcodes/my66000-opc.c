@@ -1250,14 +1250,14 @@ static const my66000_fmt_spec_t hr_rw_fmt_list[] =
 /* JMP is HR IP,SRC1.  */
 static const my66000_fmt_spec_t jmp_fmt_list[] =
 {
- {"B", 0, 0, 0},
+ {"B", 0, DST_MASK, 0},
  { NULL, 0, 0, 0},
 };
 
 /* CALLI is HR R0,IP,SRC1.  */
 static const my66000_fmt_spec_t calli_fmt_list[] =
 {
- {"B", 0, 0, 0},
+ {"B", 0, DST_MASK, 0},
  { NULL, 0, 0, 0},
 };
 

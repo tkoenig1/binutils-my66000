@@ -109,9 +109,9 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 
   if (spec->fmt == NULL)
     {
-      opcodes_error_handler ("Internal error: empty format string for %s",
-			     opc->name);
-      exit (EXIT_FAILURE);
+      /* We're at the end of the end of the format string, nothing
+	 matched.  */
+      return 0;
     }
 
   /* Look at immediates for the instructions in the format string
