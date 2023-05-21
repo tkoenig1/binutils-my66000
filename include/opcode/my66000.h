@@ -55,9 +55,13 @@ typedef enum my66000_encoding
  MY66000_BC,       /* Conditional branch on bit set, named constant */
  MY66000_CARRY,    /* Carry modifier.  */
  MY66000_PB1,      /* Predicate on bit set, explicit bit  */
- MY66000_PC,       /* Predicate on bit set, named condition.  */
- MY66000_PCND,
- MY66000_BCND,
+ MY66000_PC,       /* Predicate on bit set, from comparison  */
+ MY66000_PCND,     /* Predicate on condition.  */
+ MY66000_BCND,     /* Branch on condition.  */
+ MY66000_HR_RO,    /* Transfer of header registers, read-only.  */
+ MY66000_HR_RW,    /* Transfer of header registers, read-write.  */
+ MY66000_JMP,      /* JMP instruction, special case of HR.  */
+ MY66000_CALLI,    /* CALLI instruction, special case of HR.  */
  MY66000_JT,
  MY66000_EXIT,
  MY66000_MM,     /* Load/store multiple.  */
@@ -83,12 +87,14 @@ typedef struct my66000_opc_info_t
 
 extern const my66000_opc_info_t my66000_opc_info[];
 
-/* List for gathering all the names for the hash table.  */
+/* Lists for gathering all the names for the hash table.  */
 
 extern const char *my66000_rname[32];
 extern const char *my66000_rbase[32];
 extern const char *my66000_rind[32];
 extern const char my66000_numtab[32];
+const char *my66000_hr_rw[16];
+const char *my66000_hr_ro[16] ;
 
 typedef struct
 {
@@ -136,6 +142,8 @@ typedef enum my66000_operands
  MY66000_OPS_TF,       /* True/false list for predicates.  */
  MY66000_OPS_PRTHEN,   /* "Then" part of predicate.  */
  MY66000_OPS_PRELSE,   /* "Else" part of predicate.  */
+ MY66000_OPS_HRRO,     /* A read-only HR register.  */
+ MY66000_OPS_HRRW,     /* A read-write HR register.  */
  MY66000_OPS_END
 } my66000_operands;
 

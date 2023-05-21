@@ -209,7 +209,14 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    fpr (stream, "%s", my66000_rbase[val]);
 	    break;
 
-	    
+	  case MY66000_OPS_HRRO:
+	    fpr (stream, "%s", my66000_hr_ro[val]);
+	    break;
+
+	  case MY66000_OPS_HRRW:
+	    fpr (stream, "%s", my66000_hr_rw[val]);
+	    break;
+
 	  case MY66000_OPS_IMM13:
 	    /* Special case, the lower-order bits are used as flags.  */
 	    val &= ~0x7;
@@ -319,6 +326,8 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   do
     {
       opcode = (iword & mask) >> shift;
+      //      fprintf (stderr,"mask = %8.8x, shift = %2d, mask >> shift = %8.8x, opcode=%2d\n", mask, shift, mask>>shift,
+      //	       opcode);
       p = &tab[opcode];
       if (p->enc == MY66000_END)
 	break;

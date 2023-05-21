@@ -128,6 +128,7 @@ build_opc_hashes (const my66000_opc_info_t * table)
 }
 
 static htab_t rname_map, rbase_map, rind_map;
+static htab_t hr_ro_map, hr_rw_map;
 
 void
 md_begin (void)
@@ -161,6 +162,20 @@ md_begin (void)
       str_hash_insert (rbase_map, p->name, (void *) &p->num, 0);
     }
 
+  /* We treat the functions for HR as sort of register names.  */
+
+  hr_ro_map = str_htab_create();
+  hr_rw_map = str_htab_create();
+  for (int i=0; i<16; i++)
+    {
+      if (my66000_hr_ro[i])
+	str_hash_insert (hr_ro_map, my66000_hr_ro[i],
+			(void *) &my66000_numtab[i], 0);
+      if (my66000_hr_rw[i])
+	str_hash_insert (hr_rw_map, my66000_hr_rw[i],
+			 (void *) &my66000_numtab[i], 0);
+    }
+  
   /* Internal test for consistency.  We use the enum to index into
      the opcode fmt table, this needs to be right.  This could be be
      #ifdefed out for later production, or maybe not.  */
@@ -261,6 +276,7 @@ match_16bit (char **ptr, char **errmsg)
   return res;
 }
 
+#if 0
 static uint16_t
 match_13bit (char **ptr, char **errmsg)
 {
@@ -268,12 +284,13 @@ match_13bit (char **ptr, char **errmsg)
   res = match_integer (ptr, errmsg, 0, (1u<<13) - 1);
   return res;
 }
+#endif
 
 static uint16_t
-match_2bit (char **ptr, char **errmsg)
+match_3bit (char **ptr, char **errmsg)
 {
   uint16_t res;
-  res = match_integer (ptr, errmsg, 0, 3);
+  res = match_integer (ptr, errmsg, 0, 7);
   return res;
 }
 
@@ -669,16 +686,22 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_RBASE:
 	  frag = match_register (&sp, errmsg, rbase_map);
 	  break;
+	case MY66000_OPS_HRRO:
+	  frag = match_register (&sp, errmsg, hr_ro_map);
+	  break;
+	case MY66000_OPS_HRRW:
+	  frag = match_register (&sp, errmsg, hr_rw_map);
+	  break;	  
 	case MY66000_OPS_IMM16:
 	  frag = match_16bit (&sp, errmsg);
 	  break;
 	case MY66000_OPS_IMM13:
-	  frag = match_13bit (&sp, errmsg);
+	  frag = match_16bit (&sp, errmsg);
 	  if (frag & 0x7)
 	    *errmsg = _("Incorrect alignment of disp13");
 	  break;
 	case MY66000_OPS_FL_ENTER:
-	  frag = match_2bit (&sp, errmsg);
+	  frag = match_3bit (&sp, errmsg);
 	  break;
 	case MY66000_OPS_I1:
 	case MY66000_OPS_I2:
