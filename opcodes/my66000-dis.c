@@ -68,33 +68,20 @@ sign_extend (uint64_t a, int32_t bit)
     return a;
 }
 
-static int
-print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
-		disassemble_info *info)
+/* Get the first vaild format string for the iword, return it
+   or NULL on failure.  */
+
+static char *
+get_fmt (uint32_t iword, my66000_opc_info_t const *opc)
 {
-  my66000_encoding enc = opc->enc;
-  int status;
   const my66000_opcode_fmt_t *opcode_fmt;
-  const my66000_operand_info_t *op_info;
   const my66000_fmt_spec_t *spec;
-  const char *f;
   uint32_t res;
-  uint32_t size_1, size_2;
-  bfd_byte buf1[8], buf2[8];
-  uint32_t val_32;
-  uint64_t val_64;
-
-  opcode_fmt = &my66000_opcode_fmt[enc];
+  opcode_fmt = &my66000_opcode_fmt[opc->enc];
   spec = opcode_fmt->spec;
+
   if (spec == NULL)
-    return 0;
-
-  /* Tab as separator for instructions from operands.  */
-
-  fpr (stream, "%c",'\t');
-
-  /* Loop over the table of formats until a match is found.  FIXME:
-     This could be made more elegant, and probably faster.  */
+    return NULL;
 
   while (spec)
     {
@@ -105,20 +92,30 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
       spec ++;
     }
   if (res != 0)
-    return 0;
+    return NULL;
 
-  if (spec->fmt == NULL)
-    {
-      /* We're at the end of the end of the format string, nothing
-	 matched.  */
-      return 0;
-    }
+  return spec->fmt;
+}
 
-  /* Look at immediates for the instructions in the format string
-     and mark them.  */
+
+static int
+print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
+		disassemble_info *info)
+{
+  int status;
+  const my66000_operand_info_t *op_info;
+  const char *fmt;
+  const char *f;
+  uint32_t size_1, size_2;
+  bfd_byte buf1[8], buf2[8];
+  uint32_t val_32;
+  uint64_t val_64;
+
+  fmt = get_fmt (iword, opc);
+  fpr (stream, "%c",'\t');
 
   size_1 = size_2 = 0;
-  for (f = spec->fmt; *f; f++)
+  for (f = fmt; *f; f++)
     {
       if (ISALPHA (*f)) {
 	op_info = &my66000_operand_table[*f - 'A'];
@@ -159,7 +156,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
       if (status != 0)
 	goto fail;
     }
-  for (f = spec->fmt; *f; f++)
+  for (f = fmt; *f; f++)
     {
       if (ISALPHA(*f))
       {
@@ -221,7 +218,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 	    /* Special case, the lower-order bits are used as flags.  */
 	    val &= ~0x7;
 	    /* Fallthrough */
-	    
+
 	  case MY66000_OPS_IMM16:
 	  case MY66000_OPS_I1:
 	  case MY66000_OPS_I2:
@@ -280,6 +277,8 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
  return -1;
 }
 
+/* Print a comment for carry.  */
+
 static void
 comment_carry(void)
 {
@@ -287,6 +286,13 @@ comment_carry(void)
   if (carry_mod[start_carry] != 0)
     fpr (stream,"\t; {%s}", carry_modifier[carry_mod[start_carry]]);
 }
+
+/* We put found opcodes on a mini-stack because we prefer to print
+   instructions which come lower, but the format strings don't always
+   match.  Put up to DEPTH_MAX opcoddes on the stack and complain with
+   an internal error if it overflows.  */
+
+#define DEPTH_MAX 4
 
 int
 print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
@@ -297,6 +303,9 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   uint32_t iword, opcode;
   my66000_opc_info_t const *p, *tab, *found;
   uint32_t shift, mask;
+  my66000_opc_info_t const *fnd[DEPTH_MAX];
+  int depth;
+  const char *fmt;
 
   fpr = info->fprintf_func;
   stream = info->stream;
@@ -323,6 +332,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   tab = &my66000_opc_info[0];
   found = NULL;
   o_length = 0;
+  depth = 0;
   do
     {
       opcode = (iword & mask) >> shift;
@@ -333,14 +343,31 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 	break;
 
       if (p->name)
-	  found = p;
+	{
+	  if (depth >= 4)
+	    {
+	      opcodes_error_handler ("Internal error: depth too low");
+	      exit(EXIT_FAILURE);
+	    }
+	  fnd[depth] = p;
+	  depth ++;
+	}
 
       tab = p->sub;
       mask = p->patt_mask;
       shift = p->shift;
     } while(tab);
 
-  if (found)
+  found = NULL;
+  fmt = NULL;
+  for (int i=depth-1; i>=0; i--)
+    {
+      found = fnd[i];
+      fmt = get_fmt (iword, found);
+      if (fmt != NULL)
+	break;
+    }
+  if (fmt)
     {
       if (found->enc == MY66000_CARRY)
 	{
@@ -351,6 +378,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 	    }
 	}
       fpr (stream, "%s", found->name);
+      //      fprintf (stderr,"%s\n", get_fmt (iword, found));
       o_length = print_operands (iword, found, addr, info);
       if (o_length < 0)
 	goto fail;
