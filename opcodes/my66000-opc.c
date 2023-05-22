@@ -342,8 +342,7 @@ static const my66000_opc_info_t opc_om7[] =
 #define XOP4_FMT_MASK XOP4_BITS (1,1,1)
 #define XOP4_FMT_SHFT 13
 
-/* Mask for ENTER, there are three bits, bit number two has to be
-   zero.  */
+
 #define ENTER_MASK 7
 
 /* We use a single table here and index in here from opc_op1.  It would
@@ -1223,7 +1222,8 @@ static const my66000_fmt_spec_t pc_fmt_list[] =
 
 static const my66000_fmt_spec_t enter_fmt_list[] =
 {
- { "A,B,Y,S", 0, 0, 0},
+ { "A,B,S",   0, ENTER_MASK, ENTER_MASK},
+ { "A,B,S,Y", 0, 0, 0},
  { NULL,      0, 0, 0},
 };
 
@@ -1274,7 +1274,7 @@ static const my66000_fmt_spec_t empty_fmt_list[] =
 const my66000_opcode_fmt_t my66000_opcode_fmt[] =
   {
    { NULL,              MY66000_BAD,    0},
-   { NULL,              MY66000_ILL,    0},
+   { empty_fmt_list,    MY66000_ILL,    0},
    { opimm_fmt_list,    MY66000_OPIMM,  0},
    { mvimm_fmt_list,	MY66000_MVIMM,  0},
    { mem_fmt_list,      MY66000_MEM,    0},

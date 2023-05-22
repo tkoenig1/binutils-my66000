@@ -99,19 +99,21 @@ get_fmt (uint32_t iword, my66000_opc_info_t const *opc)
 
 
 static int
-print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
-		disassemble_info *info)
+print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
+		disassemble_info *info, const char *name)
 {
   int status;
   const my66000_operand_info_t *op_info;
-  const char *fmt;
   const char *f;
   uint32_t size_1, size_2;
   bfd_byte buf1[8], buf2[8];
   uint32_t val_32;
   uint64_t val_64;
 
-  fmt = get_fmt (iword, opc);
+  /* Check for nothing to do.  */
+  if (*fmt == '\0')
+    return 0;
+
   fpr (stream, "%c",'\t');
 
   size_1 = size_2 = 0;
@@ -263,7 +265,7 @@ print_operands (uint32_t iword, my66000_opc_info_t const *opc, bfd_vma addr,
 
 	  default:
 	    opcodes_error_handler ("Internal error: Unhandled format '%c' for %s",
-				   *f, opc->name);
+				   *f, name);
 	    exit (EXIT_FAILURE);
 	  }
       }
@@ -358,7 +360,6 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
       shift = p->shift;
     } while(tab);
 
-  found = NULL;
   fmt = NULL;
   for (int i=depth-1; i>=0; i--)
     {
@@ -379,7 +380,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 	}
       fpr (stream, "%s", found->name);
       //      fprintf (stderr,"%s\n", get_fmt (iword, found));
-      o_length = print_operands (iword, found, addr, info);
+      o_length = print_operands (iword, fmt, addr, info, found->name);
       if (o_length < 0)
 	goto fail;
       if (found->enc != MY66000_CARRY && end_carry > 0)

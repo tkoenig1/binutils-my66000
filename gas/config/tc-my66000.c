@@ -951,7 +951,7 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
 
   /* If we don't have an argument list, we're done.  */
 
-  if (spec == NULL || spec->fmt == NULL)
+  if (spec == NULL || spec->fmt == NULL || spec->fmt[0] == '\0')
     {
       p = frag_more (4);
       //      fprintf (stderr,"no spec : %p\n", p);
