@@ -382,7 +382,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
       //      fprintf (stderr,"%s\n", get_fmt (iword, found));
       o_length = print_operands (iword, fmt, addr, info, found->name);
       if (o_length < 0)
-	goto fail;
+	goto error;
       if (found->enc != MY66000_CARRY && end_carry > 0)
 	{
 	  comment_carry ();
@@ -395,9 +395,13 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 	}
     }
   else
-    opcodes_error_handler ("Error: unknown opcode %8.8x", iword);
+    goto error;
 
   return o_length + length;
+
+ error:
+  fpr (stream, "%s", "(illegal)");
+  return length;
 
  fail:
   info->memory_error_func (status, addr, info);

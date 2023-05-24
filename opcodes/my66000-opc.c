@@ -162,7 +162,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MAJOR(23), MY66000_BAD,   NULL, 0, 0},
  { "bb1",  MAJOR(24), MY66000_BB1,   opc_bb1a, BB1_MASK,  BB1_OFFS},
  { "bb1",  MAJOR(25), MY66000_BB1 ,  opc_bb1b, BB1_MASK,  BB1_OFFS},
- { "bcnd", MAJOR(26), MY66000_BCND,  opc_bcnd, CND_MASK, CND_OFFS},
+ { NULL,   MAJOR(26), MY66000_BAD,   opc_bcnd, CND_MASK, CND_OFFS},
  { NULL,   MAJOR(27), MY66000_BAD,   opc_jt,   TT_MASK,   TT_OFFS},
  { NULL,   MAJOR(28), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(29), MY66000_BAD,   NULL, 0, 0},
@@ -1207,6 +1207,7 @@ static const my66000_fmt_spec_t pcnd_fmt_list[] =
 
 static const my66000_fmt_spec_t bcnd_fmt_list[] =
 {
+ { "B,E",    0, 0, 0},
  { NULL,     0, 0, 0},
 };
 
