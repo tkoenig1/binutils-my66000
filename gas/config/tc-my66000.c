@@ -633,6 +633,32 @@ match_64_bit_vanilla (char **ptr, char **errmsg, expressionS *ex)
   return match_num_or_label (ptr, errmsg, ex, 64, true);
 }
 
+/* Match an INS pattern <a:b>.  */
+
+static uint32_t
+match_ins (char **ptr, char **errmsg, expressionS *ex)
+{
+  uint32_t v1, v2;
+  match_character ('<', ptr, errmsg);
+  if (*errmsg)
+    return 0;
+  v1 = match_6bit (ptr, errmsg);
+  if (*errmsg)
+    return 0;
+  match_character (':', ptr, errmsg);
+  if (*errmsg)
+    return 0;
+  v2 = match_6bit (ptr, errmsg);
+  if (*errmsg)
+    return 0;
+  match_character ('>', ptr, errmsg);
+  if (*errmsg)
+    return 0;
+  ex->X_op = O_constant;
+  ex->X_add_number = (v1 << 6) + v2;
+  return (v1 << 6) + v2;
+}
+
 #define RELAX_IMM4 1
 #define RELAX_IMM8 2
 
@@ -796,6 +822,14 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	case MY66000_OPS_I32_HEX:
 	  val_imm = match_32_bit_vanilla (&sp, errmsg, &imm);
+	  if (*errmsg)
+	    break;
+	  imm_size = 4;
+	  frag = 0;
+	  break;
+
+	case MY66000_OPS_INS:
+	  val_imm = match_ins (&sp, errmsg, &imm);
 	  if (*errmsg)
 	    break;
 	  imm_size = 4;

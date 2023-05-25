@@ -58,6 +58,12 @@ print_modifier_list (uint32_t io8)
     }
 }
 
+static void
+print_ins (uint32_t ins)
+{
+  fpr (stream, "<%d:%d>", (ins >> 6) & 0x3f, ins & 0x3f);
+}
+
 /* Sign-extend an n-bit value, for offsets.  */
 static int64_t
 sign_extend (uint64_t a, int32_t bit)
@@ -175,8 +181,15 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    break;
 	  case 4:
 	    val_32 = bfd_getl32 (buf1);
-	    out_fmt = op_info->oper == MY66000_OPS_I32_HEX ? "0x%8.8x" : "%u";
-	    fpr (stream, out_fmt, val_32);
+	    if (op_info->oper == MY66000_OPS_INS)
+	      {
+		print_ins (val_32);
+	      }
+	    else
+	      {
+		out_fmt = op_info->oper == MY66000_OPS_I32_HEX ? "0x%8.8x" : "%u";
+		fpr (stream, out_fmt, val_32);
+	      }
 	    continue;
 	  case 8:
 	    val_64 = bfd_getl64 (buf1);
@@ -400,7 +413,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   return o_length + length;
 
  error:
-  fpr (stream, "%s", "(illegal)");
+  fpr (stream, ".word\t%u", iword);
   return length;
 
  fail:

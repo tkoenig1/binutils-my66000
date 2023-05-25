@@ -62,6 +62,7 @@ typedef enum my66000_encoding
  MY66000_HR_RW,    /* Transfer of header registers, read-write.  */
  MY66000_JMP,      /* JMP instruction, special case of HR.  */
  MY66000_CALLI,    /* CALLI instruction, special case of HR.  */
+ MY66000_INS,      /* INS instruction.  */
  MY66000_JT,
  MY66000_EXIT,
  MY66000_MM,     /* Load/store multiple.  */
@@ -144,6 +145,7 @@ typedef enum my66000_operands
  MY66000_OPS_PRELSE,   /* "Else" part of predicate.  */
  MY66000_OPS_HRRO,     /* A read-only HR register.  */
  MY66000_OPS_HRRW,     /* A read-write HR register.  */
+ MY66000_OPS_INS,      /* A 32-bit INS specifier.  */
  MY66000_OPS_END
 } my66000_operands;
 

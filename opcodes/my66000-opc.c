@@ -566,7 +566,7 @@ static const my66000_opc_info_t opc_op4[] =
 {
  { "fmac",   MAJOR (12) | XOP4_MINOR(0), MY66000_FMAC, NULL, 0, 0},
  { NULL,     MAJOR (12) | XOP4_MINOR(1), MY66000_BAD,  opc_mpx, XOP4_FMT_MASK, XOP4_FMT_SHFT },  /* MPX */
- { NULL,     MAJOR (12) | XOP4_MINOR(2), MY66000_BAD,  NULL, 0, 0},  /* INS */
+ { "ins",    MAJOR (12) | XOP4_MINOR(2), MY66000_INS,  NULL, 0, 0},  /* INS */
  { NULL,     MAJOR (12) | XOP4_MINOR(3), MY66000_BAD,  NULL, 0, 0},  /* empty */
  { "fmacs",  MAJOR (12) | XOP4_MINOR(4), MY66000_FMAC, NULL, 0, 0},
  { NULL,     MAJOR (12) | XOP4_MINOR(5), MY66000_BAD,  NULL, 0, 0},  /* empty */
@@ -586,7 +586,7 @@ static const my66000_opc_info_t opc_jmporcall[] =
   MY66000_JMP, NULL, 0, 0},
  {"calli", MAJOR(13) | MINOR(0) | HR_FLAG_WR | HR_IP_FUNCTION | HR_FLAG_RW,
   MY66000_CALLI, NULL, 0, 0},
- { NULL,   0,              MY66000_END,   NULL, 0, 0},  
+ { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
 
 static const my66000_opc_info_t opc_hr_ip[] =
@@ -599,7 +599,7 @@ static const my66000_opc_info_t opc_hr_ip[] =
  {NULL, 0, MY66000_BAD, NULL, 0, 0},
  {NULL, 0, MY66000_BAD, NULL, 0, 0},
  {NULL, 0, MY66000_BAD, NULL, 0, 0},
- { NULL,   0,              MY66000_END,   NULL, 0, 0}, 
+ { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
 
 static const my66000_opc_info_t opc_hr[] =
@@ -1007,6 +1007,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_TF,      OPERAND_ENTRY (16, 0), "true-false predicate list",'d' },
  {MY66000_OPS_HRRO,    OPERAND_ENTRY ( 4, 0), "read-only HR register",    'e' },
  {MY66000_OPS_HRRW,    OPERAND_ENTRY ( 4, 0), "read-only HR register",    'f' },
+ {MY66000_OPS_INS,     0, 0, 4, 1,            "INS specifier",            'g' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1033,8 +1034,8 @@ static const my66000_fmt_spec_t mvimm_fmt_list[] =
 
 static const my66000_fmt_spec_t mem_fmt_list[] =
 {
- { "A,[B]",   0, 0xffff, 0},
- { "A,[B,E]", 0, 0,      0},
+ { "A,[D]",   0, 0xffff, 0},
+ { "A,[D,E]", 0, 0,      0},
  { NULL,      0, 0,      0},
 };
 
@@ -1140,9 +1141,22 @@ static const my66000_fmt_spec_t fmac_fmt_list [] =
  { NULL, 0, 0, 0}
 };
 
+static const my66000_fmt_spec_t ins_fmt_list [] =
+{
+ { "A,B,C,N",   XOP4_BITS (0,0,0), XOP4_FMT_MASK, 0},
+ { "A,B,C,-N",  XOP4_BITS (0,0,1), XOP4_FMT_MASK, 0},
+ { "A,B,-C,N",  XOP4_BITS (0,1,0), XOP4_FMT_MASK, 0},
+ { "A,B,-C,-N", XOP4_BITS (0,1,1), XOP4_FMT_MASK, 0},
+ { "A,B,C,#g",  XOP4_BITS (1,0,0), XOP4_FMT_MASK, 0},
+ { "A,B,#O,N",  XOP4_BITS (1,0,1), XOP4_FMT_MASK, 0},
+ { "A,B,C,#R",  XOP4_BITS (1,1,0), XOP4_FMT_MASK, 0},
+ { "A,B,#R,N",  XOP4_BITS (1,1,1), XOP4_FMT_MASK, 0},
+
+};
+
 static const my66000_fmt_spec_t mux_fmt_list[] =
 {
- { "A,B,C",    0, 0, 0},
+ { "A,B,C,N",  0, 0, 0},
  { NULL,       0, 0, 0},
 };
 
@@ -1225,6 +1239,7 @@ static const my66000_fmt_spec_t enter_fmt_list[] =
 {
  { "A,B,S",   0, ENTER_MASK, ENTER_MASK},
  { "A,B,S,Y", 0, 0, 0},
+ { "A,B,Y,S", 0, 0, 0},  /* FIXME: This needs to be removed.  */
  { NULL,      0, 0, 0},
 };
 
@@ -1304,6 +1319,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { hr_rw_fmt_list,    MY66000_HR_RW,  0},
    { jmp_fmt_list,      MY66000_JMP,    0},
    { calli_fmt_list,    MY66000_CALLI,  0},
+   { ins_fmt_list,      MY66000_INS,    0},
    { NULL,	        MY66000_END,    0},
   };
 
