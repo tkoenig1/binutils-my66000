@@ -63,12 +63,12 @@ typedef enum my66000_encoding
  MY66000_JMP,      /* JMP instruction, special case of HR.  */
  MY66000_CALLI,    /* CALLI instruction, special case of HR.  */
  MY66000_INS,      /* INS instruction.  */
+ MY66000_VEC,    /* Vector instruction, with immediate.  */
  MY66000_JT,
  MY66000_EXIT,
  MY66000_MM,     /* Load/store multiple.  */
  MY66000_SI,	 /* Store immediate.  */
  MY66000_SI5,	 /* Store 5-bit immediate.  */
- MY66000_VEC,
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -88,14 +88,18 @@ typedef struct my66000_opc_info_t
 
 extern const my66000_opc_info_t my66000_opc_info[];
 
-/* Lists for gathering all the names for the hash table.  */
+/* Lists for gathering all the names for the various hash tables.  */
 
 extern const char *my66000_rname[32];
 extern const char *my66000_rbase[32];
 extern const char *my66000_rind[32];
 extern const char my66000_numtab[32];
 extern const char *my66000_hr_rw[16];
-extern const char *my66000_hr_ro[16] ;
+extern const char *my66000_hr_ro[16];
+
+#define MY66000_VEC_BITS 21
+
+extern const char *my66000_vec_reg[MY66000_VEC_BITS];
 
 typedef struct
 {
@@ -146,6 +150,7 @@ typedef enum my66000_operands
  MY66000_OPS_HRRO,     /* A read-only HR register.  */
  MY66000_OPS_HRRW,     /* A read-write HR register.  */
  MY66000_OPS_INS,      /* A 32-bit INS specifier.  */
+ MY66000_OPS_VEC,      /* A vector bitmap.  */
  MY66000_OPS_END
 } my66000_operands;
 

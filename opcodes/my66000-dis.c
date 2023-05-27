@@ -74,6 +74,28 @@ sign_extend (uint64_t a, int32_t bit)
     return a;
 }
 
+static void
+print_vec (uint32_t ins, bool use_vec)
+{
+  const char **regs;
+  int n;
+  regs = use_vec ? my66000_vec_reg : my66000_rname;
+  n = use_vec ? MY66000_VEC_BITS : 32;
+
+  for (int i = 0; i < n; i++)
+    {
+      if (ins & 1)
+	{
+	  fpr (stream, "%s", regs[i]);
+	  ins = ins >> 1;
+	  if (ins != 0)
+	    fpr (stream, ",");
+	}
+      else
+	ins = ins >> 1;
+    }
+}
+
 /* Get the first vaild format string for the iword, return it
    or NULL on failure.  */
 
@@ -264,6 +286,10 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 		return -1;
 	      }
 	    break;
+	  case MY66000_OPS_VEC:
+	    print_vec (val, true);
+	    break;
+
 	    /* An IP-relative offset.  */
 	  case MY66000_OPS_B16:
 	    (*info->print_address_func) ((bfd_vma) (addr + (sign_extend(val,16) << 2)), info);

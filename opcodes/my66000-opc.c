@@ -945,10 +945,21 @@ my66000_reg_alias_t my66000_reg_alias[] =
 };
 
 const char my66000_numtab[32] =
-  {
-   0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
-   16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
-  };
+{
+ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
+ 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+};
+
+/* Registers which are legal in a VEC instruction, bitmap style.  */
+
+const char *my66000_vec_reg[MY66000_VEC_BITS] =
+{
+  "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7",  "r8",  "r9",  "r10",
+ "r11", "r12", "r13", "r14", "r15", "r25", "r26", "r27", "r28",  "r29",
+ "r30"
+};
+
+/* Registers which are legal in a VEC instruction, bitmap style.  */
 
 #define OPERAND_MASK(width,shift) ((1u << (width)) - 1) << (shift)
 #define OPERAND_ENTRY(width,shift) OPERAND_MASK(width,shift), shift, 0, 0
@@ -1008,6 +1019,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_HRRO,    OPERAND_ENTRY ( 4, 0), "read-only HR register",    'e' },
  {MY66000_OPS_HRRW,    OPERAND_ENTRY ( 4, 0), "read-only HR register",    'f' },
  {MY66000_OPS_INS,     0, 0, 4, 1,            "INS specifier",            'g' },
+ {MY66000_OPS_VEC,     OPERAND_ENTRY (21, 0), "Vector bitfield",          'h' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1277,6 +1289,12 @@ static const my66000_fmt_spec_t calli_fmt_list[] =
  { NULL, 0, 0, 0},
 };
 
+static const my66000_fmt_spec_t vec_fmt_list[] =
+{
+ {"A,{h}", 0, 0, 0},
+ { NULL, 0, 0, 0},
+};
+
 static const my66000_fmt_spec_t empty_fmt_list[] =
 {
  { "",     0, 0, 0},
@@ -1320,6 +1338,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { jmp_fmt_list,      MY66000_JMP,    0},
    { calli_fmt_list,    MY66000_CALLI,  0},
    { ins_fmt_list,      MY66000_INS,    0},
+   { vec_fmt_list,      MY66000_VEC,    0},
    { NULL,	        MY66000_END,    0},
   };
 

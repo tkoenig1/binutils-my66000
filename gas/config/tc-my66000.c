@@ -129,6 +129,7 @@ build_opc_hashes (const my66000_opc_info_t * table)
 
 static htab_t rname_map, rbase_map, rind_map;
 static htab_t hr_ro_map, hr_rw_map;
+static htab_t vec_map;
 
 void
 md_begin (void)
@@ -166,6 +167,7 @@ md_begin (void)
 
   hr_ro_map = str_htab_create();
   hr_rw_map = str_htab_create();
+
   for (int i=0; i<16; i++)
     {
       if (my66000_hr_ro[i])
@@ -175,7 +177,12 @@ md_begin (void)
 	str_hash_insert (hr_rw_map, my66000_hr_rw[i],
 			 (void *) &my66000_numtab[i], 0);
     }
-  
+
+  /* Seting up the table for the VEC instruction, bitmap style.  */
+  vec_map = str_htab_create();
+  for (int i=0; i < MY66000_VEC_BITS; i++)
+    str_hash_insert (vec_map, my66000_vec_reg[i],(void *) &my66000_numtab[i], 0);
+
   /* Internal test for consistency.  We use the enum to index into
      the opcode fmt table, this needs to be right.  This could be be
      #ifdefed out for later production, or maybe not.  */
@@ -275,16 +282,6 @@ match_16bit (char **ptr, char **errmsg)
   res = match_integer (ptr, errmsg, INT16_MIN, INT16_MAX);
   return res;
 }
-
-#if 0
-static uint16_t
-match_13bit (char **ptr, char **errmsg)
-{
-  uint16_t res;
-  res = match_integer (ptr, errmsg, 0, (1u<<13) - 1);
-  return res;
-}
-#endif
 
 static uint16_t
 match_3bit (char **ptr, char **errmsg)
@@ -512,6 +509,36 @@ match_register (char **ptr, char **errmsg, htab_t map)
   return reg;
 }
 
+/* Match a list of registers vor VEC.  We take care of the two versions by
+   using the appropriate register map.  */
+
+static uint32_t
+match_vec (char **ptr, char **errmsg, htab_t map)
+{
+  uint32_t rnum;
+  uint32_t ret = 0;
+  char *p = *ptr;
+  while (1)
+    {
+      if (*p == '\0')
+	{
+	  snprintf (errbuf, sizeof(errbuf),
+		    _("unexpected end of VEC string"));
+	  return 0;
+	}
+      rnum = match_register (&p, errmsg, map);
+      if (*errmsg)
+	return 0;
+      ret |= 1u << rnum;
+      if (*p == '}')
+	break;
+      if (*p == ',')
+	p++;
+    }
+  *ptr = p;
+  return ret;
+}
+
 /* Match number with n bits or a label.  If it is a signed number,
    return the result truncated to an unsigned number (if needed).  If
    "vanilla" is set, the number is unsigned, and no labels are
@@ -717,7 +744,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 	case MY66000_OPS_HRRW:
 	  frag = match_register (&sp, errmsg, hr_rw_map);
-	  break;	  
+	  break;
 	case MY66000_OPS_IMM16:
 	  frag = match_16bit (&sp, errmsg);
 	  break;
@@ -759,6 +786,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_PRELSE:
 	  frag = match_max8 (&sp, errmsg);
 	  prelse = frag;
+	  break;
+
+	case MY66000_OPS_VEC:
+	  frag = match_vec (&sp, errmsg, vec_map);
 	  break;
 
 	  /* Dept. of dirty tricks: We use the fact that branches
