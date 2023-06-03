@@ -63,8 +63,9 @@ typedef enum my66000_encoding
  MY66000_JMP,      /* JMP instruction, special case of HR.  */
  MY66000_CALLI,    /* CALLI instruction, special case of HR.  */
  MY66000_INS,      /* INS instruction.  */
- MY66000_VEC,    /* Vector instruction, with immediate.  */
- MY66000_JT,
+ MY66000_VEC,      /* Vector instruction, with immediate.  */
+ MY66000_TT,
+ MY66000_LOOP,     /* Loop instruction.  */
  MY66000_EXIT,
  MY66000_MM,     /* Load/store multiple.  */
  MY66000_SI,	 /* Store immediate.  */
@@ -151,6 +152,7 @@ typedef enum my66000_operands
  MY66000_OPS_HRRW,     /* A read-write HR register.  */
  MY66000_OPS_INS,      /* A 32-bit INS specifier.  */
  MY66000_OPS_VEC,      /* A vector bitmap.  */
+ MY66000_OPS_UIMM16,   /* A 16-bit unsigned immediate.  */
  MY66000_OPS_END
 } my66000_operands;
 
@@ -196,5 +198,6 @@ extern const my66000_opc_info_t my66000_opc_info_special[];
 extern uint32_t my66000_set_imm_size (uint32_t, uint32_t);
 extern int my66000_imm_size (uint32_t);
 
+extern bool my66000_is_tt (uint32_t);
 
 #endif

@@ -269,6 +269,11 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    v = val;
 	    fpr (stream, "%d", v);
 	    break;
+
+	  case MY66000_OPS_UIMM16:
+	    fpr (stream, "%u", val);
+	    break;
+
 	  case MY66000_OPS_W_BITR:
 	    /* Six-bit contsant, has to be a power of two.  */
 	    v = val;

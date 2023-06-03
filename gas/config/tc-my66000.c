@@ -36,9 +36,18 @@ const char EXP_CHARS[] = "eEdD";
    as in 0d1.0.  */
 const char FLT_CHARS[] = "dDeExXpP";
 
+/* Stuff for handling the JTT instruction.  */
+static void handle_jt (int);
+static int needs_jt;
+static uint32_t *this_insn;
+
 const pseudo_typeS md_pseudo_table[] =
 {
-  {0, 0, 0}
+ { "jt8",  handle_jt, 1 },
+ { "jt16", handle_jt, 2 },
+ { "jt32", handle_jt, 4 },
+ { "jt64", handle_jt, 8 },
+ {0, 0, 0}
 };
 
 /* Target specific command line options.  */
@@ -222,6 +231,41 @@ match_character (char c, char **ptr, char **errmsg)
     *ptr = s + 1;
 }
 
+/* Match a string delimited by single quotes and advance fmt and
+   ptr.  */
+
+static void
+match_string (const char **fmt, char **ptr, char **errmsg)
+{
+  char *s = *ptr;
+  const char *f = *fmt + 1;
+  const char *fmt0;
+
+  match_character ('\'', &s, errmsg);
+  if (*errmsg)
+    return;
+
+  fmt0 = f;
+  while (1)
+    {
+      if (*f == '\'' && *s == '\'')
+	{
+	  *ptr = s;
+	  *fmt = f;
+	  return;
+	}
+      if (*f != TOLOWER(*s))
+	{
+	  snprintf (errbuf, sizeof(errbuf),
+		    _("Mismatch in string match: %s vs %s"),
+		    *ptr, fmt0);
+	  return;
+	}
+      f ++;
+      s ++;
+    }
+}
+
 /* Match an integer.  This is done via gas expressions, so
    that symbols etc can appear in this.  */
 
@@ -336,6 +380,13 @@ match_6bit_p2 (char **ptr, char **errmsg)
     }
   return ret;
 }
+
+static uint16_t
+match_16bit_u (char **ptr, char **errmsg)
+{
+  return match_integer (ptr, errmsg, 0, UINT16_MAX);
+}
+
 
 /* Match a modifier list item and set the pointer to the
    beginning of the next item or the trailing }.  */
@@ -715,6 +766,14 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   for (; *fp; fp++)
     {
       uint32_t frag;
+      if (*fp == '\'')
+	{
+	  match_string (&fp, &sp, errmsg);
+	  if (*errmsg)
+	    return;
+
+	  continue;
+	}
       if (!ISALPHA(*fp))
 	{
 	  match_character (*fp, &sp, errmsg);
@@ -768,6 +827,11 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	case MY66000_OPS_W_BITR:
 	  frag = match_6bit_p2 (&sp, errmsg);
+	  break;
+
+	case MY66000_OPS_UIMM16:
+	  frag = match_16bit_u (&sp, errmsg);
+	  needs_jt = frag + 1;
 	  break;
 
 	case MY66000_OPS_CARRY:
@@ -912,7 +976,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   if (*sp != '\0')
     *errmsg = _("junk at end of argument list");
   else if (prthen == 0 && prelse == 0)
-    *errmsg = _("zer-length predicates not allowed");
+    *errmsg = _("zero-length predicates not allowed");
 
   if (*errmsg)
     {
@@ -927,6 +991,8 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
   if (!p)
     p = frag_more (length);
+
+  this_insn = (uint32_t *) p;
 
   p_op = p;
   //  printf ("p = %p\n", p);
@@ -1021,6 +1087,7 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
       p = frag_more (4);
       //      fprintf (stderr,"no spec : %p\n", p);
       memcpy (p, &iword, 4);
+      this_insn = (uint32_t *) p;
       return;
     }
 
@@ -1060,8 +1127,14 @@ md_assemble (char *str)
     }
   buffer[i] = '\0';
 
+  this_insn = NULL;
   if (i == 0)
     as_bad ("%s: %s",_("Illegal instruction"), buffer);
+
+  /* If we see an instruction while there are still .jt statements to do,
+     this is an error.  */
+  if (needs_jt)
+    as_bad ("%d .jt labels still needed", needs_jt);
 
   /* We have up to N_MAP times the same assembler name, with different
      encodings, like "add r1, r22,#1234" vs.  "add r1,r22,r17".  This
@@ -1330,4 +1403,53 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
   fragP->fr_fix += fragP->fr_var;
   //  fprintf (stderr,"size of immediate is %u\n", my66000_imm_size(iword));
   //  fprintf(stderr, "Will you look at that... %p %x\n", fragP->fr_opcode, iword);
+}
+
+/* Handle jump tables.  We simply ignore the size the compiler tells us
+   and use relaxation to figure it out later.  Only look at expressions.  */
+
+static void handle_jt (int num ATTRIBUTE_UNUSED)
+{
+  char *endp, *cp;
+  char saved_char;
+  expressionS ex;
+  char *errmsg = NULL;
+
+  //  fprintf (stderr,"handle_it : num = %d needs_jt = %d is_tt = %d\n", num, needs_jt,
+  //	   my66000_is_tt (this_iword));
+
+  cp = input_line_pointer;
+  while (needs_jt > 0)
+    {
+      endp = cp;
+      while (1)
+	{
+	  if (*endp == '\0' || *endp == ',' || *endp == ']' || *endp == ':'
+	      || *endp == '<' || *endp == '>'
+	      || is_end_of_line[(unsigned char) *endp])
+	    break;
+	  endp ++;
+	}
+
+      saved_char = *endp;
+      *endp = '\0';
+      input_line_pointer = cp;
+      expression_and_evaluate (&ex);
+      *endp = saved_char;
+      if (ex.X_op != O_symbol)
+	as_bad ("Need symbol in .jt directive");
+      needs_jt --;
+      cp = endp;
+
+      /* Insert frag_var here.  */
+
+      if (needs_jt > 0)
+	{
+	  match_character (',', &cp, &errmsg);
+	  if (errmsg)
+	    as_bad ("%s", errmsg);
+	}
+    }
+
+  input_line_pointer = cp;
 }

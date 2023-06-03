@@ -28,7 +28,7 @@
    members more easily.  */
 
 #define MAJOR(c) ((c) << MY66000_MAJOR_SHIFT)
-#define MAJOR_MASK (63 << MAJOR_OFFS)
+#define MAJOR_MASK (63 << MY66000_MAJOR_SHIFT)
 
 #define SHFT_OFFS 12
 #define SHFT_MASK 15 << SHFT_OFFS
@@ -51,8 +51,17 @@
 #define CND_MINOR(c) ((c) << CND_OFFS)
 #define CND_MASK 31 << CND_OFFS
 
+/* Only two of the three bits of the BOP are currently used, and
+   at the moment, we do not support calls to remote tables,
+   so BOP is 0 or 1 only.  */
+
 #define TT_OFFS 23
-#define TT_MASK 7 << TT_OFFS
+#define TT_MINOR(c) ((c) << TT_OFFS)
+#define TT_MASK TT_MINOR(1)
+
+#define TT_SIZE_OFFS 21
+#define TT_SIZE(c) ((c) << TT_SIZE_OFFS)
+#define TT_SIZE_MASK TT_SIZE(3)
 
 #define MOD_OFFS 16
 #define MOD_MINOR(x) ((x) << MOD_OFFS)
@@ -74,7 +83,8 @@ static const my66000_opc_info_t opc_mpx[];
 static const my66000_opc_info_t opc_op4[];
 static const my66000_opc_info_t opc_op5[];
 static const my66000_opc_info_t opc_bcnd[];
-static const my66000_opc_info_t opc_jt[];
+static const my66000_opc_info_t opc_tt[];
+static const my66000_opc_info_t opc_jtt[];
 static const my66000_opc_info_t opc_bb1a[];
 static const my66000_opc_info_t opc_bb1b[];
 static const my66000_opc_info_t opc_mod[];
@@ -105,7 +115,8 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_op4,
  opc_op5,
  opc_bcnd,
- opc_jt,
+ opc_tt,
+ opc_jtt,
  opc_bb1a,
  opc_bb1b,
  opc_mod,
@@ -163,7 +174,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { "bb1",  MAJOR(24), MY66000_BB1,   opc_bb1a, BB1_MASK,  BB1_OFFS},
  { "bb1",  MAJOR(25), MY66000_BB1 ,  opc_bb1b, BB1_MASK,  BB1_OFFS},
  { NULL,   MAJOR(26), MY66000_BAD,   opc_bcnd, CND_MASK, CND_OFFS},
- { NULL,   MAJOR(27), MY66000_BAD,   opc_jt,   TT_MASK,   TT_OFFS},
+ { NULL,   MAJOR(27), MY66000_BAD,   opc_tt,   TT_MASK,   TT_OFFS},
  { NULL,   MAJOR(28), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(29), MY66000_BAD,   NULL, 0, 0},
  { "br",   MAJOR(30), MY66000_BR,    NULL, 0, 0},
@@ -724,10 +735,20 @@ static const my66000_opc_info_t opc_pcnd[] =
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
-static const my66000_opc_info_t opc_jt[] =
-{
+static const my66000_opc_info_t opc_tt[] = {
+  { "jtt",  MAJOR(27) | TT_MINOR(0), MY66000_TT, opc_jtt, TT_SIZE_MASK, TT_SIZE(0)},
+  { "ctt",  MAJOR(27) | TT_MINOR(1), MY66000_TT, opc_jtt, TT_SIZE_MASK, TT_SIZE(1)},
   { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
+
+static const my66000_opc_info_t opc_jtt[] =
+{
+ {"jttb", MAJOR(27) | TT_MINOR(0) | TT_SIZE(0), MY66000_TT,  NULL, 0, 0},
+ {"jtth", MAJOR(27) | TT_MINOR(0) | TT_SIZE(1), MY66000_TT,  NULL, 0, 0},
+ {"jttw", MAJOR(27) | TT_MINOR(0) | TT_SIZE(2), MY66000_TT,  NULL, 0, 0},
+ {"jttd", MAJOR(27) | TT_MINOR(0) | TT_SIZE(3), MY66000_TT,  NULL, 0, 0},
+ { NULL,  0,                                    MY66000_END, NULL, 0, 0}
+ };
 
 /* The two halves of the branch on bit instructions.  Keep in sync with
  the predicate on condition codes below.  */
@@ -1020,6 +1041,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_HRRW,    OPERAND_ENTRY ( 4, 0), "read-only HR register",    'f' },
  {MY66000_OPS_INS,     0, 0, 4, 1,            "INS specifier",            'g' },
  {MY66000_OPS_VEC,     OPERAND_ENTRY (21, 0), "Vector bitfield",          'h' },
+ {MY66000_OPS_UIMM16,  OPERAND_ENTRY (16, 0), "16-bit unsigned immediate",'i' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1097,6 +1119,13 @@ static const my66000_fmt_spec_t bc_fmt_list [] =
 {
  {"B,I", 0, 0, 0},
  { NULL,    0, 0, 0},
+};
+
+/* TT instruction.  */
+static const my66000_fmt_spec_t tt_fmt_list [] =
+{
+  {"B,i",  0, 0, 0},
+  { NULL,  0, 0, 0},
 };
 
 /* Table for load/store with two registers.  */
@@ -1339,6 +1368,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { calli_fmt_list,    MY66000_CALLI,  0},
    { ins_fmt_list,      MY66000_INS,    0},
    { vec_fmt_list,      MY66000_VEC,    0},
+   { tt_fmt_list,       MY66000_TT,     0}, /* We can reuse BC here.  */
    { NULL,	        MY66000_END,    0},
   };
 
@@ -1391,4 +1421,12 @@ my66000_set_imm_size (uint32_t iword, uint32_t size)
       exit(EXIT_FAILURE);
     }
   return ret;
+}
+
+/* Check if an instruction is a TT instruction, for use in the assembler.  */
+
+bool
+my66000_is_tt (uint32_t iword)
+{
+  return ((iword ^ MAJOR(27)) & MAJOR_MASK) == 0;
 }
