@@ -1046,6 +1046,12 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
   iword |= spec->patt;
 
+  /* Dept. of dirty tricks:  We force all jtt instructions to jttb so
+     relaxation can figure out the correct size later.  */
+
+  if (my66000_is_tt (iword))
+    iword = my66000_set_tt_size (iword, 1);
+
   if (!p)
     p = frag_more (length);
 
@@ -1241,7 +1247,6 @@ md_assemble (char *str)
     }
     if (num_carry > 0)
       num_carry --;
-
 }
 
 /* Put number into target byte order.  */
