@@ -36,19 +36,6 @@ const char EXP_CHARS[] = "eEdD";
    as in 0d1.0.  */
 const char FLT_CHARS[] = "dDeExXpP";
 
-/* Stuff for handling the JTT instruction.  */
-static void handle_jt (int);
-static int needs_jt;
-static uint32_t *this_insn;
-
-const pseudo_typeS md_pseudo_table[] =
-{
- { "jt8",  handle_jt, 1 },
- { "jt16", handle_jt, 2 },
- { "jt32", handle_jt, 4 },
- { "jt64", handle_jt, 8 },
- {0, 0, 0}
-};
 
 /* Target specific command line options.  */
 enum options
@@ -65,6 +52,72 @@ struct option md_longopts[] =
 size_t md_longopts_size = sizeof (md_longopts);
 
 const char *md_shortopts = "";
+
+/* Stuff for handling the JTT instruction.  */
+static void handle_jt (int);
+static int needs_jt;
+
+const pseudo_typeS md_pseudo_table[] =
+{
+ { "jt8",  handle_jt, 1 },
+ { "jt16", handle_jt, 2 },
+ { "jt32", handle_jt, 4 },
+ { "jt64", handle_jt, 8 },
+ {0, 0, 0}
+};
+
+/* A type we use for the "fx_opocde" field, which is needed for
+   recording the address of the actual opcode, plus the relocation
+   info.  We keep this in a linked list so there is no complaint
+   about memory leaks.  Not memory-efficient, but hey - this is the
+   2020s.  */
+
+typedef struct opcode_pos_t
+{
+  fragS *frag;
+  addressT pos;
+  struct opcode_pos_t *next;
+} opcode_pos_t;
+
+static opcode_pos_t *opc_pos_list, *current_jt;
+
+/* Allocate a new value and put it in the linked list.  */
+
+static char *
+opc_pos (char *p)
+{
+  opcode_pos_t *n;
+  n = XCNEW (opcode_pos_t);
+  n->frag = frag_now;
+  n->pos = p - frag_now->fr_literal;
+  n->next = opc_pos_list;
+  opc_pos_list = n;
+  return (char *) n;
+}
+
+/* Calculate the address of the instruction we set with opc_pos
+ from the fr_opcde field.  */
+
+static addressT
+get_opc_addr (char *p)
+{
+  opcode_pos_t *fp = (opcode_pos_t *) p;
+  return fp->frag->fr_address + fp->pos;
+}
+
+/* Get a pointer to an iword from our modified fr_opcode pointer.  */
+
+static uint32_t *
+get_opc_insn (char *p)
+{
+  opcode_pos_t *fp = (opcode_pos_t *) p;
+  fragS *frag;
+  uint32_t *ip;
+
+  frag = fp->frag;
+  ip = (uint32_t *) (frag->fr_literal + fp->pos);
+  return ip;
+}
 
 /* It appears that GAS will call this function for any expression
    that can not be recognized.  When the function is called,
@@ -140,6 +193,8 @@ static htab_t rname_map, rbase_map, rind_map;
 static htab_t hr_ro_map, hr_rw_map;
 static htab_t vec_map;
 
+#define MAX_REG_STR_LEN 10
+
 void
 md_begin (void)
 {
@@ -206,7 +261,6 @@ md_begin (void)
     }
 }
 
-#define MAX_REG_STR_LEN 3
 
 static char errbuf[100];
 
@@ -737,8 +791,10 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
   return (v1 << 6) + v2;
 }
 
-#define RELAX_IMM4 1
-#define RELAX_IMM8 2
+#define RELAX_IMM4	1
+#define RELAX_IMM8	2
+#define RELAX_TT	3
+
 
 /* Attempt a match of the arglist pointed to by str against fmt.  If
    errmsg is set, the match was a failure; otherwise issue issue the
@@ -765,7 +821,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
   for (; *fp; fp++)
     {
-      uint32_t frag;
+      uint32_t bits = 0;
       if (*fp == '\'')
 	{
 	  match_string (&fp, &sp, errmsg);
@@ -790,70 +846,70 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_SRC1:
 	case MY66000_OPS_SRC2:
 	case MY66000_OPS_SRC3:
-	  frag = match_register (&sp, errmsg, rname_map);
+	  bits = match_register (&sp, errmsg, rname_map);
 	  break;
 	case MY66000_OPS_RINDEX:
-	  frag = match_register (&sp, errmsg, rind_map);
+	  bits = match_register (&sp, errmsg, rind_map);
 	  break;
 	case MY66000_OPS_RBASE:
-	  frag = match_register (&sp, errmsg, rbase_map);
+	  bits = match_register (&sp, errmsg, rbase_map);
 	  break;
 	case MY66000_OPS_HRRO:
-	  frag = match_register (&sp, errmsg, hr_ro_map);
+	  bits = match_register (&sp, errmsg, hr_ro_map);
 	  break;
 	case MY66000_OPS_HRRW:
-	  frag = match_register (&sp, errmsg, hr_rw_map);
+	  bits = match_register (&sp, errmsg, hr_rw_map);
 	  break;
 	case MY66000_OPS_IMM16:
-	  frag = match_16bit (&sp, errmsg);
+	  bits = match_16bit (&sp, errmsg);
 	  break;
 	case MY66000_OPS_IMM13:
-	  frag = match_16bit (&sp, errmsg);
-	  if (frag & 0x7)
+	  bits = match_16bit (&sp, errmsg);
+	  if (bits & 0x7)
 	    *errmsg = _("Incorrect alignment of disp13");
 	  break;
 	case MY66000_OPS_FL_ENTER:
-	  frag = match_3bit (&sp, errmsg);
+	  bits = match_3bit (&sp, errmsg);
 	  break;
 	case MY66000_OPS_I1:
 	case MY66000_OPS_I2:
-	  frag = match_5bit (&sp, errmsg);
+	  bits = match_5bit (&sp, errmsg);
 	  break;
 	case MY66000_OPS_BB1:
 	case MY66000_OPS_WIDTH:
 	case MY66000_OPS_OFFSET:
-	  frag = match_6bit (&sp, errmsg);
+	  bits = match_6bit (&sp, errmsg);
 	  break;
 
 	case MY66000_OPS_W_BITR:
-	  frag = match_6bit_p2 (&sp, errmsg);
+	  bits = match_6bit_p2 (&sp, errmsg);
 	  break;
 
 	case MY66000_OPS_UIMM16:
-	  frag = match_16bit_u (&sp, errmsg);
-	  needs_jt = frag + 1;
+	  bits = match_16bit_u (&sp, errmsg);
+	  needs_jt = bits + 1;
 	  break;
 
 	case MY66000_OPS_CARRY:
-	  frag = match_carry_list (&sp, errmsg);
+	  bits = match_carry_list (&sp, errmsg);
 	  break;
 
 	case MY66000_OPS_TF:
-	  frag = match_tf_list (&sp, errmsg);
+	  bits = match_tf_list (&sp, errmsg);
 	  break;
 
 	case MY66000_OPS_PRTHEN:
-	  frag = match_max8 (&sp, errmsg);
-	  prthen = frag;
+	  bits = match_max8 (&sp, errmsg);
+	  prthen = bits;
 	  break;
 
 	case MY66000_OPS_PRELSE:
-	  frag = match_max8 (&sp, errmsg);
-	  prelse = frag;
+	  bits = match_max8 (&sp, errmsg);
+	  prelse = bits;
 	  break;
 
 	case MY66000_OPS_VEC:
-	  frag = match_vec (&sp, errmsg, vec_map);
+	  bits = match_vec (&sp, errmsg, vec_map);
 	  break;
 
 	  /* Dept. of dirty tricks: We use the fact that branches
@@ -866,7 +922,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_B16:
 	  {
 	    expressionS ex;
-	    frag = match_16bit_or_label (&sp, errmsg, &ex);
+	    bits = match_16bit_or_label (&sp, errmsg, &ex);
 	    if (*errmsg)
 	      break;
 	    if (ex.X_op == O_symbol)
@@ -886,7 +942,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_B26:
 	  {
 	    expressionS ex;
-	    frag = match_26bit_or_label (&sp, errmsg, &ex);
+	    bits = match_26bit_or_label (&sp, errmsg, &ex);
 	    if (*errmsg)
 	      break;
 	    if (ex.X_op == O_symbol)
@@ -912,7 +968,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (*errmsg)
 	    break;
 	  imm_size = 4;
-	  frag = 0;
+	  bits = 0;
 	  break;
 
 	case MY66000_OPS_I32_HEX:
@@ -920,7 +976,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (*errmsg)
 	    break;
 	  imm_size = 4;
-	  frag = 0;
+	  bits = 0;
 	  break;
 
 	case MY66000_OPS_INS:
@@ -928,7 +984,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (*errmsg)
 	    break;
 	  imm_size = 4;
-	  frag = 0;
+	  bits = 0;
 	  break;
 
 	case MY66000_OPS_I64_HEX:
@@ -936,7 +992,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (*errmsg)
 	    break;
 	  imm_size = 8;
-	  frag = 0;
+	  bits = 0;
 	  break;
 
 	case MY66000_OPS_I64_PCREL:
@@ -948,7 +1004,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (*errmsg)
 	    break;
 	  imm_size = 8;
-	  frag = 0;
+	  bits = 0;
 	  break;
 
 	case MY66000_OPS_I32_ST:
@@ -956,7 +1012,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (*errmsg)
 	    break;
 	  imm_st_size = 4;
-	  frag = 0;
+	  bits = 0;
 	  break;
 
 	case MY66000_OPS_I64_ST:
@@ -964,15 +1020,16 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (*errmsg)
 	    break;
 	  imm_st_size = 8;
-	  frag = 0;
+	  bits = 0;
 	  break;
 
 	default:
 	  as_fatal ("operand '%c' not handled", *fp);
 	}
 
-      iword |= frag << info->shift;
+      iword |= bits << info->shift;
     }
+
   if (*sp != '\0')
     *errmsg = _("junk at end of argument list");
   else if (prthen == 0 && prelse == 0)
@@ -992,11 +1049,19 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   if (!p)
     p = frag_more (length);
 
-  this_insn = (uint32_t *) p;
-
-  p_op = p;
   //  printf ("p = %p\n", p);
   md_number_to_chars (p, iword, 4);
+
+  /* Remember if we're in a jump table instruction or not.  */
+  if (my66000_is_tt (iword))
+    current_jt = (opcode_pos_t *) opc_pos (p);
+  else
+    current_jt = NULL;
+
+  if (imm_size == 0 && imm_st_size == 0)
+    return;
+
+  p_op = p;
   //  fprintf (stderr, "match_arglist: iword = %8.8x\n", iword);
 
   //  fprintf (stderr, "iword = %x p = %p\n", iword, p);
@@ -1023,7 +1088,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 		    RELAX_IMM4, /* subtype  */
 		    imm.X_add_symbol, /* symbol */
 		    imm.X_add_number,    /* offset */
-		    p_op);  /* opcode */
+		    opc_pos(p_op));   /* Position of opcode.  */
 #endif
 	}
       else if (imm.X_op == O_constant)
@@ -1087,7 +1152,6 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
       p = frag_more (4);
       //      fprintf (stderr,"no spec : %p\n", p);
       memcpy (p, &iword, 4);
-      this_insn = (uint32_t *) p;
       return;
     }
 
@@ -1127,7 +1191,6 @@ md_assemble (char *str)
     }
   buffer[i] = '\0';
 
-  this_insn = NULL;
   if (i == 0)
     as_bad ("%s: %s",_("Illegal instruction"), buffer);
 
@@ -1220,7 +1283,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 }
 
 /* The location from which a PC relative jump should be calculated,
-   given a PC relative reloc.  */
+   given a PC relative reloc.  Always the start of the instruction.   */
 
 long
 md_pcrel_from_section (fixS *fixP, segT sec)
@@ -1235,35 +1298,23 @@ md_pcrel_from_section (fixS *fixP, segT sec)
       return 0;
     }
 
-  /* Addressing is relative to the start of the instruction, but the fix
-     may be in another frag.  */
-  switch (fixP->fx_r_type)
-    {
-    case BFD_RELOC_26_PCREL_S2:
-    case BFD_RELOC_16_PCREL_S2:
-      return fixP->fx_where + fixP->fx_frag->fr_address;
-
-    case BFD_RELOC_32_PCREL:
-    case BFD_RELOC_64_PCREL:
-      return fixP->fx_frag->fr_opcode - fixP->fx_frag->fr_literal;
-    default:
-      as_fatal ("Unknown reloc in md_pcrel_from_section");
-    }
+  if (fixP->fx_frag->fr_subtype == RELAX_TT)
+    return get_opc_addr (fixP->fx_frag->fr_opcode);
+  else
+    return fixP->fx_where + fixP->fx_frag->fr_address;
 
 }
 
 /* Calculate a PC-relative offset.  These are always relative to the
-   start of the instruction.  */
+   start of the instruction, which we record in a pointer stashed
+   away in the offset field.  */
 
 static offsetT
 calc_relative_offset (fragS *fragP)
 {
   offsetT target_address = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
-  offsetT opcode_address = fragP->fr_opcode - fragP->fr_literal;
-  //  fprintf (stderr,"S_GET_VALUE = %ld fr_offset= %ld\n", S_GET_VALUE (fragP->fr_symbol),
-  //	   fragP->fr_offset);
-  //  fprintf (stderr,"calc_relative_offset: target_address = %ld, opcode_address = %ld\n",
-  //	   target_address, opcode_address);
+  offsetT opcode_address = get_opc_addr (fragP->fr_opcode);
+  //  fprintf (stderr, "calc_relative_offset: %ld %ld\n", target_address, opcode_address);
   return target_address - opcode_address;
 }
 
@@ -1283,10 +1334,13 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 {
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
   uint32_t iword;
+  uint16_t val16, val32;
+  uint8_t val8;
 
   /* Remember value for tc_gen_reloc.  */
   fixP->fx_addnumber = *valP;
 
+  //  fprintf (stderr,"md_apply_fix: *valP = %ld\n", *valP);
   /* FIXME: Look up the masks etc from the tables, eventually.  */
   switch (fixP->fx_r_type)
     {
@@ -1295,31 +1349,48 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
       iword |= (*valP >> 2) & 0x3ffffff;
       bfd_putl32 ((bfd_vma) iword, buf);
       break;
+
     case BFD_RELOC_16_PCREL_S2:
-      iword = (uint32_t) bfd_getl32 (buf);
-      iword |= (*valP >> 2) & 0xffff;
-      bfd_putl32 ((bfd_vma) iword, buf);
+      val16 = *valP >> 2;
+      bfd_putl16 ((bfd_vma) val16, buf);
       break;
+
     case BFD_RELOC_32_PCREL:
       bfd_putl32 ((bfd_vma) *valP, buf);
       break;
+
+    case BFD_RELOC_32_PCREL_S2:
+      val32 = *valP >> 2;
+      bfd_putl32 ((bfd_vma) val32, buf);
+      break;
+
     case BFD_RELOC_64_PCREL:
       bfd_putl64 ((bfd_vma) *valP, buf);
       break;
+
     case BFD_RELOC_8:
       *buf = *valP;
       break;
+
+    case BFD_RELOC_8_PCREL_S2:
+      val8 = *valP >> 2;
+      *buf = val8;
+      break;
+
     case BFD_RELOC_16:
       bfd_putl16 ((bfd_vma) *valP, buf);
       break;
+
     case BFD_RELOC_32:
       bfd_putl32 ((bfd_vma) *valP, buf);
       break;
+
     case BFD_RELOC_64:
       bfd_putl64 ((bfd_vma) *valP, buf);
       break;
     default:
-      as_fatal ("Unknown relocation %d", (int) fixP->fx_r_type);
+      as_fatal ("Unknown relocation %d in md_apply_fix",
+		(int) fixP->fx_r_type);
       break;
     }
 
@@ -1353,10 +1424,59 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
   return ret;
 }
 
+
+#define TT_MIN(bits) (-((offsetT) 1 << (bits + 1)))
+#define TT_MAX(bits) (((offsetT) 1 << (bits + 1)) - 1)
+
+/* Same, but for a TT relaxation, which is shifted by two bits.  */
+
+static int
+relaxed_tt_length (fragS *fragP, segT segment, _Bool update)
+{
+  int ret;
+  uint32_t *ip;
+  int size_insn;
+
+  gas_assert (fragP->fr_subtype == RELAX_TT);
+  ip = get_opc_insn (fragP->fr_opcode);
+  size_insn = my66000_get_tt_size (*ip);
+  if (known_frag_symbol (fragP, segment))
+    {
+      offsetT val = calc_relative_offset (fragP);
+      if (val >= TT_MIN(8) && val <= TT_MAX(8))
+	{
+	  ret = 1;
+	}
+      else if (val >= TT_MIN(16) && val <= TT_MAX(16))
+	{
+	  ret = 2;
+	}
+      else if (val >= TT_MIN(32) && val <= TT_MAX(32))
+	{
+	  ret = 4;
+	}
+      else
+	ret = 8;
+    }
+  if (update && size_insn < ret)
+    *ip = my66000_set_tt_size (*ip, ret);
+
+  return ret;
+}
+
 int
 md_estimate_size_before_relax (fragS *fragP, segT segment)
 {
-  fragP->fr_var = relaxed_imm_length (fragP, segment, false);
+  switch (fragP->fr_subtype)
+    {
+    case RELAX_IMM4:
+    case RELAX_IMM8:
+      fragP->fr_var = relaxed_imm_length (fragP, segment, false);
+      break;
+    case RELAX_TT:
+      fragP->fr_var = relaxed_tt_length (fragP, segment, false);
+      break;
+    }
   return fragP->fr_var;
 }
 
@@ -1364,13 +1484,22 @@ int
 my66000_relax_frag (segT seg, fragS *fragP,
 		    long stretch ATTRIBUTE_UNUSED)
 {
-  if (fragP->fr_subtype == RELAX_IMM4 || fragP->fr_subtype == RELAX_IMM8)
+  offsetT old_var = fragP->fr_var;
+
+  switch (fragP->fr_subtype)
     {
-      offsetT old_var = fragP->fr_var;
+    case RELAX_IMM4:
+    case RELAX_IMM8:
       fragP->fr_var = relaxed_imm_length (fragP, seg, true);
-      return fragP->fr_var - old_var;
+      break;
+    case RELAX_TT:
+      fragP->fr_var = relaxed_tt_length (fragP, seg, true);
+      break;
+    default:
+      as_fatal ("Subtype %d not handled", fragP->fr_subtype);
     }
-  return 0;
+
+  return fragP->fr_var - old_var;
 }
 
 void
@@ -1379,30 +1508,55 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 		 fragS *fragP)
 {
   uint32_t iword;
+  uint32_t *ip;
   expressionS ex;
 
-  iword = bfd_getl32 (fragP->fr_opcode);
+  ip = get_opc_insn (fragP->fr_opcode);
+  iword = bfd_getl32 ((char *) ip);
 
   ex.X_op = O_symbol;
   ex.X_add_symbol = fragP->fr_symbol;
   ex.X_add_number = fragP->fr_offset;
-  //  offsetT target = S_GET_VALUE (ex.X_add_symbol) + fragP->fr_offset;
-  //  fprintf (stderr,"md_convert_frag: target = %ld\n", target);
-  if (fragP->fr_var == 4)
+
+  if (fragP->fr_subtype == RELAX_IMM4 || fragP->fr_subtype == RELAX_IMM8)
     {
-      fix_new_exp (fragP, fragP->fr_fix, 4, &ex, true, BFD_RELOC_32_PCREL);
-      iword = my66000_set_imm_size (iword, 4);
-    }
-  else
-    {
-      fix_new_exp (fragP, fragP->fr_fix, 8, &ex, true, BFD_RELOC_64_PCREL);
-      iword = my66000_set_imm_size (iword, 8);
+      if (fragP->fr_var == 4)
+	{
+	  fix_new_exp (fragP, fragP->fr_fix, 4, &ex, true, BFD_RELOC_32_PCREL);
+	  iword = my66000_set_imm_size (iword, 4);
+	}
+      else
+	{
+	  fix_new_exp (fragP, fragP->fr_fix, 8, &ex, true, BFD_RELOC_64_PCREL);
+	  iword = my66000_set_imm_size (iword, 8);
+	}
+	md_number_to_chars (fragP->fr_opcode, iword, 4);
     }
 
-  md_number_to_chars (fragP->fr_opcode, iword, 4);
+  else if (fragP->fr_subtype == RELAX_TT)
+    {
+      uint32_t size;
+      bfd_reloc_code_real_type reloc;
+      size = my66000_get_tt_size (iword);
+      switch (size)
+	{
+	case 1:
+	  reloc = BFD_RELOC_8_PCREL_S2;
+	  break;
+	case 2:
+	  reloc = BFD_RELOC_16_PCREL_S2;
+	  break;
+	case 4:
+	  reloc = BFD_RELOC_32_PCREL_S2;
+	  break;
+	case 8:
+	  reloc = BFD_RELOC_64_PCREL_S2;
+	}
+      fix_new_exp (fragP, fragP->fr_fix, size, &ex, true, reloc);
+      //      fprintf (stderr, "fix_new_exp\n");
+    }
+
   fragP->fr_fix += fragP->fr_var;
-  //  fprintf (stderr,"size of immediate is %u\n", my66000_imm_size(iword));
-  //  fprintf(stderr, "Will you look at that... %p %x\n", fragP->fr_opcode, iword);
 }
 
 /* Handle jump tables.  We simply ignore the size the compiler tells us
@@ -1417,6 +1571,12 @@ static void handle_jt (int num ATTRIBUTE_UNUSED)
 
   //  fprintf (stderr,"handle_it : num = %d needs_jt = %d is_tt = %d\n", num, needs_jt,
   //	   my66000_is_tt (this_iword));
+
+  if (current_jt == NULL)
+    {
+      as_bad (".jt directive witout preceding jump table instruction");
+      return;
+    }
 
   cp = input_line_pointer;
   while (needs_jt > 0)
@@ -1442,6 +1602,14 @@ static void handle_jt (int num ATTRIBUTE_UNUSED)
       cp = endp;
 
       /* Insert frag_var here.  */
+
+      frag_var (rs_machine_dependent,
+		8,
+		1,
+		RELAX_TT,
+		ex.X_add_symbol,
+		ex.X_add_number,
+		(char *) current_jt);
 
       if (needs_jt > 0)
 	{

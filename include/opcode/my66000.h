@@ -199,5 +199,7 @@ extern uint32_t my66000_set_imm_size (uint32_t, uint32_t);
 extern int my66000_imm_size (uint32_t);
 
 extern bool my66000_is_tt (uint32_t);
+extern uint32_t my66000_get_tt_size (uint32_t);
+extern uint32_t my66000_set_tt_size (uint32_t,  uint32_t);
 
 #endif

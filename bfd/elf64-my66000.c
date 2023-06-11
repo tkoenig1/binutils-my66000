@@ -54,7 +54,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 false),		/* pcrel_offset */
 
   /* 8 bit PC-relative relocation, shifted two bits.  */
-  HOWTO (R_MY66000_PCREL8,	/* type  */
+  HOWTO (R_MY66000_PCREL8_S2,	/* type  */
 	 0,			/* rightshift  */
 	 1,			/* size  */
 	 8,			/* bitsize  */
@@ -62,43 +62,43 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 0,			/* bitpos  */
 	 complain_overflow_signed, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
-	 "R_MY66000_PCREL8",	/* name  */
+	 "R_MY66000_PCREL8_S2",	/* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xff,			/* dst_mask  */
 	 true),			/* pcrel_offset  */
 
   /* 16 bit PC-relative relocation, shifted two bits.  */
-  HOWTO (R_MY66000_PCREL16,	/* type  */
-	 0,			/* rightshift  */
+  HOWTO (R_MY66000_PCREL16_S2,	/* type  */
+	 2,			/* rightshift  */
 	 2,			/* size  */
 	 16,			/* bitsize  */
 	 true,			/* pc_relative */
 	 0,			/* bitpos  */
 	 complain_overflow_signed, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
-	 "R_MY66000_PCREL16",	/* name  */
+	 "R_MY66000_PCREL16_S2", /* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xffff,		/* dst_mask  */
 	 true),			/* pcrel_offset  */
 
   /* 26 bit PC-relative relocation, shifted two bits.  */
-  HOWTO (R_MY66000_PCREL26,	/* type  */
-	 0,			/* rightshift  */
+  HOWTO (R_MY66000_PCREL26_S2,	/* type  */
+	 2,			/* rightshift  */
 	 4,			/* size  */
 	 26,			/* bitsize  */
 	 true,			/* pc_relative */
 	 0,			/* bitpos  */
 	 complain_overflow_signed, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
-	 "R_MY66000_PCREL26",	/* name  */
+	 "R_MY66000_PCREL26_S2",/* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0x3ffffff,		/* dst_mask  */
 	 true),			/* pcrel_offset  */
-  /* 32 bit PC-relative relocation.  */
-  HOWTO (R_MY66000_PCREL32,	/* type  */
+  /* 32 bit PC-relative relocation, shifted two bits.  */
+  HOWTO (R_MY66000_PCREL32_S2,	/* type  */
 	 0,			/* rightshift  */
 	 4,			/* size  */
 	 32,			/* bitsize  */
@@ -106,13 +106,13 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 0,			/* bitpos  */
 	 complain_overflow_signed, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
-	 "R_MY66000_PCREL32",	/* name  */
+	 "R_MY66000_PCREL32_S2",/* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xffffffff,		/* dst_mask  */
 	 true),			/* pcrel_offset  */
   /* 64 bit PC-relative relocation.  */
-  HOWTO (R_MY66000_PCREL64,	/* type  */
+  HOWTO (R_MY66000_PCREL64_S2,	/* type  */
 	 0,			/* rightshift  */
 	 8,			/* size  */
 	 64,			/* bitsize  */
@@ -120,7 +120,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 0,			/* bitpos  */
 	 complain_overflow_dont, /* complain on overflow  */
 	 bfd_elf_generic_reloc, /* special function  */
-	 "R_MY66000_PCREL64",	/* name  */
+	 "R_MY66000_PCREL64_S2",/* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xffffffffffffffff,	/* dst_mask  */
@@ -186,6 +186,35 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 0xffffffffffffffff,	/* dst_mask  */
 	 false),		/* pcrel_offset  */
 
+  /* 32 bit PC-relative relocation, unshifted. */
+  HOWTO (R_MY66000_PCREL32,   	/* type  */
+	 0,			/* rightshift  */
+	 4,			/* size  */
+	 32,			/* bitsize  */
+	 true,			/* pc_relative */
+	 0,			/* bitpos  */
+	 complain_overflow_signed, /* complain on overflow  */
+	 bfd_elf_generic_reloc, /* special function  */
+	 "R_MY66000_PCREL32",	/* name  */
+	 false,			/* partial_inplace */
+	 0,			/* src_mask  */
+	 0xffffffff,		/* dst_mask  */
+	 true),			/* pcrel_offset  */
+
+  /* 64 bit PC-relative relocation, unshifted.  */
+  HOWTO (R_MY66000_PCREL64,   	/* type  */
+	 0,			/* rightshift  */
+	 8,			/* size  */
+	 64,			/* bitsize  */
+	 true,			/* pc_relative */
+	 0,			/* bitpos  */
+	 complain_overflow_dont, /* complain on overflow  */
+	 bfd_elf_generic_reloc, /* special function  */
+	 "R_MY66000_PCREL64",	/* name  */
+	 false,			/* partial_inplace */
+	 0,			/* src_mask  */
+	 0xffffffffffffffff,	/* dst_mask  */
+	 true),			/* pcrel_offset  */
 };
 
 /* Map BFD reloc types to My 66000 ELF reloc types.  */
@@ -199,15 +228,17 @@ typedef struct my66000_reloc_map_t
 const my66000_reloc_map_t my66000_reloc_map[] =
 {
  {BFD_RELOC_NONE,      	 R_MY66000_NONE},
- {BFD_RELOC_8_PCREL_S2,  R_MY66000_PCREL8},
- {BFD_RELOC_16_PCREL_S2, R_MY66000_PCREL16},
- {BFD_RELOC_26_PCREL_S2, R_MY66000_PCREL26},
- {BFD_RELOC_32_PCREL,    R_MY66000_PCREL32},
- {BFD_RELOC_64_PCREL,    R_MY66000_PCREL64},
+ {BFD_RELOC_8_PCREL_S2,  R_MY66000_PCREL8_S2},
+ {BFD_RELOC_16_PCREL_S2, R_MY66000_PCREL16_S2},
+ {BFD_RELOC_26_PCREL_S2, R_MY66000_PCREL26_S2},
+ {BFD_RELOC_32_PCREL_S2, R_MY66000_PCREL32_S2},
+ {BFD_RELOC_64_PCREL_S2, R_MY66000_PCREL64_S2},
  {BFD_RELOC_8,           R_MY66000_8},
  {BFD_RELOC_16,          R_MY66000_16},
  {BFD_RELOC_32,          R_MY66000_32},
  {BFD_RELOC_64,          R_MY66000_64},
+ {BFD_RELOC_32_PCREL,    R_MY66000_PCREL32},
+ {BFD_RELOC_64_PCREL,    R_MY66000_PCREL64},
 };
 
 static reloc_howto_type *

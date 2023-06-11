@@ -1550,13 +1550,15 @@ ENUMX
   BFD_RELOC_26_PCREL_S2
 ENUMX
   BFD_RELOC_8_PCREL_S2
+ENUMX
+  BFD_RELOC_64_PCREL_S2
 ENUMDOC
   These PC-relative relocations are stored as word displacements --
 i.e., byte displacements shifted right two bits.  The 30-bit word
 displacement (<<32_PCREL_S2>> -- 32 bits, shifted 2) is used on the
 SPARC.  (SPARC tools generally refer to this as <<WDISP30>>.)  The
 signed 16-bit displacement is used on the MIPS, the 23-bit
-displacement is used on the Alpha and the 8 and 26 bits are for
+displacement is used on the Alpha and the 8, 26 and 64 bits are for
 My66000.
 
 ENUM

@@ -21,6 +21,7 @@
 
 #include "sysdep.h"
 #include <stdint.h>
+#include <assert.h>
 #include "disassemble.h"
 #include "opcode/my66000.h"
 
@@ -1124,7 +1125,7 @@ static const my66000_fmt_spec_t bc_fmt_list [] =
 /* TT instruction.  */
 static const my66000_fmt_spec_t tt_fmt_list [] =
 {
-  {"B,i",  0, 0, 0},
+  {"B,#i",  0, 0, 0},
   { NULL,  0, 0, 0},
 };
 
@@ -1402,7 +1403,7 @@ my66000_set_imm_size (uint32_t iword, uint32_t size)
 
   if (major != MAJOR(9) && major != MAJOR (10))
     {
-      fprintf (stderr, "Internal error: set_size on illecal opcode %u",
+      fprintf (stderr, "Internal error: set_size on illecal opcode %u\n",
 	       major >> MY66000_MAJOR_SHIFT);
       exit(EXIT_FAILURE);
     }
@@ -1416,7 +1417,7 @@ my66000_set_imm_size (uint32_t iword, uint32_t size)
       ret |= XOP1_d_MASK | XOP1_D_MASK;
       break;
     default:
-      fprintf (stderr, "Internal error: set_size with illegal size %u",
+      fprintf (stderr, "Internal error: set_size with illegal size %u\n",
 	       size);
       exit(EXIT_FAILURE);
     }
@@ -1429,4 +1430,47 @@ bool
 my66000_is_tt (uint32_t iword)
 {
   return ((iword ^ MAJOR(27)) & MAJOR_MASK) == 0;
+}
+
+/* Return size the of the TT .jt "arguments" from the
+   instruction.  */
+
+uint32_t
+my66000_get_tt_size (uint32_t iword)
+{
+  uint32_t fld;
+  assert (my66000_is_tt (iword));
+  fld = (iword & TT_SIZE_MASK) >> TT_SIZE_OFFS;
+  return 1 << fld;
+}
+
+/* Set the size of the TT .jt "arguments" from the
+   instruction.  */
+uint32_t
+my66000_set_tt_size (uint32_t iword, uint32_t size)
+{
+  uint32_t rmask = -1 ^ TT_SIZE_MASK;
+  uint32_t ret;
+
+  assert (my66000_is_tt (iword));
+
+  ret = iword & rmask;
+  switch (size)
+    {
+    case 1:
+      break;
+    case 2:
+      ret |= TT_SIZE(1);
+      break;
+    case 4:
+      ret |= TT_SIZE(2);
+      break;
+    case 8:
+      ret |= TT_SIZE(3);
+      break;
+    default:
+      fprintf (stderr,"Internal error: my66000_set_tt_size\n");
+      exit (EXIT_FAILURE);
+    }
+  return ret;
 }

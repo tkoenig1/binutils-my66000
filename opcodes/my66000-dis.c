@@ -444,7 +444,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   return o_length + length;
 
  error:
-  fpr (stream, ".word\t%u", iword);
+  fpr (stream, ".word\t%8.8x", iword);
   return length;
 
  fail:
