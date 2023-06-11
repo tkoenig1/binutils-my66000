@@ -323,6 +323,55 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
  return -1;
 }
 
+/* Read a sign-extended constant of size n=1,2,4,8 from the input stream.  */
+
+static int64_t
+read_signed_constant (bfd_vma addr, int size, struct disassemble_info *info)
+{
+  bfd_byte buffer[8];
+  int64_t ret = 0;
+  int status;
+  status = info->read_memory_func (addr, buffer, size, info);
+  if (status)
+    {
+      info->memory_error_func (status, addr, info);
+      return 0;
+    }
+  switch (size)
+    {
+    case 1:
+      ret = (signed char) buffer[0];
+      break;
+    case 2:
+      ret = bfd_getl_signed_16 (buffer);
+      break;
+    case 4:
+      ret = bfd_getl_signed_32 (buffer);
+      break;
+    case 8:
+      ret = bfd_getl_signed_64 (buffer);
+      break;
+    }
+  return ret;
+}
+
+static int jt_size;
+int jt_needed;
+int jt_fill;
+bfd_vma jt_addr;
+
+/* Print a jump table.  This one is so special that it uses straightforward
+   code instad of being table-driven.  */
+
+static void
+print_jt_entry (bfd_vma addr, struct disassemble_info *info)
+{
+  int64_t offs;
+  info->bytes_per_chunk = jt_size;
+  offs = read_signed_constant (addr, jt_size, info);
+  (*info->print_address_func) ((bfd_vma) (jt_addr + (offs << 2)), info);
+}
+
 /* Print a comment for carry.  */
 
 static void
@@ -356,11 +405,33 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
   fpr = info->fprintf_func;
   stream = info->stream;
 
+  if (jt_needed > 0)
+    {
+      print_jt_entry (addr, info);
+      jt_needed --;
+      return jt_size;
+    }
+  else if (jt_fill > 0)
+    {
+      jt_fill --;
+      return jt_size;
+    }
+  
   if ((status = info->read_memory_func (addr, buffer, 4, info)))
     goto fail;
 
   iword = (uint32_t) bfd_getl32 (buffer);
   info->bytes_per_chunk = 4;
+
+  if (my66000_is_tt (iword))
+    {
+      jt_needed = (iword & 0xffff) + 1;
+      jt_size = my66000_get_tt_size (iword);
+      jt_addr = addr;
+      jt_fill = (4 - jt_size * jt_needed) % 4;
+    }
+  else
+    jt_needed = jt_fill = 0;
 
   /* Run through the special table before anything else.  */
   for (p = my66000_opc_info_special; p->enc != MY66000_END; p++)
