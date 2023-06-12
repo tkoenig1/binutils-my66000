@@ -737,8 +737,8 @@ static const my66000_opc_info_t opc_pcnd[] =
 };
 
 static const my66000_opc_info_t opc_tt[] = {
-  { "jtt",  MAJOR(27) | TT_MINOR(0), MY66000_TT, opc_jtt, TT_SIZE_MASK, TT_SIZE(0)},
-  { "ctt",  MAJOR(27) | TT_MINOR(1), MY66000_TT, opc_jtt, TT_SIZE_MASK, TT_SIZE(1)},
+  { "jtt",  MAJOR(27) | TT_MINOR(0), MY66000_TT, opc_jtt, TT_SIZE_MASK, TT_SIZE_OFFS},
+  { "ctt",  MAJOR(27) | TT_MINOR(1), MY66000_TT, opc_jtt, TT_SIZE_MASK, TT_SIZE_OFFS},
   { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 

@@ -1430,8 +1430,8 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
 }
 
 
-#define TT_MIN(bits) (-((offsetT) 1 << (bits + 1)))
-#define TT_MAX(bits) (((offsetT) 1 << (bits + 1)) - 1)
+#define TT_MIN(bits) (-((offsetT) 1 << (bits - 1)))
+#define TT_MAX(bits) (((offsetT) 1 << (bits - 1)) - 1)
 
 /* Same, but for a TT relaxation, which is shifted by two bits.  */
 
@@ -1463,7 +1463,10 @@ relaxed_tt_length (fragS *fragP, segT segment, _Bool update)
       else
 	ret = 8;
     }
-  if (update && size_insn < ret)
+  if (size_insn > ret)
+    ret = size_insn;
+
+  else if (update)
     *ip = my66000_set_tt_size (*ip, ret);
 
   return ret;
