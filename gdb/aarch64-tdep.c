@@ -282,7 +282,7 @@ aarch64_analyze_prologue (struct gdbarch *gdbarch,
 
   /* Whether the stack has been set.  This should be true when we notice a SP
      to FP move or if we are using the SP as the base register for storing
-     data, in case the FP is ommitted.  */
+     data, in case the FP is omitted.  */
   bool seen_stack_set = false;
 
   /* Track X registers and D registers in prologue.  */
@@ -917,12 +917,15 @@ aarch64_analyze_prologue_test (void)
 static CORE_ADDR
 aarch64_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
-  CORE_ADDR func_addr, limit_pc;
+  CORE_ADDR func_addr, func_end_addr, limit_pc;
 
   /* See if we can determine the end of the prologue via the symbol
      table.  If so, then return either PC, or the PC after the
      prologue, whichever is greater.  */
-  if (find_pc_partial_function (pc, NULL, &func_addr, NULL))
+  bool func_addr_found
+    = find_pc_partial_function (pc, NULL, &func_addr, &func_end_addr);
+
+  if (func_addr_found)
     {
       CORE_ADDR post_prologue_pc
 	= skip_prologue_using_sal (gdbarch, func_addr);
@@ -941,6 +944,9 @@ aarch64_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
   limit_pc = skip_prologue_using_sal (gdbarch, pc);
   if (limit_pc == 0)
     limit_pc = pc + 128;	/* Magic.  */
+
+  limit_pc
+    = func_end_addr == 0 ? limit_pc : std::min (limit_pc, func_end_addr - 4);
 
   /* Try disassembling prologue.  */
   return aarch64_analyze_prologue (gdbarch, pc, limit_pc, NULL);

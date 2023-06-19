@@ -42,6 +42,70 @@
 #include "libbfd.h"
 #include "coff/internal.h"
 #include "libcoff.h"
+#include "hashtab.h"
+
+/* Extract a long section name at STRINDEX and copy it to the bfd objstack.
+   Return NULL in case of error.  */
+
+static char *
+extract_long_section_name(bfd *abfd, unsigned long strindex)
+{
+  const char *strings;
+  char *name;
+
+  strings = _bfd_coff_read_string_table (abfd);
+  if (strings == NULL)
+    return NULL;
+  if ((bfd_size_type)(strindex + 2) >= obj_coff_strings_len (abfd))
+    return NULL;
+  strings += strindex;
+  name = (char *) bfd_alloc (abfd, (bfd_size_type) strlen (strings) + 1);
+  if (name == NULL)
+    return NULL;
+  strcpy (name, strings);
+
+  return name;
+}
+
+/* Decode a base 64 coded string at STR of length LEN, and write the result
+   to RES.  Return true on success.
+   Return false in case of invalid character or overflow.  */
+
+static bool
+decode_base64 (const char *str, unsigned len, uint32_t *res)
+{
+  unsigned i;
+  uint32_t val;
+
+  val = 0;
+  for (i = 0; i < len; i++)
+    {
+      char c = str[i];
+      unsigned d;
+
+      if (c >= 'A' && c <= 'Z')
+	d = c - 'A';
+      else if (c >= 'a' && c <= 'z')
+	d = c - 'a' + 26;
+      else if (c >= '0' && c <= '9')
+	d = c - '0' + 52;
+      else if (c == '+')
+	d = 62;
+      else if (c == '/')
+	d = 63;
+      else
+	return false;
+
+      /* Check for overflow. */
+      if ((val >> 26) != 0)
+	return false;
+
+      val = (val << 6) + d;
+    }
+
+  *res = val;
+  return true;
+}
 
 /* Take a section header read from a coff file (in HOST byte order),
    and make a BFD "section" out of it.  This is used by ECOFF.  */
@@ -67,32 +131,48 @@ make_a_section_from_file (bfd *abfd,
   if (bfd_coff_set_long_section_names (abfd, bfd_coff_long_section_names (abfd))
       && hdr->s_name[0] == '/')
     {
-      char buf[SCNNMLEN];
-      long strindex;
-      char *p;
-      const char *strings;
-
       /* Flag that this BFD uses long names, even though the format might
 	 expect them to be off by default.  This won't directly affect the
 	 format of any output BFD created from this one, but the information
 	 can be used to decide what to do.  */
       bfd_coff_set_long_section_names (abfd, true);
-      memcpy (buf, hdr->s_name + 1, SCNNMLEN - 1);
-      buf[SCNNMLEN - 1] = '\0';
-      strindex = strtol (buf, &p, 10);
-      if (*p == '\0' && strindex >= 0)
+
+      if (hdr->s_name[1] == '/')
 	{
-	  strings = _bfd_coff_read_string_table (abfd);
-	  if (strings == NULL)
+	  /* LLVM extension: the '/' is followed by another '/' and then by
+	     the index in the strtab encoded in base64 without NUL at the
+	     end.  */
+	  uint32_t strindex;
+
+	  /* Decode the index.  No overflow is expected as the string table
+	     length is at most 2^32 - 1 (the length is written on the first
+	     four bytes).
+	     Also, contrary to RFC 4648, all the characters must be decoded,
+	     there is no padding.  */
+	  if (!decode_base64 (hdr->s_name + 2, SCNNMLEN - 2, &strindex))
 	    return false;
-	  if ((bfd_size_type)(strindex + 2) >= obj_coff_strings_len (abfd))
-	    return false;
-	  strings += strindex;
-	  name = (char *) bfd_alloc (abfd,
-				     (bfd_size_type) strlen (strings) + 1 + 1);
+
+	  name = extract_long_section_name (abfd, strindex);
 	  if (name == NULL)
 	    return false;
-	  strcpy (name, strings);
+	}
+      else
+	{
+	  /* PE classic long section name.  The '/' is followed by the index
+	     in the strtab.  The index is formatted as a decimal string.  */
+	  char buf[SCNNMLEN];
+	  long strindex;
+	  char *p;
+
+	  memcpy (buf, hdr->s_name + 1, SCNNMLEN - 1);
+	  buf[SCNNMLEN - 1] = '\0';
+	  strindex = strtol (buf, &p, 10);
+	  if (*p == '\0' && strindex >= 0)
+	    {
+	      name = extract_long_section_name (abfd, strindex);
+	      if (name == NULL)
+		return false;
+	    }
 	}
     }
 
@@ -201,13 +281,24 @@ make_a_section_from_file (bfd *abfd,
   return result;
 }
 
+void
+coff_object_cleanup (bfd *abfd)
+{
+  if (bfd_family_coff (abfd) && bfd_get_format (abfd) == bfd_object)
+    {
+      struct coff_tdata *td = coff_data (abfd);
+      if (td != NULL)
+	{
+	  if (td->section_by_index)
+	    htab_delete (td->section_by_index);
+	  if (td->section_by_target_index)
+	    htab_delete (td->section_by_target_index);
+	}
+    }
+}
+
 /* Read in a COFF object and make it into a BFD.  This is used by
    ECOFF as well.  */
-bfd_cleanup
-coff_real_object_p (bfd *,
-		    unsigned,
-		    struct internal_filehdr *,
-		    struct internal_aouthdr *);
 bfd_cleanup
 coff_real_object_p (bfd *abfd,
 		    unsigned nscns,
@@ -278,9 +369,10 @@ coff_real_object_p (bfd *abfd,
     }
 
   _bfd_coff_free_symbols (abfd);
-  return _bfd_no_cleanup;
+  return coff_object_cleanup;
 
  fail:
+  coff_object_cleanup (abfd);
   _bfd_coff_free_symbols (abfd);
   bfd_release (abfd, tdata);
  fail2:
@@ -355,13 +447,26 @@ coff_object_p (bfd *abfd)
 			      : (struct internal_aouthdr *) NULL));
 }
 
+static hashval_t
+htab_hash_section_target_index (const void * entry)
+{
+  const struct bfd_section * sec = entry;
+  return sec->target_index;
+}
+
+static int
+htab_eq_section_target_index (const void * e1, const void * e2)
+{
+  const struct bfd_section * sec1 = e1;
+  const struct bfd_section * sec2 = e2;
+  return sec1->target_index == sec2->target_index;
+}
+
 /* Get the BFD section from a COFF symbol section number.  */
 
 asection *
 coff_section_from_bfd_index (bfd *abfd, int section_index)
 {
-  struct bfd_section *answer = abfd->sections;
-
   if (section_index == N_ABS)
     return bfd_abs_section_ptr;
   if (section_index == N_UNDEF)
@@ -369,12 +474,46 @@ coff_section_from_bfd_index (bfd *abfd, int section_index)
   if (section_index == N_DEBUG)
     return bfd_abs_section_ptr;
 
-  while (answer)
+  struct bfd_section *answer;
+  htab_t table = coff_data (abfd)->section_by_target_index;
+
+  if (!table)
     {
-      if (answer->target_index == section_index)
-	return answer;
-      answer = answer->next;
+      table = htab_create (10, htab_hash_section_target_index,
+			   htab_eq_section_target_index, NULL);
+      if (table == NULL)
+	return bfd_und_section_ptr;
+      coff_data (abfd)->section_by_target_index = table;
     }
+
+  if (htab_elements (table) == 0)
+    {
+      for (answer = abfd->sections; answer; answer = answer->next)
+	{
+	  void **slot = htab_find_slot (table, answer, INSERT);
+	  if (slot == NULL)
+	    return bfd_und_section_ptr;
+	  *slot = answer;
+	}
+    }
+
+  struct bfd_section needle;
+  needle.target_index = section_index;
+
+  answer = htab_find (table, &needle);
+  if (answer != NULL)
+    return answer;
+
+  /* Cover the unlikely case of sections added after the first call to
+     this function.  */
+  for (answer = abfd->sections; answer; answer = answer->next)
+    if (answer->target_index == section_index)
+      {
+	void **slot = htab_find_slot (table, answer, INSERT);
+	if (slot != NULL)
+	  *slot = answer;
+	return answer;
+      }
 
   /* We should not reach this point, but the SCO 3.2v4 /lib/libc_s.a
      has a bad symbol table in biglitpow.o.  */
@@ -3136,27 +3275,37 @@ bfd_coff_group_name (bfd *abfd, const asection *sec)
 }
 
 bool
-_bfd_coff_close_and_cleanup (bfd *abfd)
+_bfd_coff_free_cached_info (bfd *abfd)
 {
-  struct coff_tdata *tdata = coff_data (abfd);
+  struct coff_tdata *tdata;
 
-  if (tdata != NULL)
+  if (bfd_family_coff (abfd)
+      && (bfd_get_format (abfd) == bfd_object
+	  || bfd_get_format (abfd) == bfd_core)
+      && (tdata = coff_data (abfd)) != NULL)
     {
+      if (tdata->section_by_index)
+	{
+	  htab_delete (tdata->section_by_index);
+	  tdata->section_by_index = NULL;
+	}
+
+      if (tdata->section_by_target_index)
+	{
+	  htab_delete (tdata->section_by_target_index);
+	  tdata->section_by_target_index = NULL;
+	}
+
+      _bfd_dwarf2_cleanup_debug_info (abfd, &tdata->dwarf2_find_line_info);
+      _bfd_stab_cleanup (abfd, &tdata->line_info);
+
       /* PR 25447:
 	 Do not clear the keep_syms and keep_strings flags.
 	 These may have been set by pe_ILF_build_a_bfd() indicating
 	 that the syms and strings pointers are not to be freed.  */
-      if (bfd_get_format (abfd) == bfd_object
-	  && bfd_family_coff (abfd)
-	  && !_bfd_coff_free_symbols (abfd))
+      if (!_bfd_coff_free_symbols (abfd))
 	return false;
-
-      if (bfd_get_format (abfd) == bfd_object
-	  || bfd_get_format (abfd) == bfd_core)
-	{
-	  _bfd_dwarf2_cleanup_debug_info (abfd, &tdata->dwarf2_find_line_info);
-	  _bfd_stab_cleanup (abfd, &tdata->line_info);
-	}
     }
-  return _bfd_generic_close_and_cleanup (abfd);
+
+  return _bfd_generic_bfd_free_cached_info (abfd);
 }

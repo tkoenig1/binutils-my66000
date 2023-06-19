@@ -1070,7 +1070,19 @@ jump_command (const char *arg, int from_tty)
   std::vector<symtab_and_line> sals
     = decode_line_with_last_displayed (arg, DECODE_LINE_FUNFIRSTLINE);
   if (sals.size () != 1)
-    error (_("Unreasonable jump request"));
+    {
+      /* If multiple sal-objects were found, try dropping those that aren't
+	 from the current symtab.  */
+      struct symtab_and_line cursal = get_current_source_symtab_and_line ();
+      sals.erase (std::remove_if (sals.begin (), sals.end (),
+		  [&] (const symtab_and_line &sal)
+		    {
+		      return sal.symtab != cursal.symtab;
+		    }), sals.end ());
+      if (sals.size () != 1)
+	error (_("Jump request is ambiguous: "
+		 "does not resolve to a single address"));
+    }
 
   symtab_and_line &sal = sals[0];
 
@@ -1081,7 +1093,8 @@ jump_command (const char *arg, int from_tty)
 
   /* See if we are trying to jump to another function.  */
   fn = get_frame_function (get_current_frame ());
-  sfn = find_pc_function (sal.pc);
+  sfn = find_pc_sect_containing_function (sal.pc,
+					  find_pc_mapped_section (sal.pc));
   if (fn != nullptr && sfn != fn)
     {
       if (!query (_("Line %d is not in `%s'.  Jump anyway? "), sal.line,

@@ -411,11 +411,11 @@ rw_pieced_value (value *v, value *from, bool check_optimized)
 	  break;
 
 	case DWARF_VALUE_IMPLICIT_POINTER:
-	    if (from != nullptr)
-	      {
-		v->mark_bits_optimized_out (offset, this_size_bits);
-		break;
-	      }
+	  if (from != nullptr)
+	    {
+	      v->mark_bits_optimized_out (offset, this_size_bits);
+	      break;
+	    }
 
 	  /* These bits show up as zeros -- but do not cause the value to
 	     be considered optimized-out.  */
@@ -433,6 +433,13 @@ rw_pieced_value (value *v, value *from, bool check_optimized)
 
       offset += this_size_bits;
       bits_to_skip = 0;
+    }
+
+  if (offset < max_offset)
+    {
+      if (check_optimized)
+	return true;
+      v->mark_bits_optimized_out (offset, max_offset - offset);
     }
 
   return false;
@@ -493,7 +500,7 @@ check_pieced_synthetic_pointer (const value *value, LONGEST bit_offset,
 	return false;
     }
 
-  return true;
+  return bit_length == 0;
 }
 
 /* An implementation of an lval_funcs method to indirect through a
@@ -1581,17 +1588,19 @@ dwarf_expr_context::execute_stack_op (const gdb_byte *op_ptr,
 	  ensure_have_per_cu (this->m_per_cu, "DW_OP_addrx");
 
 	  op_ptr = safe_read_uleb128 (op_ptr, op_end, &uoffset);
-	  result = dwarf2_read_addr_index (this->m_per_cu, this->m_per_objfile,
-					   uoffset);
-	  result += this->m_per_objfile->objfile->text_section_offset ();
+	  result = (m_per_objfile->relocate
+		    (dwarf2_read_addr_index (this->m_per_cu,
+					     this->m_per_objfile,
+					     uoffset)));
 	  result_val = value_from_ulongest (address_type, result);
 	  break;
 	case DW_OP_GNU_const_index:
 	  ensure_have_per_cu (this->m_per_cu, "DW_OP_GNU_const_index");
 
 	  op_ptr = safe_read_uleb128 (op_ptr, op_end, &uoffset);
-	  result = dwarf2_read_addr_index (this->m_per_cu, this->m_per_objfile,
-					   uoffset);
+	  result = (ULONGEST) dwarf2_read_addr_index (this->m_per_cu,
+						      this->m_per_objfile,
+						      uoffset);
 	  result_val = value_from_ulongest (address_type, result);
 	  break;
 
@@ -2191,10 +2200,7 @@ dwarf_expr_context::execute_stack_op (const gdb_byte *op_ptr,
 	  goto no_push;
 
 	case DW_OP_GNU_uninit:
-	  if (op_ptr != op_end)
-	    error (_("DWARF-2 expression error: DW_OP_GNU_uninit must always "
-		   "be the very last op."));
-
+	  dwarf_expr_require_composition (op_ptr, op_end, "DW_OP_GNU_uninit");
 	  this->m_initialized = false;
 	  goto no_push;
 

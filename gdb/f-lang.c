@@ -101,6 +101,16 @@ f_language::get_encoding (struct type *type)
   return encoding;
 }
 
+/* See language.h.  */
+
+struct value *
+f_language::value_string (struct gdbarch *gdbarch,
+			  const char *ptr, ssize_t len) const
+{
+  struct type *type = language_string_char_type (this, gdbarch);
+  return ::value_string (ptr, len, type);
+}
+
 /* A helper function for the "bound" intrinsics that checks that TYPE
    is an array.  LBOUND_P is true for lower bound; this is used for
    the error message, if any.  */
@@ -261,8 +271,8 @@ public:
   {
     if (inner_p)
       {
-	gdb_assert (m_mark == nullptr);
-	m_mark = value_mark ();
+	gdb_assert (!m_mark.has_value ());
+	m_mark.emplace ();
       }
   }
 
@@ -272,9 +282,8 @@ public:
   {
     if (inner_p)
       {
-	gdb_assert (m_mark != nullptr);
-	value_free_to_mark (m_mark);
-	m_mark = nullptr;
+	gdb_assert (m_mark.has_value ());
+	m_mark.reset ();
       }
   }
 
@@ -295,9 +304,9 @@ protected:
      written.  */
   LONGEST m_dest_offset;
 
-  /* Set with a call to VALUE_MARK, and then reset after calling
-     VALUE_FREE_TO_MARK.  */
-  struct value *m_mark = nullptr;
+  /* Set and reset to handle removing intermediate values from the
+     value chain.  */
+  gdb::optional<scoped_value_mark> m_mark;
 };
 
 /* A class used by FORTRAN_VALUE_SUBARRAY when repacking Fortran array

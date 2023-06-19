@@ -28,6 +28,7 @@
 
 #include "bfdlink.h"
 #include "coff-bfd.h"
+#include "hashtab.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -133,6 +134,13 @@ typedef struct coff_tdata
      COFF object into memory.  */
   char * stub;
   bfd_size_type stub_size;
+
+  /* Hash table containing sections by target index.  */
+  htab_t section_by_target_index;
+
+  /* Hash table containing sections by index.  */
+  htab_t section_by_index;
+
 } coff_data_type;
 
 /* Tdata for pe image files.  */
@@ -286,6 +294,9 @@ struct coff_link_hash_table
   struct bfd_link_hash_table root;
   /* A pointer to information used to link stabs in sections.  */
   struct stab_info stab_info;
+  /* Hash table that maps undecorated names to their respective
+   * decorated coff_link_hash_entry as found in fixup_stdcalls  */
+  struct bfd_hash_table decoration_hash;
 };
 
 struct coff_reloc_cookie
@@ -317,7 +328,17 @@ struct coff_reloc_cookie
 
 #define coff_hash_table(p) ((struct coff_link_hash_table *) ((p)->hash))
 
+struct decoration_hash_entry
+{
+  struct bfd_hash_entry root;
+  struct bfd_link_hash_entry *decorated_link;
+};
+
 /* Functions in coffgen.c.  */
+extern void coff_object_cleanup
+  (bfd *);
+extern bfd_cleanup coff_real_object_p
+  (bfd *, unsigned, struct internal_filehdr *, struct internal_aouthdr *);
 extern bfd_cleanup coff_object_p
   (bfd *);
 extern struct bfd_section *coff_section_from_bfd_index
@@ -388,7 +409,7 @@ extern bfd_vma bfd_coff_reloc16_get_value
   (arelent *, struct bfd_link_info *, asection *);
 extern void bfd_perform_slip
   (bfd *, unsigned int, asection *, bfd_vma);
-extern bool _bfd_coff_close_and_cleanup
+extern bool _bfd_coff_free_cached_info
   (bfd *);
 
 /* Functions and types in cofflink.c.  */
@@ -564,6 +585,8 @@ struct coff_section_alignment_entry
   unsigned int alignment_power;
 };
 
+extern struct bfd_hash_entry *_decoration_hash_newfunc
+  (struct bfd_hash_entry *, struct bfd_hash_table *, const char *);
 extern struct bfd_hash_entry *_bfd_coff_link_hash_newfunc
   (struct bfd_hash_entry *, struct bfd_hash_table *, const char *);
 extern bool _bfd_coff_link_hash_table_init

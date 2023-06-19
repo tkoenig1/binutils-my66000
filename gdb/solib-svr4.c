@@ -374,7 +374,7 @@ struct svr4_info
      probes-based interface.
 
      The namespace is represented by the address of its corresponding
-     r_debug[_ext] object.  We get the namespace id as agrument to the
+     r_debug[_ext] object.  We get the namespace id as argument to the
      'reloc_complete' probe but we don't get it when scanning the load map
      on attach.
 
@@ -1912,7 +1912,7 @@ solist_update_incremental (svr4_info *info, CORE_ADDR debug_base,
 	 covers one namespace.
 
 	 We expect gdbserver to provide updates for the namespace that
-	 contains LM, which whould be this namespace...  */
+	 contains LM, which would be this namespace...  */
       so_list *sos = nullptr;
       if (library_list.solib_lists.find (debug_base)
 	  != library_list.solib_lists.end ())
@@ -2117,16 +2117,16 @@ svr4_update_solib_event_breakpoint (struct breakpoint *b)
       return false;
     }
 
-  for (bp_location *loc : b->locations ())
+  for (bp_location &loc : b->locations ())
     {
       struct svr4_info *info;
       struct probe_and_action *pa;
 
-      info = solib_svr4_pspace_data.get (loc->pspace);
+      info = solib_svr4_pspace_data.get (loc.pspace);
       if (info == NULL || info->probes_table == NULL)
 	continue;
 
-      pa = solib_event_probe_at (info, loc->address);
+      pa = solib_event_probe_at (info, loc.address);
       if (pa == NULL)
 	continue;
 
@@ -2151,8 +2151,8 @@ svr4_update_solib_event_breakpoint (struct breakpoint *b)
 static void
 svr4_update_solib_event_breakpoints (void)
 {
-  for (breakpoint *bp : all_breakpoints_safe ())
-    svr4_update_solib_event_breakpoint (bp);
+  for (breakpoint &bp : all_breakpoints_safe ())
+    svr4_update_solib_event_breakpoint (&bp);
 }
 
 /* Create and register solib event breakpoints.  PROBES is an array
@@ -2312,7 +2312,7 @@ svr4_create_solib_event_breakpoints (svr4_info *info, struct gdbarch *gdbarch,
    set to 1.  When the dynamic linker sees this flag set, it will set
    a breakpoint at a location known only to itself, after saving the
    original contents of that place and the breakpoint address itself,
-   in it's own internal structures.  When we resume the inferior, it
+   in its own internal structures.  When we resume the inferior, it
    will eventually take a SIGTRAP when it runs into the breakpoint.
    We handle this (in a different place) by restoring the contents of
    the breakpointed location (which is only known after it stops),
@@ -2684,7 +2684,7 @@ read_program_headers_from_bfd (bfd *abfd)
      whose e_type member in the ELF header is not ET_DYN.  There may
      be a time in the future when it is desirable to do relocations
      on other types of files as well in which case this condition
-     should either be removed or modified to accomodate the new file
+     should either be removed or modified to accommodate the new file
      type.  - Kevin, Nov 2000. ]  */
 
 static int

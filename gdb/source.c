@@ -51,6 +51,7 @@
 #include "build-id.h"
 #include "debuginfod-support.h"
 #include "gdbsupport/buildargv.h"
+#include "interps.h"
 
 #define OPEN_MODE (O_RDONLY | O_BINARY)
 #define FDOPEN_MODE FOPEN_RB
@@ -266,7 +267,7 @@ set_default_source_symtab_and_line (void)
   /* Pull in a current source symtab if necessary.  */
   current_source_location *loc = get_source_location (current_program_space);
   if (loc->symtab () == nullptr)
-    select_source_symtab (0);
+    select_source_symtab ();
 }
 
 /* Return the current default file for listing and next line to list
@@ -307,16 +308,8 @@ clear_current_source_symtab_and_line (void)
 /* See source.h.  */
 
 void
-select_source_symtab (struct symtab *s)
+select_source_symtab ()
 {
-  if (s)
-    {
-      current_source_location *loc
-	= get_source_location (s->compunit ()->objfile ()->pspace);
-      loc->set (s, 1);
-      return;
-    }
-
   current_source_location *loc = get_source_location (current_program_space);
   if (loc->symtab () != nullptr)
     return;
@@ -363,7 +356,7 @@ select_source_symtab (struct symtab *s)
 
   for (objfile *objfile : current_program_space->objfiles ())
     {
-      s = objfile->find_last_source_symtab ();
+      symtab *s = objfile->find_last_source_symtab ();
       if (s)
 	new_symtab = s;
     }
@@ -462,8 +455,8 @@ directory_command (const char *dirname, int from_tty)
     }
   if (value_changed)
     {
-      gdb::observers::command_param_changed.notify ("directories",
-						    source_path.c_str ());
+      interps_notify_param_changed ("directories", source_path.c_str ());
+
       if (from_tty)
 	show_directories_1 (gdb_stdout, (char *) 0, from_tty);
     }
@@ -1617,7 +1610,7 @@ search_command_helper (const char *regex, int from_tty, bool forward)
   current_source_location *loc
     = get_source_location (current_program_space);
   if (loc->symtab () == nullptr)
-    select_source_symtab (0);
+    select_source_symtab ();
 
   if (!source_open)
     error (_("source code access disabled"));

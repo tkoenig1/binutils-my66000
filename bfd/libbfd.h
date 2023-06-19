@@ -267,7 +267,7 @@ extern int bfd_generic_stat_arch_elt
 extern bool _bfd_archive_close_and_cleanup
   (bfd *) ATTRIBUTE_HIDDEN;
 extern void _bfd_unlink_from_archive_parent (bfd *) ATTRIBUTE_HIDDEN;
-#define _bfd_generic_bfd_free_cached_info _bfd_bool_bfd_true
+#define _bfd_generic_bfd_free_cached_info _bfd_free_cached_info
 extern bool _bfd_generic_new_section_hook
   (bfd *, asection *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_generic_get_section_contents
@@ -793,6 +793,8 @@ struct ecoff_debug_swap;
 struct ecoff_extr;
 struct ecoff_find_line;
 
+extern void _bfd_ecoff_free_ecoff_debug_info
+  (struct ecoff_debug_info *debug);
 extern bool _bfd_ecoff_locate_line
   (bfd *, asection *, bfd_vma, struct ecoff_debug_info * const,
    const struct ecoff_debug_swap * const, struct ecoff_find_line *,
@@ -931,6 +933,11 @@ bool bfd_write_bigendian_4byte_int (bfd *, unsigned int) ATTRIBUTE_HIDDEN;
 unsigned int bfd_log2 (bfd_vma x) ATTRIBUTE_HIDDEN;
 
 /* Extracted from bfd.c.  */
+/* A buffer that is freed on bfd_close.  */
+extern char *_bfd_error_buf;
+
+char *bfd_asprintf (const char *fmt, ...) ATTRIBUTE_HIDDEN;
+
 bfd_error_handler_type _bfd_set_error_handler_caching (bfd *) ATTRIBUTE_HIDDEN;
 
 const char *_bfd_get_error_program_name (void) ATTRIBUTE_HIDDEN;
@@ -2420,6 +2427,8 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_RISCV_SET16",
   "BFD_RELOC_RISCV_SET32",
   "BFD_RELOC_RISCV_32_PCREL",
+  "BFD_RELOC_RISCV_SET_ULEB128",
+  "BFD_RELOC_RISCV_SUB_ULEB128",
   "BFD_RELOC_RL78_NEG8",
   "BFD_RELOC_RL78_NEG16",
   "BFD_RELOC_RL78_NEG24",
@@ -3510,6 +3519,14 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_LARCH_TLS_GD_HI20",
   "BFD_RELOC_LARCH_32_PCREL",
   "BFD_RELOC_LARCH_RELAX",
+  "BFD_RELOC_LARCH_DELETE",
+  "BFD_RELOC_LARCH_ALIGN",
+  "BFD_RELOC_LARCH_PCREL20_S2",
+  "BFD_RELOC_LARCH_CFA",
+  "BFD_RELOC_LARCH_ADD6",
+  "BFD_RELOC_LARCH_SUB6",
+  "BFD_RELOC_LARCH_ADD_ULEB128",
+  "BFD_RELOC_LARCH_SUB_ULEB128",
  "@@overflow: BFD_RELOC_UNUSED@@",
 };
 #endif

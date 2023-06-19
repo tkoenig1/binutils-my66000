@@ -174,7 +174,7 @@ verbose "using GDB = $GDB" 2
 
 # The data directory the testing GDB will use.  By default, assume
 # we're testing a non-installed GDB in the build directory.  Users may
-# also explictly override the -data-directory from the command line.
+# also explicitly override the -data-directory from the command line.
 if ![info exists GDB_DATA_DIRECTORY] {
     set GDB_DATA_DIRECTORY [file normalize "[pwd]/../data-directory"]
 }
@@ -980,6 +980,8 @@ proc fill_in_default_prompt {prompt_regexp with_anchor} {
 #           pass $gdb_test_name
 #       }
 #   }
+# The special handling of '^' that is available in gdb_test is also
+# supported in gdb_test_multiple when -wrap is used.
 #
 # In EXPECT_ARGUMENTS, a pattern flag -early can be used.  It makes sure the
 # pattern is inserted before any implicit pattern added by gdb_test_multiple.
@@ -1125,6 +1127,19 @@ proc gdb_test_multiple { command message args } {
 	set expecting_action 1
 	if { $wrap_pattern } {
 	    # Wrap subst_item as is done for the gdb_test PATTERN argument.
+	    if {[string range $subst_item 0 0] eq "^"} {
+		if {$command ne ""} {
+		    set command_regex [string_to_regexp $command]
+		    set subst_item [string range $subst_item 1 end]
+		    if {[string length "$subst_item"] > 0} {
+			# We have an output pattern (other than the '^'),
+			# add a newline at the start, this will eventually
+			# sit between the command and the output pattern.
+			set subst_item "\r\n${subst_item}"
+		    }
+		    set subst_item "^${command_regex}${subst_item}"
+		}
+	    }
 	    lappend $current_list \
 		"(?:$subst_item)\r\n$prompt_regexp"
 	    set wrap_pattern 0
@@ -1465,10 +1480,16 @@ proc gdb_test { args } {
     # additional pattern that matches the command immediately after
     # the '^'.
     if {[string range $pattern 0 0] eq "^"} {
-	set command_regex [string_to_regexp $command]
-	set pattern [string range $pattern 1 end]
-	if {$command_regex ne ""} {
-	    set pattern "^${command_regex}\r\n$pattern"
+	if {$command ne ""} {
+	    set command_regex [string_to_regexp $command]
+	    set pattern [string range $pattern 1 end]
+	    if {[string length "$pattern"] > 0} {
+		# We have an output pattern (other than the '^'), add a
+		# newline at the start, this will eventually sit between the
+		# command and the output pattern.
+		set pattern "\r\n$pattern"
+	    }
+	    set pattern "^${command_regex}${pattern}"
 	}
     }
 
@@ -1873,7 +1894,7 @@ proc gdb_test_list_exact { cmd name elm_find_regexp elm_extract_regexp result_ma
 #
 # Both inferior and gdb patterns must match for a PASS.
 #
-# If MESSAGE is ommitted, then COMMAND will be used as the message.
+# If MESSAGE is omitted, then COMMAND will be used as the message.
 #
 # Returns:
 #    1 if the test failed,
@@ -2542,6 +2563,14 @@ proc allow_rust_tests {} {
 gdb_caching_proc allow_python_tests {} {
     set output [remote_exec host $::GDB "$::INTERNAL_GDBFLAGS --configuration"]
     return [expr {[string first "--with-python" $output] != -1}]
+}
+
+# Return a 1 for configurations that use system readline rather than the
+# in-repo copy.
+
+gdb_caching_proc with_system_readline {} {
+    set output [remote_exec host $::GDB "$::INTERNAL_GDBFLAGS --configuration"]
+    return [expr {[string first "--with-system-readline" $output] != -1}]
 }
 
 gdb_caching_proc allow_dap_tests {} {
@@ -3492,7 +3521,7 @@ gdb_caching_proc is_lp64_target {} {
 # This cannot be decided simply from looking at the target string,
 # as it might depend on externally passed compiler options like -m64.
 gdb_caching_proc is_64_target {} {
-    return [gdb_can_simple_compile is_64_target {
+    return [gdb_can_simple_compile_nodebug is_64_target {
 	int function(void) { return 3; }
 	int dummy[sizeof (&function) == 8 ? 1 : -1];
     }]
@@ -4502,10 +4531,13 @@ proc get_compiler_info {{language "c"}} {
 	    # eval this line
 	    verbose "get_compiler_info: $cppline" 2
 	    eval "$cppline"
-	} elseif { [ regexp "flang.*warning.*'-fdiagnostics-color=never'" "$cppline"] } {
+	} elseif { [ regexp {[fc]lang.*warning.*'-fdiagnostics-color=never'} "$cppline"] } {
 	    # Both flang preprocessors (llvm flang and classic flang) print a
 	    # warning for the unused -fdiagnostics-color=never, so we skip this
 	    # output line here.
+	    # The armflang preprocessor has been observed to output the
+	    # warning prefixed with "clang", so the regex also accepts
+	    # this.
 	} else {
 	    # unknown line
 	    verbose -log "get_compiler_info: $cppline"
@@ -4734,6 +4766,13 @@ proc gdb_can_simple_compile {name code {type object} {compile_flags ""} {default
 		 $default_compile_flags]
     file delete $temp_obj
     return $ret
+}
+
+# As gdb_can_simple_compile, but defaults to using nodebug instead of debug.
+proc gdb_can_simple_compile_nodebug {name code {type object} {compile_flags ""}
+				     {default_compile_flags "nodebug nowarning quiet"}} {
+    return [gdb_can_simple_compile $name $code $type $compile_flags \
+		$default_compile_flags]
 }
 
 # Some targets need to always link a special object in.  Save its path here.
@@ -5880,7 +5919,7 @@ proc gdb_load_cmd { args } {
 	    return 0
 	}
 	-re "(.*)\r\n$gdb_prompt " {
-	    perror "Unexpected reponse from 'load' -- $expect_out(1,string)"
+	    perror "Unexpected response from 'load' -- $expect_out(1,string)"
 	    return -1
 	}
 	timeout {
@@ -6167,9 +6206,8 @@ proc with_set { var val body } {
 	perror "Did not manage to set $var"
     } else {
 	# Set var.
-	set cmd "set $var $val"
-	gdb_test_multiple $cmd "" {
-	    -re -wrap "^$cmd" {
+	gdb_test_multiple "set $var $val" "" {
+	    -re -wrap "^" {
 	    }
 	    -re -wrap " is set to \"?$val\"?\\." {
 	    }
@@ -6180,9 +6218,8 @@ proc with_set { var val body } {
 
     # Restore saved setting.
     if { $save != "" } {
-	set cmd "set $var $save"
-	gdb_test_multiple $cmd "" {
-	    -re -wrap "^$cmd" {
+	gdb_test_multiple "set $var $save" "" {
+	    -re -wrap "^" {
 	    }
 	    -re -wrap "is set to \"?$save\"?( \\(\[^)\]*\\))?\\." {
 	    }
@@ -7746,7 +7783,7 @@ proc get_valueof { fmt exp default {test ""} } {
 
     set val ${default}
     gdb_test_multiple "print${fmt} ${exp}" "$test" {
-	-re "\\$\[0-9\]* = (\[^\r\n\]*)\r\n$gdb_prompt $" {
+	-re -wrap "^\\$\[0-9\]* = (\[^\r\n\]*)" {
 	    set val $expect_out(1,string)
 	    pass "$test"
 	}
@@ -7795,7 +7832,7 @@ proc get_integer_valueof { exp default {test ""} } {
 
     set val ${default}
     gdb_test_multiple "print /d ${exp}" "$test" {
-	-re "\\$\[0-9\]* = (\[-\]*\[0-9\]*).*$gdb_prompt $" {
+	-re -wrap "^\\$\[0-9\]* = (\[-\]*\[0-9\]*).*" {
 	    set val $expect_out(1,string)
 	    pass "$test"
 	}
@@ -8584,11 +8621,29 @@ proc cd { dir } {
 }
 
 # Return a list of all languages supported by GDB, suitable for use in
-# 'set language NAME'.  This doesn't include either the 'local' or
-# 'auto' keywords.
-proc gdb_supported_languages {} {
-    return [list c objective-c c++ d go fortran modula-2 asm pascal \
-		opencl rust minimal ada]
+# 'set language NAME'.  This doesn't include the languages auto,
+# local, or unknown.
+gdb_caching_proc gdb_supported_languages {} {
+    # The extra space after 'complete set language ' in the command below is
+    # critical.  Only with that space will GDB complete the next level of
+    # the command, i.e. fill in the actual language names.
+    set output [remote_exec host $::GDB "$::INTERNAL_GDBFLAGS -batch -ex \"complete set language \""]
+
+    if {[lindex $output 0] != 0} {
+	error "failed to get list of supported languages"
+    }
+
+    set langs {}
+    foreach line [split [lindex $output 1] \n] {
+	if {[regexp "set language (\[^\r\]+)" $line full_match lang]} {
+	    # If LANG is not one of the languages that we ignore, then
+	    # add it to our list of languages.
+	    if {[lsearch -exact {auto local unknown} $lang] == -1} {
+		lappend langs $lang
+	    }
+	}
+    }
+    return $langs
 }
 
 # Check if debugging is enabled for gdb.
@@ -9007,6 +9062,22 @@ proc hex_in_list { val hexlist } {
     return [expr $index != -1]
 }
 
+# As info args, but also add the default values.
+
+proc info_args_with_defaults { name } {
+    set args {}
+
+    foreach arg [info args $name] {
+	if { [info default $name $arg default_value] } {
+	    lappend args [list $arg $default_value]
+	} else {
+	    lappend args $arg
+	}
+    }
+
+    return $args
+}
+
 # Override proc NAME to proc OVERRIDE for the duration of the execution of
 # BODY.
 
@@ -9026,7 +9097,7 @@ proc with_override { name override body } {
 
     # Save the old proc, if it exists.
     if { [info procs $name] != "" } {
-	set old_args [info args $name]
+	set old_args [info_args_with_defaults $name]
 	set old_body [info body $name]
 	set existed true
     } else {
@@ -9034,7 +9105,7 @@ proc with_override { name override body } {
     }
 
     # Install the override.
-    set new_args [info args $override]
+    set new_args [info_args_with_defaults $override]
     set new_body [info body $override]
     eval proc $name {$new_args} {$new_body}
 

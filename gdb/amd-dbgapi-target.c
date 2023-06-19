@@ -1515,13 +1515,13 @@ amd_dbgapi_target::store_registers (struct regcache *regcache, int regno)
   amdgpu_gdbarch_tdep *tdep = get_amdgpu_gdbarch_tdep (gdbarch);
 
   /* If the register has read-only bits, invalidate the value in the regcache
-     as the value actualy written may differ.  */
+     as the value actually written may differ.  */
   if (tdep->register_properties[regno]
       & AMD_DBGAPI_REGISTER_PROPERTY_READONLY_BITS)
     regcache->invalidate (regno);
 
   /* Invalidate all volatile registers if this register has the invalidate
-     volatile property.  For example, writting to VCC may change the content
+     volatile property.  For example, writing to VCC may change the content
      of STATUS.VCCZ.  */
   if (tdep->register_properties[regno]
       & AMD_DBGAPI_REGISTER_PROPERTY_INVALIDATE_VOLATILE)

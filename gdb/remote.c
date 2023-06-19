@@ -3197,7 +3197,7 @@ remote_target::thread_name (struct thread_info *info)
 
 /* WARNING: This threadref data structure comes from the remote O.S.,
    libstub protocol encoding, and remote.c.  It is not particularly
-   changable.  */
+   changeable.  */
 
 /* Right now, the internal structure is int. We want it to be bigger.
    Plan to fix this.  */
@@ -4720,9 +4720,10 @@ remote_target::print_one_stopped_thread (thread_info *thread)
       enum gdb_signal sig = ws.sig ();
 
       if (signal_print_state (sig))
-	gdb::observers::signal_received.notify (sig);
+	notify_signal_received (sig);
     }
-  gdb::observers::normal_stop.notify (NULL, 1);
+
+  notify_normal_stop (nullptr, 1);
 }
 
 /* Process all initial stop replies the remote side sent in response
@@ -5723,7 +5724,7 @@ remote_target::remote_query_supported ()
 
       getpkt (&rs->buf, 0);
 
-      /* If an error occured, warn, but do not return - just reset the
+      /* If an error occurred, warn, but do not return - just reset the
 	 buffer to empty and go on to disable features.  */
       if (m_features.packet_ok (rs->buf, PACKET_qSupported) == PACKET_ERROR)
 	{
@@ -13720,14 +13721,14 @@ remote_target::get_tracepoint_status (struct breakpoint *bp,
     {
       tp->hit_count = 0;
       tp->traceframe_usage = 0;
-      for (bp_location *loc : tp->locations ())
+      for (bp_location &loc : tp->locations ())
 	{
 	  /* If the tracepoint was never downloaded, don't go asking for
 	     any status.  */
 	  if (tp->number_on_target == 0)
 	    continue;
 	  xsnprintf (rs->buf.data (), size, "qTP:%x:%s", tp->number_on_target,
-		     phex_nz (loc->address, 0));
+		     phex_nz (loc.address, 0));
 	  putpkt (rs->buf);
 	  reply = remote_get_noisy_reply ();
 	  if (reply && *reply)

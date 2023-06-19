@@ -1750,7 +1750,7 @@ amd64_displaced_step_fixup (struct gdbarch *gdbarch,
 	 system calls.	*/
       if (amd64_syscall_p (insn_details, &insn_len)
 	  /* GDB can get control back after the insn after the syscall.
-	     Presumably this is a kernel bug.  Fixup ensures its a nop, we
+	     Presumably this is a kernel bug.  Fixup ensures it's a nop, we
 	     add one to the length for it.  */
 	  && (pc < to || pc > (to + insn_len + 1)))
 	displaced_debug_printf ("syscall changed %%rip; not relocating");
@@ -3293,7 +3293,7 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch,
   set_gdbarch_dummy_id (gdbarch, amd64_dummy_id);
 
   /* Hook the function epilogue frame unwinder.  This unwinder is
-     appended to the list first, so that it supercedes the other
+     appended to the list first, so that it supersedes the other
      unwinders in function epilogues.  */
   frame_unwind_prepend_unwinder (gdbarch, &amd64_epilogue_override_frame_unwind);
 

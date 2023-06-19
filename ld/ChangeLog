@@ -1,3 +1,66 @@
+2023-06-14  Nick Clifton  <nickc@redhat.com>
+
+	PR 30374
+	* ldfile.c (struct input_remap): New structure.
+	(ldfile_add_remap): New function.
+	(ldfile_remap_input_free): New function.
+	(ldfile_add_remap_file): New function.
+	(ldfile_possibly_remap_input): New function.
+	(ldfile_print_input_remaps): New function.
+	* ldfile.h: Add prototypes for new functions.
+	* ldlang.c (new_afile): Call ldfile_possibly_remap_input.
+	(lang_finish): Call ldfile_remap_input_free.
+	(lang_map): Call ldfile_print_input_remaps.
+	* ldlex.h (OPTION_REMAP_INPUTS, OPTION_REMAP_INPUTS_FILE): Define.
+	* lexsup.c (ld_options): Add --remap-inputs-file and --remap-inputs.
+	(parse_args): Handle new options.
+	* NEWS: Mention the new feature.
+	* ld.texi: Document the new options.
+	* testsuite/ld-misc/input-remap.exp: New test driver.
+	* testsuite/ld-misc/remaps.r: New file: Expected linker output.
+	* testsuite/ld-misc/remaps.txt: New file.  Input remaps file.
+
+2023-06-07  Nick Clifton  <nickc@redhat.com>
+
+	PR 30499
+	* testsuite/ld-elfcomm/elfcomm.exp: Update regexps to match new
+	output from the linker.
+
+2023-05-17  Luca Bacci  <luca.bacci@outlook.com>
+
+	PR 30421
+	* emultempl/pe.em (set_decoration): New function.
+	(pe_fixup_stdcalls): Call the new function.
+	* emultempl/pep.em (set_decoration): New function.
+	(pep_fixup_stdcalls): Call the new function.
+	* pe-dll.c (make_one): Check for decoated symbols.
+
+2023-05-16  Nick Clifton  <nickc@redhat.com>
+
+	PR 30359
+	* ld.texi (WIN32): Document how to create a resource only DLL.
+
+2023-05-16  Nick Clifton  <nickc@redhat.com>
+
+	* ld.texi (-Ur): Clarify the actions of this option.
+
+2023-05-10  Nick Clifton  <nickc@redhat.com>
+
+	PR 16566
+	* ldlang.c (ld_is_local_symbol): New function.
+	(print_input_section): Add code to display local symbols in the
+	section.
+	* ldlex.h (enum option_values): Add OPTION_PRINT_MAP_LOCALS and
+	OPTION_PRINT_MAP_LOCALS.
+	* lexsup.c (ld_options[]): Add entries for --print-map-locals
+	and --no-print-map-locals.
+	* NEWS: Mention the new feature.
+	* ld.h (struct ld_config_type): Add print_map_locals field.
+	* ld.texi: Document the new command line option.
+	* testsuite/ld-scripts/sizeof.s: Add a local symbol.
+	* testsuite/ld-scripts/map-locals.d: New test control file.
+	* testsuite/ld-scripts/map-address.exp: Run the new test.
+
 2023-05-04  Nick Clifton  <nickc@redhat.com>
 
 	PR 30300

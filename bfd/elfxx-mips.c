@@ -1389,55 +1389,26 @@ struct mips_elf_find_line
   struct ecoff_find_line i;
 };
 
-/* Free ECOFF debugging info used by find_nearest_line.  */
-
-static void
-free_ecoff_debug (struct ecoff_debug_info *debug)
-{
-  free (debug->line);
-  free (debug->external_dnr);
-  free (debug->external_pdr);
-  free (debug->external_sym);
-  free (debug->external_opt);
-  free (debug->external_aux);
-  free (debug->ss);
-  free (debug->ssext);
-  free (debug->external_fdr);
-  free (debug->external_rfd);
-  free (debug->external_ext);
-  debug->line = NULL;
-  debug->external_dnr = NULL;
-  debug->external_pdr = NULL;
-  debug->external_sym = NULL;
-  debug->external_opt = NULL;
-  debug->external_aux = NULL;
-  debug->ss = NULL;
-  debug->ssext = NULL;
-  debug->external_fdr = NULL;
-  debug->external_rfd = NULL;
-  debug->external_ext = NULL;
-}
-
 bool
-_bfd_mips_elf_close_and_cleanup (bfd *abfd)
+_bfd_mips_elf_free_cached_info (bfd *abfd)
 {
-  if (bfd_get_format (abfd) == bfd_object)
+  struct mips_elf_obj_tdata *tdata;
+
+  if ((bfd_get_format (abfd) == bfd_object
+       || bfd_get_format (abfd) == bfd_core)
+      && (tdata = mips_elf_tdata (abfd)) != NULL)
     {
-      struct mips_elf_obj_tdata *tdata = mips_elf_tdata (abfd);
-      if (tdata != NULL)
+      BFD_ASSERT (tdata->root.object_id == MIPS_ELF_DATA);
+      while (tdata->mips_hi16_list != NULL)
 	{
-	  BFD_ASSERT (tdata->root.object_id == MIPS_ELF_DATA);
-	  while (tdata->mips_hi16_list != NULL)
-	    {
-	      struct mips_hi16 *hi = tdata->mips_hi16_list;
-	      tdata->mips_hi16_list = hi->next;
-	      free (hi);
-	    }
-	  if (tdata->find_line_info != NULL)
-	    free_ecoff_debug (&tdata->find_line_info->d);
+	  struct mips_hi16 *hi = tdata->mips_hi16_list;
+	  tdata->mips_hi16_list = hi->next;
+	  free (hi);
 	}
+      if (tdata->find_line_info != NULL)
+	_bfd_ecoff_free_ecoff_debug_info (&tdata->find_line_info->d);
     }
-  return _bfd_elf_close_and_cleanup (abfd);
+  return _bfd_elf_free_cached_info (abfd);
 }
 
 bool
@@ -1523,7 +1494,7 @@ _bfd_mips_elf_read_ecoff_info (bfd *abfd, asection *section,
 
  error_return:
   free (ext_hdr);
-  free_ecoff_debug (debug);
+  _bfd_ecoff_free_ecoff_debug_info (debug);
   return false;
 }
 
@@ -7025,6 +6996,9 @@ _bfd_elf_mips_mach (flagword flags)
     case E_MIPS_MACH_4010:
       return bfd_mach_mips4010;
 
+    case E_MIPS_MACH_ALLEGREX:
+      return bfd_mach_mips_allegrex;
+
     case E_MIPS_MACH_4100:
       return bfd_mach_mips4100;
 
@@ -12360,6 +12334,10 @@ mips_set_isa_flags (bfd *abfd)
       val = E_MIPS_ARCH_2 | E_MIPS_MACH_4010;
       break;
 
+    case bfd_mach_mips_allegrex:
+      val = E_MIPS_ARCH_2 | E_MIPS_MACH_ALLEGREX;
+      break;
+
     case bfd_mach_mips4000:
     case bfd_mach_mips4300:
     case bfd_mach_mips4400:
@@ -13225,7 +13203,7 @@ _bfd_mips_elf_find_nearest_line (bfd *abfd, asymbol **symbols,
 	  fi->d.fdr = bfd_alloc (abfd, amt);
 	  if (fi->d.fdr == NULL)
 	    {
-	      free_ecoff_debug (&fi->d);
+	      _bfd_ecoff_free_ecoff_debug_info (&fi->d);
 	      msec->flags = origflags;
 	      return false;
 	    }
@@ -14617,6 +14595,7 @@ static const struct mips_mach_extension mips_mach_extensions[] =
   { bfd_mach_mips4000, bfd_mach_mips6000 },
   { bfd_mach_mipsisa32, bfd_mach_mips6000 },
   { bfd_mach_mips4010, bfd_mach_mips6000 },
+  { bfd_mach_mips_allegrex, bfd_mach_mips6000 },
 
   /* MIPS I extensions.  */
   { bfd_mach_mips6000, bfd_mach_mips3000 },
@@ -15043,6 +15022,7 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 
 	  /* We accumulate the debugging information itself in the
 	     debug_info structure.  */
+	  debug.alloc_syments = false;
 	  debug.line = NULL;
 	  debug.external_dnr = NULL;
 	  debug.external_pdr = NULL;
@@ -15128,7 +15108,7 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 		     (mdebug_handle, abfd, &debug, swap, input_bfd,
 		      &input_debug, input_swap, info)))
 		{
-		  free_ecoff_debug (&input_debug);
+		  _bfd_ecoff_free_ecoff_debug_info (&input_debug);
 		  return false;
 		}
 
@@ -15171,7 +15151,7 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 		}
 
 	      /* Free up the information we just read.  */
-	      free_ecoff_debug (&input_debug);
+	      _bfd_ecoff_free_ecoff_debug_info (&input_debug);
 
 	      /* Hack: reset the SEC_HAS_CONTENTS flag so that
 		 elf_link_input_bfd ignores this section.  */

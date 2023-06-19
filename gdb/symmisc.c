@@ -212,7 +212,7 @@ dump_msymbols (struct objfile *objfile, struct ui_file *outfile)
 			bfd_section_name (section->the_bfd_section));
 	  else
 	    gdb_printf (outfile, " spurious section %ld",
-			(long) (section - objfile->sections));
+			(long) (section - objfile->sections_start));
 	}
       if (msymbol->demangled_name () != NULL)
 	{
@@ -236,9 +236,7 @@ dump_symtab_1 (struct symtab *symtab, struct ui_file *outfile)
 {
   struct objfile *objfile = symtab->compunit ()->objfile ();
   struct gdbarch *gdbarch = objfile->arch ();
-  struct mdict_iterator miter;
   const struct linetable *l;
-  struct symbol *sym;
   int depth;
 
   gdb_printf (outfile, "\nSymtab for file %s at %s\n",
@@ -307,7 +305,7 @@ dump_symtab_1 (struct symtab *symtab, struct ui_file *outfile)
 	  /* Now print each symbol in this block (in no particular order, if
 	     we're using a hashtable).  Note that we only want this
 	     block, not any blocks from included symtabs.  */
-	  ALL_DICT_SYMBOLS (b->multidict (), miter, sym)
+	  for (struct symbol *sym : b->multidict_symbols ())
 	    {
 	      try
 		{
@@ -998,7 +996,7 @@ maintenance_print_one_line_table (struct symtab *symtab, void *data)
 	  uiout->field_core_addr ("rel-address", objfile->arch (),
 				  item->pc (objfile));
 	  uiout->field_core_addr ("unrel-address", objfile->arch (),
-				  CORE_ADDR (item->raw_pc ()));
+				  CORE_ADDR (item->unrelocated_pc ()));
 	  uiout->field_string ("is-stmt", item->is_stmt ? "Y" : "");
 	  uiout->field_string ("prologue-end", item->prologue_end ? "Y" : "");
 	  uiout->text ("\n");

@@ -310,7 +310,7 @@ get_ada_tasks_pspace_data (struct program_space *pspace)
 
    Note that we could use an observer of the inferior-created event
    to make sure that the ada-tasks per-inferior data always exists.
-   But we prefered this approach, as it avoids this entirely as long
+   But we preferred this approach, as it avoids this entirely as long
    as the user does not use any of the tasking features.  This is
    quite possible, particularly in the case where the inferior does
    not use tasking.  */
@@ -943,8 +943,8 @@ ada_tasks_inferior_data_sniffer (struct ada_tasks_inferior_data *data)
 	      && eltype->code () == TYPE_CODE_PTR)
 	    idxtype = check_typedef (type->index_type ());
 	  if (idxtype != NULL
-	      && idxtype->bounds ()->low.kind () != PROP_UNDEFINED
-	      && idxtype->bounds ()->high.kind () != PROP_UNDEFINED)
+	      && idxtype->bounds ()->low.is_constant ()
+	      && idxtype->bounds ()->high.is_constant ())
 	    {
 	      data->known_tasks_element = eltype;
 	      data->known_tasks_length =

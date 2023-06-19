@@ -793,6 +793,66 @@ If the @samp{-m} option is not used, the emulation is taken from the
 Otherwise, the default emulation depends upon how the linker was
 configured.
 
+@cindex remapping inputs
+@kindex --remap-inputs=@file{pattern}=@file{filename}
+@kindex --remap-inputs-file=@file{file}
+@item --remap-inputs=@file{pattern}=@file{filename}
+@itemx --remap-inputs-file=@file{file}
+These options allow the names of input files to be changed before the
+linker attempts to open them.  The option
+@option{--remap-inputs=foo.o=bar.o} will cause any attempt to load a
+file called @file{foo.o} to instead try to load a file called
+@file{bar.o}.  Wildcard patterns are permitted in the first filename,
+so @option{--remap-inputs=foo*.o=bar.o} will rename any input file that
+matches @file{foo*.o} to @file{bar.o}.
+
+An alternative form of the option
+@option{--remap-inputs-file=filename} allows the remappings to be read
+from a file.  Each line in the file can contain a single remapping.
+Blank lines are ignored.  Anything from a hash character (@samp{#}) to
+the end of a line is considered to be a comment and is also ignored.
+The mapping pattern can be separated from the filename by whitespace
+or an equals (@samp{=}) character.
+
+The options can be specified multiple times.  Their contents
+accumulate.  The remappings will be processed in the order in which
+they occur on the command line, and if they come from a file, in the
+order in which they occur in the file.  If a match is made, no further
+checking for that filename will be performed.
+
+If the replacement filename is @file{/dev/null} or just @file{NUL}
+then the remapping will actually cause the input file to be ignored.
+This can be a convenient way to experiment with removing input files
+from a complicated build environment.
+
+Note that this option is position dependent and only affects filenames
+that come after it on the command line.  Thus:
+
+@smallexample
+  ld foo.o --remap-inputs=foo.o=bar.o
+@end smallexample
+
+Will have no effect, whereas:
+
+@smallexample
+  ld --remap-inputs=foo.o=bar.o foo.o 
+@end smallexample
+
+Will rename the input file @file{foo.o} to @file{bar.o}.
+
+Note - these options also affect files referenced by @emph{INPUT}
+statements in linker scripts.  But since linker scripts are processed
+after the entire command line is read, the position of the remap
+options on the command line is not significant.
+
+If the @option{verbose} option is enabled then any mappings that match
+will be reported, although again the @option{verbose} option needs to
+be enabled on the command line @emph{before} the remaped filenames
+appear.
+
+If the @option{-Map} or @option{--print-map} options are enabled then
+the remapping list will be included in the map output.
+
 @cindex link map
 @kindex -M
 @kindex --print-map
@@ -869,6 +929,16 @@ is 0x1, and @file{bar.o}, whose 0xc0010001 property value is 0x1.
 @itemx --no-print-map-discarded
 Print (or do not print) the list of discarded and garbage collected sections
 in the link map.  Enabled by default.
+
+@kindex --print-map-locals
+@kindex --no-print-map-locals
+@item --print-map-locals
+@itemx --no-print-map-locals
+Print (or do not print) local symbols in the link map.  Local symbols
+will have the text @samp{(local)} printed before their name, and will
+be listed after all of the global symbols in a given section.
+Temporary local symbols (typically those that start with @samp{.L})
+will not be included in the output.  Disabled by default.
 
 @kindex -n
 @cindex read-only text
@@ -1075,7 +1145,8 @@ a linker bug report.
 @item -T @var{scriptfile}
 @itemx --script=@var{scriptfile}
 Use @var{scriptfile} as the linker script.  This script replaces
-@command{ld}'s default linker script (rather than adding to it), so
+@command{ld}'s default linker script (rather than adding to it),
+unless the script contains @code{INSERT}, so
 @var{commandfile} must specify everything necessary to describe the
 output file.  @xref{Scripts}.  If @var{scriptfile} does not exist in
 the current directory, @code{ld} looks for it in the directories
@@ -1128,14 +1199,19 @@ can be used multiple times to require additional symbols.
 @kindex -Ur
 @cindex constructors
 @item -Ur
-For anything other than C++ programs, this option is equivalent to
-@samp{-r}: it generates relocatable output---i.e., an output file that can in
-turn serve as input to @command{ld}.  When linking C++ programs, @samp{-Ur}
-@emph{does} resolve references to constructors, unlike @samp{-r}.
-It does not work to use @samp{-Ur} on files that were themselves linked
-with @samp{-Ur}; once the constructor table has been built, it cannot
-be added to.  Use @samp{-Ur} only for the last partial link, and
-@samp{-r} for the others.
+
+For programs that do not use constructors or destructors, or for ELF
+based systems this option is equivalent to @option{-r}:  it generates
+relocatable output---i.e., an output file that can in turn serve as
+input to @command{ld}.  For other binaries however the @option{-Ur}
+option is similar to @option{-r} but it also resolves references to
+constructors and destructors.
+
+For those systems where @option{-r} and @option{-Ur} behave
+differently, it does not work to use @option{-Ur} on files that were
+themselves linked with @option{-Ur}; once the constructor table has
+been built, it cannot be added to.  Use @option{-Ur} only for the last
+partial link, and @option{-r} for the others.
 
 @kindex --orphan-handling=@var{MODE}
 @cindex orphan sections
@@ -4431,6 +4507,12 @@ SECTIONS
 @}
 INSERT AFTER .text;
 @end smallexample
+
+Note that when @samp{-T} is used twice, once to override the default
+script and once to augment that script using @code{INSERT} the order
+of parsing and section assignments apply as for the default script.
+The script with @code{INSERT} should be specified @emph{first} on the
+command line.
 
 @item NOCROSSREFS(@var{section} @var{section} @dots{})
 @kindex NOCROSSREFS(@var{sections})
@@ -8534,6 +8616,39 @@ regular static archives and are handled as any other static
 archive.  The cygwin and mingw ports of @command{ld} have specific
 support for creating such libraries provided with the
 @samp{--out-implib} command-line option.
+
+@item Resource only DLLs
+It is possible to create a DLL that only contains resources, ie just a
+@samp{.rsrc} section, but in order to do so a custom linker script
+must be used.  This is because the built-in default linker scripts
+will always create @samp{.text} and @samp{.idata} sections, even if
+there is no input to go into them.
+
+The script should look like this, although the @code{OUTPUT_FORMAT}
+should be changed to match the desired format.
+
+@example
+OUTPUT_FORMAT(pei-i386)
+SECTIONS
+@{
+  . = SIZEOF_HEADERS;
+  . = ALIGN(__section_alignment__);
+  .rsrc __image_base__ + __section_alignment__ : ALIGN(4)
+  @{
+    KEEP (*(.rsrc))
+    KEEP (*(.rsrc$*))
+  @}
+  /DISCARD/ : @{ *(*) @}
+@}
+@end example
+
+With this script saved to a file called, eg @file{rsrc.ld}, a command
+line like this can be used to create the resource only DLL
+@file{rsrc.dll} from an input file called @file{rsrc.o}:
+
+@smallexample
+ld -dll --subsystem windows -e 0 -s rsrc.o -o rsrc.dll -T rsrc.ld
+@end smallexample
 
 @item   exporting DLL symbols
 @cindex exporting DLL symbols

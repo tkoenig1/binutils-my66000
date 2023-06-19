@@ -1315,7 +1315,10 @@ process_print_command_args (const char *args, value_print_options *print_opts,
 
       /* VOIDPRINT is true to indicate that we do want to print a void
 	 value, so invert it for parse_expression.  */
-      expression_up expr = parse_expression (exp, nullptr, !voidprint);
+      parser_flags flags = 0;
+      if (!voidprint)
+	flags = PARSER_VOID_CONTEXT;
+      expression_up expr = parse_expression (exp, nullptr, flags);
       return expr->evaluate ();
     }
 
@@ -1541,7 +1544,6 @@ static void
 info_symbol_command (const char *arg, int from_tty)
 {
   struct minimal_symbol *msymbol;
-  struct obj_section *osect;
   CORE_ADDR addr, sect_addr;
   int matches = 0;
   unsigned int offset;
@@ -1551,7 +1553,7 @@ info_symbol_command (const char *arg, int from_tty)
 
   addr = parse_and_eval_address (arg);
   for (objfile *objfile : current_program_space->objfiles ())
-    ALL_OBJFILE_OSECTIONS (objfile, osect)
+    for (obj_section *osect : objfile->sections ())
       {
 	/* Only process each object file once, even if there's a separate
 	   debug file.  */
@@ -2733,7 +2735,7 @@ ui_printf (const char *arg, struct ui_file *stream)
   if (*s++ != '"')
     error (_("Bad format string, missing '\"'."));
 
-  format_pieces fpieces (&s);
+  format_pieces fpieces (&s, false, true);
 
   if (*s++ != '"')
     error (_("Bad format string, non-terminated '\"'."));
@@ -2874,6 +2876,34 @@ ui_printf (const char *arg, struct ui_file *stream)
 	    break;
 	  case ptr_arg:
 	    printf_pointer (stream, current_substring, val_args[i]);
+	    break;
+	  case value_arg:
+	    {
+	      value_print_options print_opts;
+	      get_user_print_options (&print_opts);
+
+	      if (current_substring[2] == '[')
+		{
+		  std::string args (&current_substring[3],
+				    strlen (&current_substring[3]) - 1);
+
+		  const char *args_ptr = args.c_str ();
+
+		  /* Override global settings with explicit options, if
+		     any.  */
+		  auto group
+		    = make_value_print_options_def_group (&print_opts);
+		  gdb::option::process_options
+		    (&args_ptr, gdb::option::PROCESS_OPTIONS_UNKNOWN_IS_ERROR,
+		     group);
+
+		  if (*args_ptr != '\0')
+		    error (_("unexpected content in print options: %s"),
+			     args_ptr);
+		}
+
+	      print_formatted (val_args[i], 0, &print_opts, stream);
+	    }
 	    break;
 	  case literal_piece:
 	    /* Print a portion of the format string that has no
@@ -3166,7 +3196,7 @@ memory_tag_check_command (const char *args, int from_tty)
     show_memory_tagging_unsupported ();
 
   if (args == nullptr)
-    error (_("Argument required (address or pointer)"));
+    error_no_arg (_("address or pointer"));
 
   /* Parse the expression into a value.  If the value is an address or
      pointer, then check its logical tag against the allocation tag.  */

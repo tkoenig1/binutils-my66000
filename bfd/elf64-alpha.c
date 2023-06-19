@@ -1425,17 +1425,7 @@ elf64_alpha_read_ecoff_info (bfd *abfd, asection *section,
 
  error_return:
   free (ext_hdr);
-  free (debug->line);
-  free (debug->external_dnr);
-  free (debug->external_pdr);
-  free (debug->external_sym);
-  free (debug->external_opt);
-  free (debug->external_aux);
-  free (debug->ss);
-  free (debug->ssext);
-  free (debug->external_fdr);
-  free (debug->external_rfd);
-  free (debug->external_ext);
+  _bfd_ecoff_free_ecoff_debug_info (debug);
   return false;
 }
 
@@ -1519,13 +1509,6 @@ elf64_alpha_find_nearest_line (bfd *abfd, asymbol **symbols,
 	    (*swap->swap_fdr_in) (abfd, fraw_src, fdr_ptr);
 
 	  alpha_elf_tdata (abfd)->find_line_info = fi;
-
-	  /* Note that we don't bother to ever free this information.
-	     find_nearest_line is either called all the time, as in
-	     objdump -l, so the information should be saved, or it is
-	     rarely called, as in ld error messages, so the memory
-	     wasted is unimportant.  Still, it would probably be a
-	     good idea for free_cached_info to throw it away.  */
 	}
 
       if (_bfd_ecoff_locate_line (abfd, section, offset, &fi->d, swap,

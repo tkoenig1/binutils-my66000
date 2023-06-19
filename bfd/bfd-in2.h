@@ -1426,6 +1426,7 @@ enum bfd_architecture
 #define bfd_mach_mips16000             16000
 #define bfd_mach_mips16                16
 #define bfd_mach_mips5                 5
+#define bfd_mach_mips_allegrex         10111431 /* octal 'AL', 31.  */
 #define bfd_mach_mips_loongson_2e      3001
 #define bfd_mach_mips_loongson_2f      3002
 #define bfd_mach_mips_gs464            3003
@@ -5400,6 +5401,8 @@ number for the SBIC, SBIS, SBI and CBI instructions  */
   BFD_RELOC_RISCV_SET16,
   BFD_RELOC_RISCV_SET32,
   BFD_RELOC_RISCV_32_PCREL,
+  BFD_RELOC_RISCV_SET_ULEB128,
+  BFD_RELOC_RISCV_SUB_ULEB128,
 
 /* Renesas RL78 Relocations.  */
   BFD_RELOC_RL78_NEG8,
@@ -7338,6 +7341,14 @@ assembler and not (currently) written to any object files.  */
   BFD_RELOC_LARCH_TLS_GD_HI20,
   BFD_RELOC_LARCH_32_PCREL,
   BFD_RELOC_LARCH_RELAX,
+  BFD_RELOC_LARCH_DELETE,
+  BFD_RELOC_LARCH_ALIGN,
+  BFD_RELOC_LARCH_PCREL20_S2,
+  BFD_RELOC_LARCH_CFA,
+  BFD_RELOC_LARCH_ADD6,
+  BFD_RELOC_LARCH_SUB6,
+  BFD_RELOC_LARCH_ADD_ULEB128,
+  BFD_RELOC_LARCH_SUB_ULEB128,
   BFD_RELOC_UNUSED };
 typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
 

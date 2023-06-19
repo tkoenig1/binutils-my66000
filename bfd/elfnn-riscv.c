@@ -111,6 +111,25 @@
    || (bfd_link_pic (INFO) \
        && SYMBOL_REFERENCES_LOCAL ((INFO), (H))))
 
+/* Set NEED_RELOC to true if TLS GD/IE needs dynamic relocations, and INDX will
+   be the dynamic index.  PR22263, use the same check in allocate_dynrelocs and
+   riscv_elf_relocate_section for TLS GD/IE.  */
+#define RISCV_TLS_GD_IE_NEED_DYN_RELOC(INFO, DYN, H, INDX, NEED_RELOC) \
+  do \
+    { \
+      if ((H) != NULL \
+	  && (H)->dynindx != -1 \
+	  && WILL_CALL_FINISH_DYNAMIC_SYMBOL ((DYN), bfd_link_pic (INFO), (H)) \
+	  && (bfd_link_dll (INFO) || !SYMBOL_REFERENCES_LOCAL ((INFO), (H)))) \
+	(INDX) = (H)->dynindx; \
+      if ((bfd_link_dll (INFO) || (INDX) != 0) \
+	  && ((H) == NULL \
+	      || ELF_ST_VISIBILITY ((H)->other) == STV_DEFAULT \
+	      || (H)->root.type != bfd_link_hash_undefweak)) \
+	(NEED_RELOC) = true; \
+    } \
+  while (0)
+
 /* Internal relocations used exclusively by the relaxation pass.  */
 #define R_RISCV_DELETE (R_RISCV_max + 1)
 
@@ -824,7 +843,7 @@ riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 
 	case R_RISCV_TLS_GOT_HI20:
-	  if (bfd_link_pic (info))
+	  if (bfd_link_dll (info))
 	    info->flags |= DF_STATIC_TLS;
 	  if (!riscv_elf_record_got_reference (abfd, info, h, r_symndx)
 	      || !riscv_elf_record_tls_type (abfd, h, r_symndx, GOT_TLS_IE))
@@ -920,11 +939,12 @@ riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  goto static_reloc;
 
 	case R_RISCV_TPREL_HI20:
+	  /* This is not allowed in the pic, but okay in pie.  */
 	  if (!bfd_link_executable (info))
 	    return bad_static_reloc (abfd, r_type, h);
 	  if (h != NULL)
 	    riscv_elf_record_tls_type (abfd, h, r_symndx, GOT_TLS_LE);
-	  goto static_reloc;
+	  break;
 
 	case R_RISCV_HI20:
 	  if (bfd_link_pic (info))
@@ -1296,18 +1316,24 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
       dyn = htab->elf.dynamic_sections_created;
       if (tls_type & (GOT_TLS_GD | GOT_TLS_IE))
 	{
+	  int indx = 0;
+	  bool need_reloc = false;
+	  RISCV_TLS_GD_IE_NEED_DYN_RELOC(info, dyn, h, indx, need_reloc);
+
 	  /* TLS_GD needs two dynamic relocs and two GOT slots.  */
 	  if (tls_type & GOT_TLS_GD)
 	    {
 	      s->size += 2 * RISCV_ELF_WORD_BYTES;
-	      htab->elf.srelgot->size += 2 * sizeof (ElfNN_External_Rela);
+	      if (need_reloc)
+		htab->elf.srelgot->size += 2 * sizeof (ElfNN_External_Rela);
 	    }
 
 	  /* TLS_IE needs one dynamic reloc and one GOT slot.  */
 	  if (tls_type & GOT_TLS_IE)
 	    {
 	      s->size += RISCV_ELF_WORD_BYTES;
-	      htab->elf.srelgot->size += sizeof (ElfNN_External_Rela);
+	      if (need_reloc)
+		htab->elf.srelgot->size += sizeof (ElfNN_External_Rela);
 	    }
 	}
       else
@@ -1792,6 +1818,55 @@ perform_relocation (const reloc_howto_type *howto,
 	value = ENCODE_CITYPE_LUI_IMM (RISCV_CONST_HIGH_PART (value));
       break;
 
+    /* SUB_ULEB128 must be applied after SET_ULEB128, so we only write the
+       value back for SUB_ULEB128 should be enough.  */
+    case R_RISCV_SET_ULEB128:
+      break;
+    case R_RISCV_SUB_ULEB128:
+      {
+	unsigned int len = 0;
+	_bfd_read_unsigned_leb128 (input_bfd, contents + rel->r_offset, &len);
+
+	/* Clean the contents value to zero (0x80), but keep the original
+	   length.  */
+	bfd_byte *p = contents + rel->r_offset;
+	bfd_byte *endp = p + len - 1;
+	memset (p, 0x80, len - 1);
+	*(endp) = 0;
+
+	/* Make sure the length of the new uleb128 value within the
+	   original (available) length.  */
+	unsigned int new_len = 0;
+	unsigned int val_t = value;
+	do
+	  {
+	    new_len++;
+	    val_t >>= 7;
+	  }
+	while (val_t);
+	if (new_len > len)
+	  {
+	    _bfd_error_handler
+	      (_("final size of uleb128 value at offset 0x%lx in %pA from "
+		 "%pB exceeds available space"),
+	       (long) rel->r_offset, input_section, input_bfd);
+	    return bfd_reloc_dangerous;
+	  }
+	else
+	  {
+	    p = _bfd_write_unsigned_leb128 (p, endp, value);
+	    BFD_ASSERT (p);
+
+	    /* If the length of the value is reduced and shorter than the
+	       original uleb128 length, then _bfd_write_unsigned_leb128 may
+	       clear the 0x80 to 0x0 for the last byte that was written.
+	       So reset it to keep the the original uleb128 length.  */
+	    if (--p < endp)
+	      *p |= 0x80;
+	  }
+	return bfd_reloc_ok;
+      }
+
     case R_RISCV_32:
     case R_RISCV_64:
     case R_RISCV_ADD8:
@@ -2015,14 +2090,14 @@ riscv_resolve_pcrel_lo_relocs (riscv_pcrel_relocs *p)
 	       != RISCV_CONST_HIGH_PART (entry->value + r->reloc->r_addend))
 	{
 	  /* Check the overflow when adding reloc addend.  */
-	  if (asprintf (&string,
-			_("%%pcrel_lo overflow with an addend, the "
-			  "value of %%pcrel_hi is 0x%" PRIx64 " without "
-			  "any addend, but may be 0x%" PRIx64 " after "
-			  "adding the %%pcrel_lo addend"),
-			(int64_t) RISCV_CONST_HIGH_PART (entry->value),
-			(int64_t) RISCV_CONST_HIGH_PART
-				(entry->value + r->reloc->r_addend)) == -1)
+	  string = bfd_asprintf (_("%%pcrel_lo overflow with an addend,"
+				   " the value of %%pcrel_hi is 0x%" PRIx64
+				   " without any addend, but may be 0x%" PRIx64
+				   " after adding the %%pcrel_lo addend"),
+				 (int64_t) RISCV_CONST_HIGH_PART (entry->value),
+				 (int64_t) RISCV_CONST_HIGH_PART
+				 (entry->value + r->reloc->r_addend));
+	  if (string == NULL)
 	    string = _("%pcrel_lo overflow with an addend");
 	}
 
@@ -2086,6 +2161,8 @@ riscv_elf_relocate_section (bfd *output_bfd,
   Elf_Internal_Shdr *symtab_hdr = &elf_symtab_hdr (input_bfd);
   struct elf_link_hash_entry **sym_hashes = elf_sym_hashes (input_bfd);
   bfd_vma *local_got_offsets = elf_local_got_offsets (input_bfd);
+  bfd_vma uleb128_set_vma = 0;
+  Elf_Internal_Rela *uleb128_set_rel = NULL;
   bool absolute;
 
   if (!riscv_init_pcrel_relocs (&pcrel_relocs))
@@ -2107,7 +2184,6 @@ riscv_elf_relocate_section (bfd *output_bfd,
       int r_type = ELFNN_R_TYPE (rel->r_info), tls_type;
       reloc_howto_type *howto = riscv_elf_rtype_to_howto (input_bfd, r_type);
       const char *msg = NULL;
-      char *msg_buf = NULL;
       bool resolved_to_zero;
 
       if (howto == NULL)
@@ -2427,6 +2503,38 @@ riscv_elf_relocate_section (bfd *output_bfd,
 	  /* These require no special handling beyond perform_relocation.  */
 	  break;
 
+	case R_RISCV_SET_ULEB128:
+	  if (uleb128_set_rel == NULL)
+	    {
+	      /* Saved for later usage.  */
+	      uleb128_set_vma = relocation;
+	      uleb128_set_rel = rel;
+	      continue;
+	    }
+	  else
+	    {
+	      msg = ("Mismatched R_RISCV_SET_ULEB128, it must be paired with"
+		     "and applied before R_RISCV_SUB_ULEB128");
+	      r = bfd_reloc_dangerous;
+	    }
+	  break;
+
+	case R_RISCV_SUB_ULEB128:
+	  if (uleb128_set_rel != NULL
+	      && uleb128_set_rel->r_offset == rel->r_offset)
+	    {
+	      relocation = uleb128_set_vma - relocation;
+	      uleb128_set_vma = 0;
+	      uleb128_set_rel = NULL;
+	    }
+	  else
+	    {
+	      msg = ("Mismatched R_RISCV_SUB_ULEB128, it must be paired with"
+		     "and applied after R_RISCV_SET_ULEB128");
+	      r = bfd_reloc_dangerous;
+	    }
+	  break;
+
 	case R_RISCV_GOT_HI20:
 	  if (h != NULL)
 	    {
@@ -2596,14 +2704,12 @@ riscv_elf_relocate_section (bfd *output_bfd,
 
 		     Perhaps we also need the similar checks for the
 		     R_RISCV_BRANCH and R_RISCV_RVC_BRANCH relocations.  */
-		  if (asprintf (&msg_buf,
-				_("%%X%%P: relocation %s against `%s' which "
-				  "may bind externally can not be used when "
-				  "making a shared object; recompile "
-				  "with -fPIC\n"),
-				howto->name, h->root.root.string) == -1)
-		    msg_buf = NULL;
-		  msg = msg_buf;
+		  msg = bfd_asprintf (_("%%X%%P: relocation %s against `%s'"
+					" which may bind externally"
+					" can not be used"
+					" when making a shared object;"
+					" recompile with -fPIC\n"),
+				      howto->name, h->root.root.string);
 		  r = bfd_reloc_notsupported;
 		}
 	    }
@@ -2797,25 +2903,11 @@ riscv_elf_relocate_section (bfd *output_bfd,
 	      if (htab->elf.srelgot == NULL)
 		abort ();
 
-	      if (h != NULL)
-		{
-		  bool dyn, pic;
-		  dyn = htab->elf.dynamic_sections_created;
-		  pic = bfd_link_pic (info);
-
-		  if (WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn, pic, h)
-		      && (!pic || !SYMBOL_REFERENCES_LOCAL (info, h)))
-		    indx = h->dynindx;
-		}
+	      bool dyn = elf_hash_table (info)->dynamic_sections_created;
+	      RISCV_TLS_GD_IE_NEED_DYN_RELOC (info, dyn, h, indx, need_relocs);
 
 	      /* The GOT entries have not been initialized yet.  Do it
 		 now, and emit any relocations.  */
-	      if ((bfd_link_pic (info) || indx != 0)
-		  && (h == NULL
-		      || ELF_ST_VISIBILITY (h->other) == STV_DEFAULT
-		      || h->root.type != bfd_link_hash_undefweak))
-		    need_relocs = true;
-
 	      if (tls_type & GOT_TLS_GD)
 		{
 		  if (need_relocs)
@@ -2904,13 +2996,10 @@ riscv_elf_relocate_section (bfd *output_bfd,
 	  && _bfd_elf_section_offset (output_bfd, info, input_section,
 				      rel->r_offset) != (bfd_vma) -1)
 	{
-	  if (asprintf (&msg_buf,
-			_("%%X%%P: unresolvable %s relocation against "
-			  "symbol `%s'\n"),
-			howto->name,
-			h->root.root.string) == -1)
-	    msg_buf = NULL;
-	  msg = msg_buf;
+	  msg = bfd_asprintf (_("%%X%%P: unresolvable %s relocation against "
+				"symbol `%s'\n"),
+			      howto->name,
+			      h->root.root.string);
 	  r = bfd_reloc_notsupported;
 	}
 
@@ -2966,9 +3055,6 @@ riscv_elf_relocate_section (bfd *output_bfd,
       /* Do not report error message for the dangerous relocation again.  */
       if (msg && r != bfd_reloc_dangerous)
 	info->callbacks->einfo (msg);
-
-      /* Free the unused `msg_buf`.  */
-      free (msg_buf);
 
       /* We already reported the error via a callback, so don't try to report
 	 it again by returning false.  That leads to spurious errors.  */

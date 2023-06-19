@@ -25,10 +25,12 @@ from . import bt
 from . import disassemble
 from . import evaluate
 from . import launch
+from . import locations
 from . import memory
 from . import next
 from . import pause
 from . import scopes
+from . import sources
 from . import threads
 
 from .server import Server

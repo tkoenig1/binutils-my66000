@@ -673,7 +673,7 @@ ada_discrete_type_high_bound (struct type *type)
       {
 	const dynamic_prop &high = type->bounds ()->high;
 
-	if (high.kind () == PROP_CONST)
+	if (high.is_constant ())
 	  return high.const_val ();
 	else
 	  {
@@ -708,7 +708,7 @@ ada_discrete_type_low_bound (struct type *type)
       {
 	const dynamic_prop &low = type->bounds ()->low;
 
-	if (low.kind () == PROP_CONST)
+	if (low.is_constant ())
 	  return low.const_val ();
 	else
 	  {
@@ -789,18 +789,6 @@ ada_get_decoded_type (struct type *type)
 
 
 				/* Language Selection */
-
-/* If the main program is in Ada, return language_ada, otherwise return LANG
-   (the main program is in Ada iif the adainit symbol is found).  */
-
-static enum language
-ada_update_initial_language (enum language lang)
-{
-  if (lookup_minimal_symbol ("adainit", NULL, NULL).minsym != NULL)
-    return language_ada;
-
-  return lang;
-}
 
 /* If the main procedure is written in Ada, then return its name.
    The result is good until the next call.  Return NULL if the main
@@ -5026,61 +5014,75 @@ symbols_are_identical_enums (const std::vector<struct block_symbol> &syms)
    debugging symbols)).  Modifies SYMS to squeeze out deleted entries.  */
 
 static void
-remove_extra_symbols (std::vector<struct block_symbol> *syms)
+remove_extra_symbols (std::vector<struct block_symbol> &syms)
 {
   int i, j;
 
   /* We should never be called with less than 2 symbols, as there
      cannot be any extra symbol in that case.  But it's easy to
      handle, since we have nothing to do in that case.  */
-  if (syms->size () < 2)
+  if (syms.size () < 2)
     return;
 
   i = 0;
-  while (i < syms->size ())
+  while (i < syms.size ())
     {
-      int remove_p = 0;
+      bool remove_p = false;
 
       /* If two symbols have the same name and one of them is a stub type,
 	 the get rid of the stub.  */
 
-      if ((*syms)[i].symbol->type ()->is_stub ()
-	  && (*syms)[i].symbol->linkage_name () != NULL)
+      if (syms[i].symbol->type ()->is_stub ()
+	  && syms[i].symbol->linkage_name () != NULL)
 	{
-	  for (j = 0; j < syms->size (); j++)
+	  for (j = 0; !remove_p && j < syms.size (); j++)
 	    {
 	      if (j != i
-		  && !(*syms)[j].symbol->type ()->is_stub ()
-		  && (*syms)[j].symbol->linkage_name () != NULL
-		  && strcmp ((*syms)[i].symbol->linkage_name (),
-			     (*syms)[j].symbol->linkage_name ()) == 0)
-		remove_p = 1;
+		  && !syms[j].symbol->type ()->is_stub ()
+		  && syms[j].symbol->linkage_name () != NULL
+		  && strcmp (syms[i].symbol->linkage_name (),
+			     syms[j].symbol->linkage_name ()) == 0)
+		remove_p = true;
 	    }
 	}
 
       /* Two symbols with the same name, same class and same address
 	 should be identical.  */
 
-      else if ((*syms)[i].symbol->linkage_name () != NULL
-	  && (*syms)[i].symbol->aclass () == LOC_STATIC
-	  && is_nondebugging_type ((*syms)[i].symbol->type ()))
+      else if (syms[i].symbol->linkage_name () != NULL
+	  && syms[i].symbol->aclass () == LOC_STATIC
+	  && is_nondebugging_type (syms[i].symbol->type ()))
 	{
-	  for (j = 0; j < syms->size (); j += 1)
+	  for (j = 0; !remove_p && j < syms.size (); j += 1)
 	    {
 	      if (i != j
-		  && (*syms)[j].symbol->linkage_name () != NULL
-		  && strcmp ((*syms)[i].symbol->linkage_name (),
-			     (*syms)[j].symbol->linkage_name ()) == 0
-		  && ((*syms)[i].symbol->aclass ()
-		      == (*syms)[j].symbol->aclass ())
-		  && (*syms)[i].symbol->value_address ()
-		  == (*syms)[j].symbol->value_address ())
-		remove_p = 1;
+		  && syms[j].symbol->linkage_name () != NULL
+		  && strcmp (syms[i].symbol->linkage_name (),
+			     syms[j].symbol->linkage_name ()) == 0
+		  && (syms[i].symbol->aclass ()
+		      == syms[j].symbol->aclass ())
+		  && syms[i].symbol->value_address ()
+		  == syms[j].symbol->value_address ())
+		remove_p = true;
 	    }
 	}
       
+      /* Two functions with the same block are identical.  */
+
+      else if (syms[i].symbol->aclass () == LOC_BLOCK)
+	{
+	  for (j = 0; !remove_p && j < syms.size (); j += 1)
+	    {
+	      if (i != j
+		  && syms[j].symbol->aclass () == LOC_BLOCK
+		  && (syms[i].symbol->value_block ()
+		      == syms[j].symbol->value_block ()))
+		remove_p = true;
+	    }
+	}
+
       if (remove_p)
-	syms->erase (syms->begin () + i);
+	syms.erase (syms.begin () + i);
       else
 	i += 1;
     }
@@ -5097,8 +5099,8 @@ remove_extra_symbols (std::vector<struct block_symbol> *syms)
      to ask the user to disambiguate anyways.  And if we have to
      present a multiple-choice menu, it's less confusing if the list
      isn't missing some choices that were identical and yet distinct.  */
-  if (symbols_are_identical_enums (*syms))
-    syms->resize (1);
+  if (symbols_are_identical_enums (syms))
+    syms.resize (1);
 }
 
 /* Given a type that corresponds to a renaming entity, use the type name
@@ -5710,7 +5712,7 @@ ada_lookup_symbol_list_worker (const lookup_name_info &lookup_name,
   ada_add_all_symbols (results, block, lookup_name,
 		       domain, full_search, &syms_from_global_search);
 
-  remove_extra_symbols (&results);
+  remove_extra_symbols (results);
 
   if (results.empty () && full_search && syms_from_global_search)
     cache_symbol (ada_lookup_name (lookup_name), domain, NULL, NULL);
@@ -6406,7 +6408,7 @@ ada_tag_value_at_base_address (struct value *obj)
 
   obj_type = obj->type ();
 
-  /* It is the responsability of the caller to deref pointers.  */
+  /* It is the responsibility of the caller to deref pointers.  */
 
   if (obj_type->code () == TYPE_CODE_PTR || obj_type->code () == TYPE_CODE_REF)
     return obj;
@@ -7253,9 +7255,6 @@ type_as_string (struct type *type)
 }
 
 /* Given a type TYPE, look up the type of the component of type named NAME.
-   If DISPP is non-null, add its byte displacement from the beginning of a
-   structure (pointed to by a value) of type TYPE to *DISPP (does not
-   work for packed fields).
 
    Matches any field whose name has NAME as a prefix, possibly
    followed by "___".
@@ -7276,9 +7275,6 @@ static struct type *
 ada_lookup_struct_elt_type (struct type *type, const char *name, int refok,
 			    int noerr)
 {
-  int i;
-  int parent_offset = -1;
-
   if (name == NULL)
     goto BadName;
 
@@ -7304,78 +7300,11 @@ ada_lookup_struct_elt_type (struct type *type, const char *name, int refok,
 
   type = to_static_fixed_type (type);
 
-  for (i = 0; i < type->num_fields (); i += 1)
-    {
-      const char *t_field_name = type->field (i).name ();
-      struct type *t;
-
-      if (t_field_name == NULL)
-	continue;
-
-      else if (ada_is_parent_field (type, i))
-	{
-	  /* This is a field pointing us to the parent type of a tagged
-	     type.  As hinted in this function's documentation, we give
-	     preference to fields in the current record first, so what
-	     we do here is just record the index of this field before
-	     we skip it.  If it turns out we couldn't find our field
-	     in the current record, then we'll get back to it and search
-	     inside it whether the field might exist in the parent.  */
-
-	  parent_offset = i;
-	  continue;
-	}
-
-      else if (field_name_match (t_field_name, name))
-	return type->field (i).type ();
-
-      else if (ada_is_wrapper_field (type, i))
-	{
-	  t = ada_lookup_struct_elt_type (type->field (i).type (), name,
-					  0, 1);
-	  if (t != NULL)
-	    return t;
-	}
-
-      else if (ada_is_variant_part (type, i))
-	{
-	  int j;
-	  struct type *field_type = ada_check_typedef (type->field (i).type ());
-
-	  for (j = field_type->num_fields () - 1; j >= 0; j -= 1)
-	    {
-	      /* FIXME pnh 2008/01/26: We check for a field that is
-		 NOT wrapped in a struct, since the compiler sometimes
-		 generates these for unchecked variant types.  Revisit
-		 if the compiler changes this practice.  */
-	      const char *v_field_name = field_type->field (j).name ();
-
-	      if (v_field_name != NULL 
-		  && field_name_match (v_field_name, name))
-		t = field_type->field (j).type ();
-	      else
-		t = ada_lookup_struct_elt_type (field_type->field (j).type (),
-						name, 0, 1);
-
-	      if (t != NULL)
-		return t;
-	    }
-	}
-
-    }
-
-    /* Field not found so far.  If this is a tagged type which
-       has a parent, try finding that field in the parent now.  */
-
-    if (parent_offset != -1)
-      {
-	struct type *t;
-
-	t = ada_lookup_struct_elt_type (type->field (parent_offset).type (),
-					name, 0, 1);
-	if (t != NULL)
-	  return t;
-      }
+  struct type *result;
+  find_struct_field (name, type, 0, &result, nullptr, nullptr, nullptr,
+		     nullptr);
+  if (result != nullptr)
+    return result;
 
 BadName:
   if (!noerr)
@@ -9864,7 +9793,7 @@ ada_value_cast (struct type *type, struct value *arg2)
        No  : Rec := (empty => True);
 
     The size and contents of that record depends on the value of the
-    descriminant (Rec.Empty).  At this point, neither the debugging
+    discriminant (Rec.Empty).  At this point, neither the debugging
     information nor the associated type structure in GDB are able to
     express such dynamic types.  So what the debugger does is to create
     "fixed" versions of the type that applies to the specific object.
@@ -11228,7 +11157,7 @@ ada_funcall_operation::evaluate (struct type *expect_type,
 	    error_call_unknown_return_type (NULL);
 	  return value::allocate (type->target_type ());
 	}
-      return call_function_by_hand (callee, NULL, argvec);
+      return call_function_by_hand (callee, expect_type, argvec);
     case TYPE_CODE_INTERNAL_FUNCTION:
       if (noside == EVAL_AVOID_SIDE_EFFECTS)
 	/* We don't know anything about what the internal
@@ -11576,7 +11505,7 @@ ada_modulus (struct type *type)
 {
   const dynamic_prop &high = type->bounds ()->high;
 
-  if (high.kind () == PROP_CONST)
+  if (high.is_constant ())
     return (ULONGEST) high.const_val () + 1;
 
   /* If TYPE is unresolved, the high bound might be a location list.  Return
@@ -11813,31 +11742,8 @@ ada_exception_support_info_sniffer (void)
       return;
     }
 
-  /* Sometimes, it is normal for us to not be able to find the routine
-     we are looking for.  This happens when the program is linked with
-     the shared version of the GNAT runtime, and the program has not been
-     started yet.  Inform the user of these two possible causes if
-     applicable.  */
-
-  if (ada_update_initial_language (language_unknown) != language_ada)
-    error (_("Unable to insert catchpoint.  Is this an Ada main program?"));
-
-  /* If the symbol does not exist, then check that the program is
-     already started, to make sure that shared libraries have been
-     loaded.  If it is not started, this may mean that the symbol is
-     in a shared library.  */
-
-  if (inferior_ptid.pid () == 0)
-    error (_("Unable to insert catchpoint. Try to start the program first."));
-
-  /* At this point, we know that we are debugging an Ada program and
-     that the inferior has been started, but we still are not able to
-     find the run-time symbols.  That can mean that we are in
-     configurable run time mode, or that a-except as been optimized
-     out by the linker...  In any case, at this point it is not worth
-     supporting this feature.  */
-
-  error (_("Cannot insert Ada exception catchpoints in this configuration."));
+  throw_error (NOT_FOUND_ERROR,
+	       _("Could not find Ada runtime exception support"));
 }
 
 /* True iff FRAME is very likely to be that of a function that is
@@ -12121,56 +12027,42 @@ struct ada_catchpoint : public code_breakpoint
 {
   ada_catchpoint (struct gdbarch *gdbarch_,
 		  enum ada_exception_catchpoint_kind kind,
-		  struct symtab_and_line sal,
-		  const char *addr_string_,
+		  const char *cond_string,
 		  bool tempflag,
 		  bool enabled,
-		  bool from_tty)
-    : code_breakpoint (gdbarch_, bp_catchpoint),
+		  bool from_tty,
+		  std::string &&excep_string_)
+    : code_breakpoint (gdbarch_, bp_catchpoint, tempflag, cond_string),
+      m_excep_string (std::move (excep_string_)),
       m_kind (kind)
   {
-    add_location (sal);
-
     /* Unlike most code_breakpoint types, Ada catchpoints are
        pspace-specific.  */
-    gdb_assert (sal.pspace != nullptr);
-    this->pspace = sal.pspace;
-
-    if (from_tty)
-      {
-	struct gdbarch *loc_gdbarch = get_sal_arch (sal);
-	if (!loc_gdbarch)
-	  loc_gdbarch = gdbarch;
-
-	describe_other_breakpoints (loc_gdbarch,
-				    sal.pspace, sal.pc, sal.section, -1);
-	/* FIXME: brobecker/2006-12-28: Actually, re-implement a special
-	   version for exception catchpoints, because two catchpoints
-	   used for different exception names will use the same address.
-	   In this case, a "breakpoint ... also set at..." warning is
-	   unproductive.  Besides, the warning phrasing is also a bit
-	   inappropriate, we should use the word catchpoint, and tell
-	   the user what type of catchpoint it is.  The above is good
-	   enough for now, though.  */
-      }
-
+    pspace = current_program_space;
     enable_state = enabled ? bp_enabled : bp_disabled;
-    disposition = tempflag ? disp_del : disp_donttouch;
-    locspec = string_to_location_spec (&addr_string_,
-				       language_def (language_ada));
     language = language_ada;
+
+    re_set ();
   }
 
   struct bp_location *allocate_location () override;
   void re_set () override;
   void check_status (struct bpstat *bs) override;
   enum print_stop_action print_it (const bpstat *bs) const override;
-  bool print_one (bp_location **) const override;
+  bool print_one (const bp_location **) const override;
   void print_mention () const override;
   void print_recreate (struct ui_file *fp) const override;
 
+private:
+
+  /* A helper function for check_status.  Returns true if we should
+     stop for this breakpoint hit.  If the user specified a specific
+     exception, we only want to cause a stop if the program thrown
+     that exception.  */
+  bool should_stop_exception (const struct bp_location *bl) const;
+
   /* The name of the specific exception the user specified.  */
-  std::string excep_string;
+  std::string m_excep_string;
 
   /* What kind of catchpoint this is.  */
   enum ada_exception_catchpoint_kind m_kind;
@@ -12192,54 +12084,72 @@ public:
   expression_up excep_cond_expr;
 };
 
-/* Parse the exception condition string in the context of each of the
-   catchpoint's locations, and store them for later evaluation.  */
+static struct symtab_and_line ada_exception_sal
+     (enum ada_exception_catchpoint_kind ex);
 
-static void
-create_excep_cond_exprs (struct ada_catchpoint *c,
-			 enum ada_exception_catchpoint_kind ex)
+/* Implement the RE_SET method in the structure for all exception
+   catchpoint kinds.  */
+
+void
+ada_catchpoint::re_set ()
 {
+  std::vector<symtab_and_line> sals;
+  try
+    {
+      struct symtab_and_line sal = ada_exception_sal (m_kind);
+      sals.push_back (sal);
+    }
+  catch (const gdb_exception_error &ex)
+    {
+      /* For NOT_FOUND_ERROR, the breakpoint will be pending.  */
+      if (ex.error != NOT_FOUND_ERROR)
+	throw;
+    }
+
+  update_breakpoint_locations (this, pspace, sals, {});
+
+  /* Reparse the exception conditional expressions.  One for each
+     location.  */
+
   /* Nothing to do if there's no specific exception to catch.  */
-  if (c->excep_string.empty ())
+  if (m_excep_string.empty ())
     return;
 
   /* Same if there are no locations... */
-  if (c->loc == NULL)
+  if (!has_locations ())
     return;
 
   /* Compute the condition expression in text form, from the specific
-     expection we want to catch.  */
+     exception we want to catch.  */
   std::string cond_string
-    = ada_exception_catchpoint_cond_string (c->excep_string.c_str (), ex);
+    = ada_exception_catchpoint_cond_string (m_excep_string.c_str (), m_kind);
 
   /* Iterate over all the catchpoint's locations, and parse an
      expression for each.  */
-  for (bp_location *bl : c->locations ())
+  for (bp_location &bl : locations ())
     {
-      struct ada_catchpoint_location *ada_loc
-	= (struct ada_catchpoint_location *) bl;
+      ada_catchpoint_location &ada_loc
+	= static_cast<ada_catchpoint_location &> (bl);
       expression_up exp;
 
-      if (!bl->shlib_disabled)
+      if (!bl.shlib_disabled)
 	{
 	  const char *s;
 
 	  s = cond_string.c_str ();
 	  try
 	    {
-	      exp = parse_exp_1 (&s, bl->address,
-				 block_for_pc (bl->address),
-				 0);
+	      exp = parse_exp_1 (&s, bl.address, block_for_pc (bl.address), 0);
 	    }
 	  catch (const gdb_exception_error &e)
 	    {
 	      warning (_("failed to reevaluate internal exception condition "
 			 "for catchpoint %d: %s"),
-		       c->number, e.what ());
+		       number, e.what ());
 	    }
 	}
 
-      ada_loc->excep_cond_expr = std::move (exp);
+      ada_loc.excep_cond_expr = std::move (exp);
     }
 }
 
@@ -12252,27 +12162,10 @@ ada_catchpoint::allocate_location ()
   return new ada_catchpoint_location (this);
 }
 
-/* Implement the RE_SET method in the structure for all exception
-   catchpoint kinds.  */
+/* See declaration.  */
 
-void
-ada_catchpoint::re_set ()
-{
-  /* Call the base class's method.  This updates the catchpoint's
-     locations.  */
-  this->code_breakpoint::re_set ();
-
-  /* Reparse the exception conditional expressions.  One for each
-     location.  */
-  create_excep_cond_exprs (this, m_kind);
-}
-
-/* Returns true if we should stop for this breakpoint hit.  If the
-   user specified a specific exception, we only want to cause a stop
-   if the program thrown that exception.  */
-
-static bool
-should_stop_exception (const struct bp_location *bl)
+bool
+ada_catchpoint::should_stop_exception (const struct bp_location *bl) const
 {
   struct ada_catchpoint *c = (struct ada_catchpoint *) bl->owner;
   const struct ada_catchpoint_location *ada_loc
@@ -12304,7 +12197,7 @@ should_stop_exception (const struct bp_location *bl)
     }
 
   /* With no specific exception, should always stop.  */
-  if (c->excep_string.empty ())
+  if (c->m_excep_string.empty ())
     return true;
 
   if (ada_loc->excep_cond_expr == NULL)
@@ -12430,7 +12323,7 @@ ada_catchpoint::print_it (const bpstat *bs) const
    catchpoint kinds.  */
 
 bool
-ada_catchpoint::print_one (bp_location **last_loc) const
+ada_catchpoint::print_one (const bp_location **last_loc) const
 { 
   struct ui_out *uiout = current_uiout;
   struct value_print_options opts;
@@ -12444,10 +12337,10 @@ ada_catchpoint::print_one (bp_location **last_loc) const
   switch (m_kind)
     {
       case ada_catch_exception:
-	if (!excep_string.empty ())
+	if (!m_excep_string.empty ())
 	  {
 	    std::string msg = string_printf (_("`%s' Ada exception"),
-					     excep_string.c_str ());
+					     m_excep_string.c_str ());
 
 	    uiout->field_string ("what", msg);
 	  }
@@ -12461,11 +12354,11 @@ ada_catchpoint::print_one (bp_location **last_loc) const
 	break;
       
       case ada_catch_handlers:
-	if (!excep_string.empty ())
+	if (!m_excep_string.empty ())
 	  {
 	    uiout->field_fmt ("what",
 			      _("`%s' Ada exception handlers"),
-			      excep_string.c_str ());
+			      m_excep_string.c_str ());
 	  }
 	else
 	  uiout->field_string ("what", "all Ada exceptions handlers");
@@ -12499,10 +12392,10 @@ ada_catchpoint::print_mention () const
   switch (m_kind)
     {
       case ada_catch_exception:
-	if (!excep_string.empty ())
+	if (!m_excep_string.empty ())
 	  {
 	    std::string info = string_printf (_("`%s' Ada exception"),
-					      excep_string.c_str ());
+					      m_excep_string.c_str ());
 	    uiout->text (info);
 	  }
 	else
@@ -12514,11 +12407,11 @@ ada_catchpoint::print_mention () const
 	break;
 
       case ada_catch_handlers:
-	if (!excep_string.empty ())
+	if (!m_excep_string.empty ())
 	  {
 	    std::string info
 	      = string_printf (_("`%s' Ada exception handlers"),
-			       excep_string.c_str ());
+			       m_excep_string.c_str ());
 	    uiout->text (info);
 	  }
 	else
@@ -12545,8 +12438,8 @@ ada_catchpoint::print_recreate (struct ui_file *fp) const
     {
       case ada_catch_exception:
 	gdb_printf (fp, "catch exception");
-	if (!excep_string.empty ())
-	  gdb_printf (fp, " %s", excep_string.c_str ());
+	if (!m_excep_string.empty ())
+	  gdb_printf (fp, " %s", m_excep_string.c_str ());
 	break;
 
       case ada_catch_exception_unhandled:
@@ -12742,16 +12635,11 @@ ada_exception_catchpoint_cond_string (const char *excep_string,
   return result;
 }
 
-/* Return the symtab_and_line that should be used to insert an exception
-   catchpoint of the TYPE kind.
-
-   ADDR_STRING returns the name of the function where the real
-   breakpoint that implements the catchpoints is set, depending on the
-   type of catchpoint we need to create.  */
+/* Return the symtab_and_line that should be used to insert an
+   exception catchpoint of the TYPE kind.  */
 
 static struct symtab_and_line
-ada_exception_sal (enum ada_exception_catchpoint_kind ex,
-		   std::string *addr_string)
+ada_exception_sal (enum ada_exception_catchpoint_kind ex)
 {
   const char *sym_name;
   struct symbol *sym;
@@ -12765,13 +12653,11 @@ ada_exception_sal (enum ada_exception_catchpoint_kind ex,
   sym = standard_lookup (sym_name, NULL, VAR_DOMAIN);
 
   if (sym == NULL)
-    error (_("Catchpoint symbol not found: %s"), sym_name);
+    throw_error (NOT_FOUND_ERROR, _("Catchpoint symbol not found: %s"),
+		 sym_name);
 
   if (sym->aclass () != LOC_BLOCK)
     error (_("Unable to insert catchpoint. %s is not a function."), sym_name);
-
-  /* Set ADDR_STRING.  */
-  *addr_string = sym_name;
 
   return find_function_start_sal (sym, 1);
 }
@@ -12794,22 +12680,17 @@ ada_exception_sal (enum ada_exception_catchpoint_kind ex,
 void
 create_ada_exception_catchpoint (struct gdbarch *gdbarch,
 				 enum ada_exception_catchpoint_kind ex_kind,
-				 const std::string &excep_string,
+				 std::string &&excep_string,
 				 const std::string &cond_string,
 				 int tempflag,
 				 int enabled,
 				 int from_tty)
 {
-  std::string addr_string;
-  struct symtab_and_line sal = ada_exception_sal (ex_kind, &addr_string);
-
   std::unique_ptr<ada_catchpoint> c
-    (new ada_catchpoint (gdbarch, ex_kind, sal, addr_string.c_str (),
-			 tempflag, enabled, from_tty));
-  c->excep_string = excep_string;
-  create_excep_cond_exprs (c.get (), ex_kind);
-  if (!cond_string.empty ())
-    set_breakpoint_condition (c.get (), cond_string.c_str (), from_tty, false);
+    (new ada_catchpoint (gdbarch, ex_kind,
+			 cond_string.empty () ? nullptr : cond_string.c_str (),
+			 tempflag, enabled, from_tty,
+			 std::move (excep_string)));
   install_breakpoint (0, std::move (c), 1);
 }
 
@@ -12833,7 +12714,7 @@ catch_ada_exception_command (const char *arg_entry, int from_tty,
   catch_ada_exception_command_split (arg, false, &ex_kind, &excep_string,
 				     &cond_string);
   create_ada_exception_catchpoint (gdbarch, ex_kind,
-				   excep_string, cond_string,
+				   std::move (excep_string), cond_string,
 				   tempflag, 1 /* enabled */,
 				   from_tty);
 }
@@ -12858,7 +12739,7 @@ catch_ada_handlers_command (const char *arg_entry, int from_tty,
   catch_ada_exception_command_split (arg, true, &ex_kind, &excep_string,
 				     &cond_string);
   create_ada_exception_catchpoint (gdbarch, ex_kind,
-				   excep_string, cond_string,
+				   std::move (excep_string), cond_string,
 				   tempflag, 1 /* enabled */,
 				   from_tty);
 }
@@ -12925,7 +12806,7 @@ catch_assert_command (const char *arg_entry, int from_tty,
     arg = "";
   catch_ada_assert_command_split (arg, cond_string);
   create_ada_exception_catchpoint (gdbarch, ada_catch_assert,
-				   "", cond_string,
+				   {}, cond_string,
 				   tempflag, 1 /* enabled */,
 				   from_tty);
 }
@@ -13510,6 +13391,19 @@ public:
   bool symbol_printing_suppressed (struct symbol *symbol) const override
   {
     return symbol->is_artificial ();
+  }
+
+  /* See language.h.  */
+  struct value *value_string (struct gdbarch *gdbarch,
+			      const char *ptr, ssize_t len) const override
+  {
+    struct type *type = language_string_char_type (this, gdbarch);
+    value *val = ::value_string (ptr, len, type);
+    /* VAL will be a TYPE_CODE_STRING, but Ada only knows how to print
+       strings that are arrays of characters, so fix the type now.  */
+    gdb_assert (val->type ()->code () == TYPE_CODE_STRING);
+    val->type ()->set_code (TYPE_CODE_ARRAY);
+    return val;
   }
 
   /* See language.h.  */

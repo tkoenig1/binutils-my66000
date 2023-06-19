@@ -180,7 +180,7 @@ struct dwarf2_loclist_baton
 {
   /* The initial base address for the location list, based on the compilation
      unit.  */
-  CORE_ADDR base_address;
+  unrelocated_addr base_address;
 
   /* Pointer to the start of the location list.  */
   const gdb_byte *data;
@@ -246,9 +246,11 @@ struct dwarf2_property_baton
 
 extern const struct symbol_computed_ops dwarf2_locexpr_funcs;
 extern const struct symbol_computed_ops dwarf2_loclist_funcs;
+extern const struct symbol_computed_ops ada_imported_funcs;
 
 extern const struct symbol_block_ops dwarf2_block_frame_base_locexpr_funcs;
 extern const struct symbol_block_ops dwarf2_block_frame_base_loclist_funcs;
+extern const struct symbol_block_ops ada_function_alias_funcs;
 
 /* Determined tail calls for constructing virtual tail call frames.  */
 

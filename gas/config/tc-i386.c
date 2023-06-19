@@ -541,13 +541,13 @@ static char register_chars[256];
 static char operand_chars[256];
 
 /* Lexical macros.  */
-#define is_mnemonic_char(x) (mnemonic_chars[(unsigned char) x])
 #define is_operand_char(x) (operand_chars[(unsigned char) x])
 #define is_register_char(x) (register_chars[(unsigned char) x])
 #define is_space_char(x) ((x) == ' ')
 
-/* All non-digit non-letter characters that may occur in an operand.  */
-static char operand_special_chars[] = "%$-+(,)*._~/<>|&^!:[@]";
+/* All non-digit non-letter characters that may occur in an operand and
+   which aren't already in extra_symbol_chars[].  */
+static const char operand_special_chars[] = "$+,)._~/<>|&^!=:@]";
 
 /* md_assemble() always leaves the strings it's passed unaltered.  To
    effect this we maintain a stack of saved characters that we've smashed
@@ -826,6 +826,14 @@ i386_cpu_flags cpu_arch_isa_flags;
 /* If set, conditional jumps are not automatically promoted to handle
    larger than a byte offset.  */
 static bool no_cond_jump_promotion = false;
+
+/* This will be set from an expression parser hook if there's any
+   applicable operator involved in an expression.  */
+static enum {
+  expr_operator_none,
+  expr_operator_present,
+  expr_large_value,
+} expr_mode;
 
 /* Encode SSE instructions with VEX prefix.  */
 static unsigned int sse2avx;
@@ -1141,6 +1149,8 @@ static const arch_entry cpu_arch[] =
   SUBARCH (avx_ne_convert, AVX_NE_CONVERT, ANY_AVX_NE_CONVERT, false),
   SUBARCH (rao_int, RAO_INT, RAO_INT, false),
   SUBARCH (rmpquery, RMPQUERY, ANY_RMPQUERY, false),
+  SUBARCH (fred, FRED, ANY_FRED, false),
+  SUBARCH (lkgs, LKGS, ANY_LKGS, false),
 };
 
 #undef SUBARCH
@@ -3060,7 +3070,7 @@ md_begin (void)
   /* Fill in lexical tables:  mnemonic_chars, operand_chars.  */
   {
     int c;
-    char *p;
+    const char *p;
 
     for (c = 0; c < 256; c++)
       {
@@ -3076,11 +3086,6 @@ md_begin (void)
 	    register_chars[c] = mnemonic_chars[c];
 	    operand_chars[c] = c;
 	  }
-	else if (c == '{' || c == '}')
-	  {
-	    mnemonic_chars[c] = c;
-	    operand_chars[c] = c;
-	  }
 #ifdef SVR4_COMMENT_CHARS
 	else if (c == '\\' && strchr (i386_comment_chars, '/'))
 	  operand_chars[c] = c;
@@ -3090,13 +3095,12 @@ md_begin (void)
 	  operand_chars[c] = c;
       }
 
-#ifdef LEX_QM
-    operand_chars['?'] = '?';
-#endif
     mnemonic_chars['_'] = '_';
     mnemonic_chars['-'] = '-';
     mnemonic_chars['.'] = '.';
 
+    for (p = extra_symbol_chars; *p != '\0'; p++)
+      operand_chars[(unsigned char) *p] = *p;
     for (p = operand_special_chars; *p != '\0'; p++)
       operand_chars[(unsigned char) *p] = *p;
   }
@@ -5471,6 +5475,12 @@ parse_insn (const char *line, char *mnemonic, bool prefix_only)
   while (1)
     {
       mnem_p = mnemonic;
+      /* Pseudo-prefixes start with an opening figure brace.  */
+      if ((*mnem_p = *l) == '{')
+	{
+	  ++mnem_p;
+	  ++l;
+	}
       while ((*mnem_p = mnemonic_chars[(unsigned char) *l]) != 0)
 	{
 	  if (*mnem_p == '.')
@@ -5478,16 +5488,29 @@ parse_insn (const char *line, char *mnemonic, bool prefix_only)
 	  mnem_p++;
 	  if (mnem_p >= mnemonic + MAX_MNEM_SIZE)
 	    {
+	    too_long:
 	      as_bad (_("no such instruction: `%s'"), token_start);
 	      return NULL;
 	    }
 	  l++;
 	}
-      if (!is_space_char (*l)
-	  && *l != END_OF_INSN
-	  && (intel_syntax
-	      || (*l != PREFIX_SEPARATOR
-		  && *l != ',')))
+      /* Pseudo-prefixes end with a closing figure brace.  */
+      if (*mnemonic == '{' && *l == '}')
+	{
+	  *mnem_p++ = *l++;
+	  if (mnem_p >= mnemonic + MAX_MNEM_SIZE)
+	    goto too_long;
+	  *mnem_p = '\0';
+
+	  /* Point l at the closing brace if there's no other separator.  */
+	  if (*l != END_OF_INSN && !is_space_char (*l)
+	      && *l != PREFIX_SEPARATOR)
+	    --l;
+	}
+      else if (!is_space_char (*l)
+	       && *l != END_OF_INSN
+	       && (intel_syntax
+		   || (*l != PREFIX_SEPARATOR && *l != ',')))
 	{
 	  if (prefix_only)
 	    break;
@@ -6016,6 +6039,8 @@ optimize_imm (void)
     }
   else if ((flag_code == CODE_16BIT) ^ (i.prefix[DATA_PREFIX] != 0))
     guess_suffix = WORD_MNEM_SUFFIX;
+  else if (flag_code != CODE_64BIT || !(i.prefix[REX_PREFIX] & REX_W))
+    guess_suffix = LONG_MNEM_SUFFIX;
 
   for (op = i.operands; --op >= 0;)
     if (operand_type_check (i.types[op], imm))
@@ -6505,36 +6530,25 @@ check_VecOperands (const insn_template *t)
   /* Check if requested masking is supported.  */
   if (i.mask.reg)
     {
-      switch (t->opcode_modifier.masking)
+      if (!t->opcode_modifier.masking)
 	{
-	case BOTH_MASKING:
-	  break;
-	case MERGING_MASKING:
-	  if (i.mask.zeroing)
-	    {
-	case 0:
-	      i.error = unsupported_masking;
-	      return 1;
-	    }
-	  break;
-	case DYNAMIC_MASKING:
-	  /* Memory destinations allow only merging masking.  */
-	  if (i.mask.zeroing && i.mem_operands)
-	    {
-	      /* Find memory operand.  */
-	      for (op = 0; op < i.operands; op++)
-		if (i.flags[op] & Operand_Mem)
-		  break;
-	      gas_assert (op < i.operands);
-	      if (op == i.operands - 1)
-		{
-		  i.error = unsupported_masking;
-		  return 1;
-		}
-	    }
-	  break;
-	default:
-	  abort ();
+	  i.error = unsupported_masking;
+	  return 1;
+	}
+
+      /* Common rules for masking:
+	 - mask register destinations permit only zeroing-masking, without
+	   that actually being expressed by a {z} operand suffix or EVEX.z,
+	 - memory destinations allow only merging-masking,
+	 - scatter/gather insns (i.e. ones using vSIB) only allow merging-
+	   masking.  */
+      if (i.mask.zeroing
+	  && (t->operand_types[t->operands - 1].bitfield.class == RegMask
+	      || (i.flags[t->operands - 1] & Operand_Mem)
+	      || t->opcode_modifier.sib))
+	{
+	  i.error = unsupported_masking;
+	  return 1;
 	}
     }
 
@@ -10508,6 +10522,7 @@ x86_cons (expressionS *exp, int size)
 
   intel_syntax = -intel_syntax;
   exp->X_md = 0;
+  expr_mode = expr_operator_none;
 
 #if ((defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) \
       && !defined (LEX_AT)) \
@@ -10567,7 +10582,8 @@ x86_cons (expressionS *exp, int size)
     i386_intel_simplify (exp);
 
   /* If not 64bit, massage value, to account for wraparound when !BFD64.  */
-  if (size == 4 && exp->X_op == O_constant && !object_64bit)
+  if (size <= 4 && expr_mode == expr_operator_present
+      && exp->X_op == O_constant && !object_64bit)
     exp->X_add_number = extend_to_32bit_address (exp->X_add_number);
 
   return got_reloc;
@@ -11626,6 +11642,7 @@ i386_immediate (char *imm_start)
   if (gotfree_input_line)
     input_line_pointer = gotfree_input_line;
 
+  expr_mode = expr_operator_none;
   exp_seg = expression (exp);
 
   /* For .insn immediates there may be a size specifier.  */
@@ -11684,7 +11701,8 @@ i386_finalize_immediate (segT exp_seg ATTRIBUTE_UNUSED, expressionS *exp,
 
       /* If not 64bit, sign/zero extend val, to account for wraparound
 	 when !BFD64.  */
-      if (flag_code != CODE_64BIT)
+      if (expr_mode == expr_operator_present
+	  && flag_code != CODE_64BIT && !object_64bit)
 	exp->X_add_number = extend_to_32bit_address (exp->X_add_number);
     }
 #if (defined (OBJ_AOUT) || defined (OBJ_MAYBE_AOUT))
@@ -11906,6 +11924,7 @@ i386_displacement (char *disp_start, char *disp_end)
   if (gotfree_input_line)
     input_line_pointer = gotfree_input_line;
 
+  expr_mode = expr_operator_none;
   exp_seg = expression (exp);
 
   SKIP_WHITESPACE ();
@@ -11976,7 +11995,8 @@ i386_finalize_displacement (segT exp_seg ATTRIBUTE_UNUSED, expressionS *exp,
 
 	 If not 64bit, sign/zero extend val, to account for wraparound
 	 when !BFD64.  */
-      if (flag_code != CODE_64BIT)
+      if (expr_mode == expr_operator_present
+	  && flag_code != CODE_64BIT && !object_64bit)
 	exp->X_add_number = extend_to_32bit_address (exp->X_add_number);
     }
 
@@ -13830,11 +13850,11 @@ parse_register (const char *reg_string, char **end_op)
       input_line_pointer = buf;
       get_symbol_name (&name);
       symbolP = symbol_find (name);
-      while (symbolP && S_GET_SEGMENT (symbolP) != reg_section)
+      while (symbolP && symbol_equated_p (symbolP))
 	{
 	  const expressionS *e = symbol_get_value_expression(symbolP);
 
-	  if (e->X_op != O_symbol || e->X_add_number)
+	  if (e->X_add_number)
 	    break;
 	  symbolP = e->X_add_symbol;
 	}
@@ -13868,6 +13888,13 @@ i386_parse_name (char *name, expressionS *e, char *nextcharP)
   const reg_entry *r = NULL;
   char *end = input_line_pointer;
 
+  /* We only know the terminating character here.  It being double quote could
+     be the closing one of a quoted symbol name, or an opening one from a
+     following string (or another quoted symbol name).  Since the latter can't
+     be valid syntax for anything, bailing in either case is good enough.  */
+  if (*nextcharP == '"')
+    return 0;
+
   *end = *nextcharP;
   if (*name == REGISTER_PREFIX || allow_naked_reg)
     r = parse_real_register (name, &input_line_pointer);
@@ -13875,13 +13902,8 @@ i386_parse_name (char *name, expressionS *e, char *nextcharP)
     {
       *nextcharP = *input_line_pointer;
       *input_line_pointer = 0;
-      if (r != &bad_reg)
-	{
-	  e->X_op = O_register;
-	  e->X_add_number = r - i386_regtab;
-	}
-      else
-	  e->X_op = O_illegal;
+      e->X_op = O_register;
+      e->X_add_number = r - i386_regtab;
       return 1;
     }
   input_line_pointer = end;
@@ -13928,6 +13950,41 @@ md_operand (expressionS *e)
     }
 }
 
+#ifdef BFD64
+/* To maintain consistency with !BFD64 builds of gas record, whether any
+   (binary) operator was involved in an expression.  As expressions are
+   evaluated in only 32 bits when !BFD64, we use this to decide whether to
+   truncate results.  */
+bool i386_record_operator (operatorT op,
+			   const expressionS *left,
+			   const expressionS *right)
+{
+  if (op == O_absent)
+    return false;
+
+  if (!left)
+    {
+      /* Since the expression parser applies unary operators fine to bignum
+	 operands, we don't need to be concerned of respective operands not
+	 fitting in 32 bits.  */
+      if (right->X_op == O_constant && right->X_unsigned
+	  && !fits_in_unsigned_long (right->X_add_number))
+	return false;
+    }
+  /* This isn't entirely right: The pattern can also result when constant
+     expressions are folded (e.g. 0xffffffff + 1).  */
+  else if ((left->X_op == O_constant && left->X_unsigned
+	    && !fits_in_unsigned_long (left->X_add_number))
+	   || (right->X_op == O_constant && right->X_unsigned
+	       && !fits_in_unsigned_long (right->X_add_number)))
+    expr_mode = expr_large_value;
+
+  if (expr_mode != expr_large_value)
+    expr_mode = expr_operator_present;
+
+  return false;
+}
+#endif
 
 #if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
 const char *md_shortopts = "kVQ:sqnO::";
@@ -14120,7 +14177,21 @@ md_parse_option (int c, const char *arg)
 #endif
 
     case OPTION_32:
-      default_arch = "i386";
+      {
+	const char **list, **l;
+
+	list = bfd_target_list ();
+	for (l = list; *l != NULL; l++)
+	  if (strstr (*l, "-i386")
+	      || strstr (*l, "-go32"))
+	    {
+	      default_arch = "i386";
+	      break;
+	    }
+	if (*l == NULL)
+	  as_fatal (_("no compiled in support for ix86"));
+	free (list);
+      }
       break;
 
     case OPTION_DIVIDE:

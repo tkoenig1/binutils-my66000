@@ -54,9 +54,6 @@
 #define builtin_type_pybool \
   language_bool_type (current_language, gdbpy_enter::get_gdbarch ())
 
-#define builtin_type_pychar \
-  language_string_char_type (current_language, gdbpy_enter::get_gdbarch ())
-
 struct value_object {
   PyObject_HEAD
   struct value_object *next;
@@ -854,6 +851,33 @@ static PyObject *
 valpy_reinterpret_cast (PyObject *self, PyObject *args)
 {
   return valpy_do_cast (self, args, UNOP_REINTERPRET_CAST);
+}
+
+/* Implementation of the "assign" method.  */
+
+static PyObject *
+valpy_assign (PyObject *self_obj, PyObject *args)
+{
+  PyObject *val_obj;
+
+  if (! PyArg_ParseTuple (args, "O", &val_obj))
+    return nullptr;
+
+  struct value *val = convert_value_from_python (val_obj);
+  if (val == nullptr)
+    return nullptr;
+
+  try
+    {
+      value_object *self = (value_object *) self_obj;
+      value_assign (self->value, val);
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+
+  Py_RETURN_NONE;
 }
 
 static Py_ssize_t
@@ -1881,8 +1905,9 @@ convert_value_from_python (PyObject *obj)
 	  gdb::unique_xmalloc_ptr<char> s
 	    = python_string_to_target_string (obj);
 	  if (s != NULL)
-	    value = value_cstring (s.get (), strlen (s.get ()),
-				   builtin_type_pychar);
+	    value
+	      = current_language->value_string (gdbpy_enter::get_gdbarch (),
+						s.get (), strlen (s.get ()));
 	}
       else if (PyObject_TypeCheck (obj, &value_object_type))
 	value = ((value_object *) obj)->value->copy ();
@@ -2106,7 +2131,7 @@ reinterpret_cast operator."
   { "rvalue_reference_value", valpy_rvalue_reference_value, METH_NOARGS,
     "Return a value of type TYPE_CODE_RVALUE_REF referencing this value." },
   { "const_value", valpy_const_value, METH_NOARGS,
-    "Return a 'const' qualied version of the same value." },
+    "Return a 'const' qualified version of the same value." },
   { "lazy_string", (PyCFunction) valpy_lazy_string,
     METH_VARARGS | METH_KEYWORDS,
     "lazy_string ([encoding]  [, length]) -> lazy_string\n\
@@ -2121,6 +2146,9 @@ Return Unicode string representation of the value." },
     "format_string (...) -> string\n\
 Return a string representation of the value using the specified\n\
 formatting options" },
+  { "assign", (PyCFunction) valpy_assign, METH_VARARGS,
+    "assign (VAL) -> None\n\
+Assign VAL to this value." },
   {NULL}  /* Sentinel */
 };
 

@@ -32,7 +32,8 @@ enum print_values {
    PRINT_SIMPLE_VALUES
 };
 
-typedef void (mi_cmd_argv_ftype) (const char *command, char **argv, int argc);
+typedef void (mi_cmd_argv_ftype) (const char *command, const char *const *argv,
+				  int argc);
 
 /* Declarations of the functions implementing each command.  */
 
@@ -205,6 +206,11 @@ using mi_command_up = std::unique_ptr<struct mi_command>;
 extern mi_command *mi_cmd_lookup (const char *command);
 
 extern void mi_execute_command (const char *cmd, int from_tty);
+
+/* Execute an MI command given an already-constructed parse
+   object.  */
+
+extern void mi_execute_command (mi_parse *context);
 
 /* Insert COMMAND into the global mi_cmd_table.  Return false if
    COMMAND->name already exists in mi_cmd_table, in which case COMMAND will

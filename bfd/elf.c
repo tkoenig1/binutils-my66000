@@ -4254,7 +4254,7 @@ _bfd_elf_compute_section_file_positions (bfd *abfd,
     {
       bfd_map_over_sections (abfd, bfd_elf_set_group_contents, &failed);
       if (failed)
-	return false;
+	goto err_free_strtab;
     }
 
   shstrtab_hdr = &elf_tdata (abfd)->shstrtab_hdr;
@@ -4270,9 +4270,9 @@ _bfd_elf_compute_section_file_positions (bfd *abfd,
   shstrtab_hdr->sh_addralign = 1;
 
   if (!assign_file_positions_except_relocs (abfd, link_info))
-    return false;
+    goto err_free_strtab;
 
-  if (need_symtab)
+  if (strtab != NULL)
     {
       file_ptr off;
       Elf_Internal_Shdr *hdr;
@@ -4299,13 +4299,17 @@ _bfd_elf_compute_section_file_positions (bfd *abfd,
 	 out.  */
       if (bfd_seek (abfd, hdr->sh_offset, SEEK_SET) != 0
 	  || ! _bfd_elf_strtab_emit (abfd, strtab))
-	return false;
+	goto err_free_strtab;
       _bfd_elf_strtab_free (strtab);
     }
 
   abfd->output_has_begun = true;
-
   return true;
+
+ err_free_strtab:
+  if (strtab != NULL)
+    _bfd_elf_strtab_free (strtab);
+  return false;
 }
 
 /* Retrieve .eh_frame_hdr.  Prior to size_dynamic_sections the
@@ -7210,10 +7214,12 @@ rewrite_elf_program_header (bfd *ibfd, bfd *obfd, bfd_vma maxpagesize)
 	     no sections, but ordinary, loadable segments should contain
 	     something.  They are allowed by the ELF spec however, so only
 	     a warning is produced.
+	     Don't warn if an empty PT_LOAD contains the program headers.
 	     There is however the valid use case of embedded systems which
 	     have segments with p_filesz of 0 and a p_memsz > 0 to initialize
 	     flash memory with zeros.  No warning is shown for that case.  */
 	  if (segment->p_type == PT_LOAD
+	      && !map->includes_phdrs
 	      && (segment->p_filesz > 0 || segment->p_memsz == 0))
 	    /* xgettext:c-format */
 	    _bfd_error_handler
@@ -9583,21 +9589,22 @@ _bfd_elf_validate_reloc (bfd *abfd, arelent *areloc)
 }
 
 bool
-_bfd_elf_close_and_cleanup (bfd *abfd)
+_bfd_elf_free_cached_info (bfd *abfd)
 {
-  struct elf_obj_tdata *tdata = elf_tdata (abfd);
-  if (tdata != NULL
-      && (bfd_get_format (abfd) == bfd_object
-	  || bfd_get_format (abfd) == bfd_core))
+  struct elf_obj_tdata *tdata;
+
+  if ((bfd_get_format (abfd) == bfd_object
+       || bfd_get_format (abfd) == bfd_core)
+      && (tdata = elf_tdata (abfd)) != NULL)
     {
-      if (elf_tdata (abfd)->o != NULL && elf_shstrtab (abfd) != NULL)
+      if (tdata->o != NULL && elf_shstrtab (abfd) != NULL)
 	_bfd_elf_strtab_free (elf_shstrtab (abfd));
       _bfd_dwarf2_cleanup_debug_info (abfd, &tdata->dwarf2_find_line_info);
       _bfd_dwarf1_cleanup_debug_info (abfd, &tdata->dwarf1_find_line_info);
       _bfd_stab_cleanup (abfd, &tdata->line_info);
     }
 
-  return _bfd_generic_close_and_cleanup (abfd);
+  return _bfd_generic_bfd_free_cached_info (abfd);
 }
 
 /* For Rel targets, we encode meaningful data for BFD_RELOC_VTABLE_ENTRY

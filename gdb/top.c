@@ -471,6 +471,8 @@ execute_command (const char *p, int from_tty)
       return;
     }
 
+  std::string cmd_copy = p;
+
   target_log_command (p);
 
   while (*p == ' ' || *p == '\t')
@@ -577,7 +579,7 @@ execute_command (const char *p, int from_tty)
 	 We need to lookup the command again since during its execution,
 	 a command may redefine itself.  In this case, C pointer
 	 becomes invalid so we need to look it up again.  */
-      const char *cmd2 = cmd_start;
+      const char *cmd2 = cmd_copy.c_str ();
       c = lookup_cmd (&cmd2, cmdlist, "", nullptr, 1, 1);
       if (c != nullptr)
 	execute_cmd_post_hook (c);
@@ -1555,6 +1557,16 @@ This GDB was configured as follows:\n\
 #else
   gdb_printf (stream, _("\
 	     --disable-tui\n\
+"));
+#endif
+
+#ifdef HAVE_READLINE_READLINE_H
+  gdb_printf (stream, _("\
+	     --with-system-readline\n\
+"));
+#else
+  gdb_printf (stream, _("\
+	     --without-system-readline\n\
 "));
 #endif
 

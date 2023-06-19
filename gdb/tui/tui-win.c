@@ -284,27 +284,20 @@ tui_update_variables ()
   struct tui_translate *entry;
 
   entry = translate (tui_border_mode, tui_border_mode_translate);
-  if (tui_border_attrs != entry->value)
-    {
-      tui_border_attrs = entry->value;
-      need_redraw = true;
-    }
+  need_redraw
+    |= assign_return_if_changed<int> (tui_border_attrs, entry->value);
+
   entry = translate (tui_active_border_mode, tui_border_mode_translate);
-  if (tui_active_border_attrs != entry->value)
-    {
-      tui_active_border_attrs = entry->value;
-      need_redraw = true;
-    }
+  need_redraw
+    |= assign_return_if_changed<int> (tui_active_border_attrs, entry->value);
 
   /* If one corner changes, all characters are changed.
      Only check the first one.  The ACS characters are determined at
      run time by curses terminal management.  */
   entry = translate (tui_border_kind, tui_border_kind_translate_lrcorner);
-  if (tui_border_lrcorner != (chtype) entry->value)
-    {
-      tui_border_lrcorner = (entry->value < 0) ? ACS_LRCORNER : entry->value;
-      need_redraw = true;
-    }
+  int val = (entry->value < 0) ? ACS_LRCORNER : entry->value;
+  need_redraw |= assign_return_if_changed<chtype> (tui_border_lrcorner, val);
+
   entry = translate (tui_border_kind, tui_border_kind_translate_llcorner);
   tui_border_llcorner = (entry->value < 0) ? ACS_LLCORNER : entry->value;
 
@@ -1219,34 +1212,39 @@ This variable controls the border of TUI windows:\n\
 			show_tui_border_kind,
 			&tui_setlist, &tui_showlist);
 
-  add_setshow_enum_cmd ("border-mode", no_class, tui_border_mode_enums,
-			&tui_border_mode, _("\
-Set the attribute mode to use for the TUI window borders."), _("\
-Show the attribute mode to use for the TUI window borders."), _("\
-This variable controls the attributes to use for the window borders:\n\
+  const std::string help_attribute_mode (_("\
    normal          normal display\n\
    standout        use highlight mode of terminal\n\
    reverse         use reverse video mode\n\
    half            use half bright\n\
    half-standout   use half bright and standout mode\n\
    bold            use extra bright or bold\n\
-   bold-standout   use extra bright or bold with standout mode"),
+   bold-standout   use extra bright or bold with standout mode"));
+
+  const std::string help_tui_border_mode
+    = (_("\
+This variable controls the attributes to use for the window borders:\n")
+       + help_attribute_mode);
+
+  add_setshow_enum_cmd ("border-mode", no_class, tui_border_mode_enums,
+			&tui_border_mode, _("\
+Set the attribute mode to use for the TUI window borders."), _("\
+Show the attribute mode to use for the TUI window borders."),
+			help_tui_border_mode.c_str (),
 			tui_set_var_cmd,
 			show_tui_border_mode,
 			&tui_setlist, &tui_showlist);
 
+  const std::string help_tui_active_border_mode
+    = (_("\
+This variable controls the attributes to use for the active window borders:\n")
+       + help_attribute_mode);
+
   add_setshow_enum_cmd ("active-border-mode", no_class, tui_border_mode_enums,
 			&tui_active_border_mode, _("\
 Set the attribute mode to use for the active TUI window border."), _("\
-Show the attribute mode to use for the active TUI window border."), _("\
-This variable controls the attributes to use for the active window border:\n\
-   normal          normal display\n\
-   standout        use highlight mode of terminal\n\
-   reverse         use reverse video mode\n\
-   half            use half bright\n\
-   half-standout   use half bright and standout mode\n\
-   bold            use extra bright or bold\n\
-   bold-standout   use extra bright or bold with standout mode"),
+Show the attribute mode to use for the active TUI window border."),
+			help_tui_active_border_mode.c_str (),
 			tui_set_var_cmd,
 			show_tui_active_border_mode,
 			&tui_setlist, &tui_showlist);
@@ -1254,7 +1252,7 @@ This variable controls the attributes to use for the active window border:\n\
   add_setshow_zuinteger_cmd ("tab-width", no_class,
 			     &internal_tab_width, _("\
 Set the tab width, in characters, for the TUI."), _("\
-Show the tab witdh, in characters, for the TUI."), _("\
+Show the tab width, in characters, for the TUI."), _("\
 This variable controls how many spaces are used to display a tab character."),
 			     tui_set_tab_width, tui_show_tab_width,
 			     &tui_setlist, &tui_showlist);
@@ -1274,8 +1272,7 @@ When enabled GDB will print a message when the terminal is resized."),
 Set whether the TUI source window is compact."), _("\
 Show whether the TUI source window is compact."), _("\
 This variable controls whether the TUI source window is shown\n\
-in a compact form.  The compact form puts the source closer to\n\
-the line numbers and uses less horizontal space."),
+in a compact form.  The compact form uses less horizontal space."),
 			   tui_set_compact_source, tui_show_compact_source,
 			   &tui_setlist, &tui_showlist);
 

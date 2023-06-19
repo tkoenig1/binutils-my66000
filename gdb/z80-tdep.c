@@ -748,7 +748,7 @@ z80_sw_breakpoint_from_kind (struct gdbarch *gdbarch, int kind, int *size)
       break_insn[0] = kind | 0307;
       *size = 1;
     }
-  else /* kind is non-RST address, use CALL instead, but it is dungerous */
+  else /* kind is non-RST address, use CALL instead, but it is dangerous */
     {
       z80_gdbarch_tdep *tdep = gdbarch_tdep<z80_gdbarch_tdep> (gdbarch);
       gdb_byte *p = break_insn;
@@ -962,11 +962,11 @@ z80_overlay_update_1 (struct obj_section *osect)
 
   /* we have interest for sections with same VMA */
   for (objfile *objfile : current_program_space->objfiles ())
-    ALL_OBJFILE_OSECTIONS (objfile, osect)
-      if (section_is_overlay (osect))
+    for (obj_section *sect : objfile->sections ())
+      if (section_is_overlay (sect))
 	{
-	  osect->ovly_mapped = (lma == bfd_section_lma (osect->the_bfd_section));
-	  i |= osect->ovly_mapped; /* true, if at least one section is mapped */
+	  sect->ovly_mapped = (lma == bfd_section_lma (sect->the_bfd_section));
+	  i |= sect->ovly_mapped; /* true, if at least one section is mapped */
 	}
   return i;
 }
@@ -985,18 +985,18 @@ z80_overlay_update (struct obj_section *osect)
 
   /* Update all sections, even if only one was requested.  */
   for (objfile *objfile : current_program_space->objfiles ())
-    ALL_OBJFILE_OSECTIONS (objfile, osect)
+    for (obj_section *sect : objfile->sections ())
       {
-	if (!section_is_overlay (osect))
+	if (!section_is_overlay (sect))
 	  continue;
 
-	asection *bsect = osect->the_bfd_section;
+	asection *bsect = sect->the_bfd_section;
 	bfd_vma lma = bfd_section_lma (bsect);
 	bfd_vma vma = bfd_section_vma (bsect);
 
 	for (int i = 0; i < cache_novly_regions; ++i)
 	  if (cache_ovly_region_table[i][Z80_VMA] == vma)
-	    osect->ovly_mapped =
+	    sect->ovly_mapped =
 	      (cache_ovly_region_table[i][Z80_MAPPED_TO_LMA] == lma);
       }
 }
@@ -1403,7 +1403,7 @@ z80_get_insn_info (struct gdbarch *gdbarch, const gdb_byte *buf, int *size)
       info = &ez80_adl_main_insn_table[4]; /* skip force_nops */
       break;
     default:
-      info = &ez80_main_insn_table[8]; /* skip eZ80 prefices and force_nops */
+      info = &ez80_main_insn_table[8]; /* skip eZ80 prefixes and force_nops */
       break;
     }
   do

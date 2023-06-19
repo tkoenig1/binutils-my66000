@@ -58,12 +58,6 @@ class probe;
 struct lookup_name_info;
 struct code_breakpoint;
 
-/* Like a CORE_ADDR, but not directly convertible.  This is used to
-   represent an unrelocated CORE_ADDR.  DEFINE_OFFSET_TYPE is not used
-   here because there's no need to add or subtract values of this
-   type.  */
-enum class unrelocated_addr : CORE_ADDR { };
-
 /* How to match a lookup name against a symbol search name.  */
 enum class symbol_name_match_type
 {
@@ -1053,11 +1047,11 @@ enum address_class
      without possibly having its address available for LOC_STATIC.  Testcase
      is provided as `gdb.dwarf2/dw2-unresolved.exp'.
 
-     This is also used for thread local storage (TLS) variables.  In this case,
-     the address of the TLS variable must be determined when the variable is
-     referenced, from the MSYMBOL_VALUE_RAW_ADDRESS, which is the offset
-     of the TLS variable in the thread local storage of the shared
-     library/object.  */
+     This is also used for thread local storage (TLS) variables.  In
+     this case, the address of the TLS variable must be determined
+     when the variable is referenced, from the msymbol's address,
+     which is the offset of the TLS variable in the thread local
+     storage of the shared library/object.  */
 
   LOC_UNRESOLVED,
 
@@ -1182,6 +1176,12 @@ struct symbol_block_ops
      the corresponding DW_AT_frame_base attribute.  */
   CORE_ADDR (*get_frame_base) (struct symbol *framefunc,
 			       frame_info_ptr frame);
+
+  /* Return the block for this function.  So far, this is used to
+     implement function aliases.  So, if this is set, then it's not
+     necessary to set the other functions in this structure; and vice
+     versa.  */
+  const block *(*get_block_value) (const struct symbol *sym);
 };
 
 /* Functions used with LOC_REGISTER and LOC_REGPARM_ADDR.  */
@@ -1379,10 +1379,7 @@ struct symbol : public general_symbol_info, public allocate_on_obstack
     m_value.common_block = common_block;
   }
 
-  const block *value_block () const
-  {
-    return m_value.block;
-  }
+  const block *value_block () const;
 
   void set_value_block (const block *block)
   {
@@ -1536,6 +1533,15 @@ struct block_symbol
 #define SYMBOL_REGISTER_OPS(symbol)	((symbol)->impl ().ops_register)
 #define SYMBOL_LOCATION_BATON(symbol)   (symbol)->aux_value
 
+inline const block *
+symbol::value_block () const
+{
+  if (SYMBOL_BLOCK_OPS (this) != nullptr
+      && SYMBOL_BLOCK_OPS (this)->get_block_value != nullptr)
+    return SYMBOL_BLOCK_OPS (this)->get_block_value (this);
+  return m_value.block;
+}
+
 extern int register_symbol_computed_impl (enum address_class,
 					  const struct symbol_computed_ops *);
 
@@ -1577,11 +1583,11 @@ struct rust_vtable_symbol : public symbol
 struct linetable_entry
 {
   /* Set the (unrelocated) PC for this entry.  */
-  void set_raw_pc (unrelocated_addr pc)
+  void set_unrelocated_pc (unrelocated_addr pc)
   { m_pc = pc; }
 
   /* Return the unrelocated PC for this entry.  */
-  unrelocated_addr raw_pc () const
+  unrelocated_addr unrelocated_pc () const
   { return m_pc; }
 
   /* Return the relocated PC for this entry.  */
@@ -1609,6 +1615,8 @@ struct linetable_entry
   /* True if this location is a good location to place a breakpoint after a
      function prologue.  */
   bool prologue_end : 1;
+
+private:
 
   /* The address for this entry.  */
   unrelocated_addr m_pc;

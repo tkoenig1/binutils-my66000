@@ -67,6 +67,17 @@
     break foo thread 1 task 1
     watch var thread 2 task 3
 
+* The printf command now accepts a '%V' output format which will
+  format an expression just as the 'print' command would.  Print
+  options can be placed withing '[...]' after the '%V' to modify how
+  the value is printed.  E.g:
+    printf "%V", some_array
+    printf "%V[-array-indexes on]", some_array
+  will print the array without, or with array indexes included, just
+  as the array would be printed by the 'print' command.  This
+  functionality is also available for dprintf when dprintf-style is
+  'gdb'.
+
 * New commands
 
 maintenance print record-instruction [ N ]
@@ -129,6 +140,8 @@ info main
 
 * Python API
 
+  ** gdb.ThreadExitedEvent added.  Emits a ThreadEvent.
+
   ** The gdb.unwinder.Unwinder.name attribute is now read-only.
 
   ** The name argument passed to gdb.unwinder.Unwinder.__init__ must
@@ -169,6 +182,47 @@ info main
      this class are constructed with 'sp' (stack-pointer) and 'pc'
      (program-counter) values, and can be used as the frame-id when
      calling gdb.PendingFrame.create_unwind_info.
+
+  ** It is now no longer possible to sub-class the
+     gdb.disassembler.DisassemblerResult type.
+
+  ** The Disassembler API from the gdb.disassembler module has been
+     extended to include styling support:
+
+     - The DisassemblerResult class can now be initialized with a list
+       of parts.  Each part represents part of the disassembled
+       instruction along with the associated style information.  This
+       list of parts can be accessed with the new
+       DisassemblerResult.parts property.
+
+     - New constants gdb.disassembler.STYLE_* representing all the
+       different styles part of an instruction might have.
+
+     - New methods DisassembleInfo.text_part and
+       DisassembleInfo.address_part which are used to create the new
+       styled parts of a disassembled instruction.
+
+     - Changes are backwards compatible, the older API can still be
+       used to disassemble instructions without styling.
+
+  ** New function gdb.execute_mi(COMMAND, [ARG]...), that invokes a
+     GDB/MI command and returns the output as a Python dictionary.
+
+  ** gdb.parse_and_eval now has a new "global_context" parameter.
+     This can be used to request that the parse only examine global
+     symbols.
+
+  ** gdb.Inferior now has a new "arguments" attribute.  This holds the
+     command-line arguments to the inferior, if known.
+
+  ** gdb.Inferior now has a new "main_name" attribute.  This holds the
+     name of the inferior's "main", if known.
+
+  ** gdb.Inferior now has new methods "clear_env", "set_env", and
+     "unset_env".  These can be used to modify the inferior's
+     environment before it is started.
+
+  ** gdb.Value now has the 'assign' method.
 
 *** Changes in GDB 13
 

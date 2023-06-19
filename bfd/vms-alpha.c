@@ -5292,12 +5292,18 @@ alpha_vms_slurp_relocs (bfd *abfd)
       begin = PRIV (recrd.rec) + 4;
       end = PRIV (recrd.rec) + PRIV (recrd.rec_size);
 
-      for (ptr = begin; ptr < end; ptr += length)
+      for (ptr = begin; ptr + 4 <= end; ptr += length)
 	{
 	  int cmd;
 
 	  cmd = bfd_getl16 (ptr);
 	  length = bfd_getl16 (ptr + 2);
+	  if (length < 4 || length > end - ptr)
+	    {
+	    bad_rec:
+	      _bfd_error_handler (_("corrupt reloc record"));
+	      goto fail;
+	    }
 
 	  cur_address = vaddr;
 
@@ -5313,6 +5319,8 @@ alpha_vms_slurp_relocs (bfd *abfd)
 	      continue;
 
 	    case ETIR__C_STA_PQ: /* ALPHA_R_REF{LONG|QUAD}, others part 1 */
+	      if (length < 16)
+		goto bad_rec;
 	      cur_psidx = bfd_getl32 (ptr + 4);
 	      cur_addend = bfd_getl64 (ptr + 8);
 	      prev_cmd = cmd;
@@ -5346,6 +5354,8 @@ alpha_vms_slurp_relocs (bfd *abfd)
 		      goto fail;
 		    }
 		}
+	      if (length < 8)
+		goto bad_rec;
 	      cur_addend = bfd_getl32 (ptr + 4);
 	      prev_cmd = cmd;
 	      continue;
@@ -5360,6 +5370,8 @@ alpha_vms_slurp_relocs (bfd *abfd)
 		     _bfd_vms_etir_name (ETIR__C_STA_QW));
 		  goto fail;
 		}
+	      if (length < 12)
+		goto bad_rec;
 	      cur_addend = bfd_getl64 (ptr + 4);
 	      prev_cmd = cmd;
 	      continue;
@@ -5455,12 +5467,16 @@ alpha_vms_slurp_relocs (bfd *abfd)
 	      goto call_reloc;
 
 	    call_reloc:
+	      if (length < 36)
+		goto bad_rec;
 	      cur_sym = ptr + 4 + 32;
 	      cur_address = bfd_getl64 (ptr + 4 + 8);
 	      cur_addend = bfd_getl64 (ptr + 4 + 24);
 	      break;
 
 	    case ETIR__C_STO_IMM:
+	      if (length < 8)
+		goto bad_rec;
 	      vaddr += bfd_getl32 (ptr + 4);
 	      continue;
 
@@ -5520,12 +5536,16 @@ alpha_vms_slurp_relocs (bfd *abfd)
 	    if (cur_sym != NULL)
 	      {
 		unsigned int j;
-		unsigned int symlen = *cur_sym;
+		int symlen;
 		asymbol **sym;
 
 		/* Linear search.  */
+		if (end - cur_sym < 1)
+		  goto bad_rec;
 		symlen = *cur_sym;
 		cur_sym++;
+		if (end - cur_sym < symlen)
+		  goto bad_rec;
 		sym = NULL;
 
 		for (j = 0; j < PRIV (gsd_sym_count); j++)
@@ -10083,25 +10103,12 @@ bfd_vms_get_data (bfd *abfd)
   return (struct vms_private_data_struct *)abfd->tdata.any;
 }
 
-#define vms_bfd_is_target_special_symbol  _bfd_bool_bfd_asymbol_false
-#define vms_bfd_link_just_syms		  _bfd_generic_link_just_syms
-#define vms_bfd_copy_link_hash_symbol_type \
-  _bfd_generic_copy_link_hash_symbol_type
-#define vms_bfd_is_group_section	  bfd_generic_is_group_section
-#define vms_bfd_group_name		  bfd_generic_group_name
-#define vms_bfd_discard_group		  bfd_generic_discard_group
-#define vms_section_already_linked	  _bfd_generic_section_already_linked
-#define vms_bfd_define_common_symbol	  bfd_generic_define_common_symbol
-#define vms_bfd_link_hide_symbol	  _bfd_generic_link_hide_symbol
-#define vms_bfd_define_start_stop         bfd_generic_define_start_stop
-#define vms_bfd_copy_private_header_data  _bfd_generic_bfd_copy_private_header_data
-
 #define vms_bfd_copy_private_bfd_data	  _bfd_generic_bfd_copy_private_bfd_data
-#define vms_bfd_free_cached_info	  _bfd_generic_bfd_free_cached_info
+#define vms_bfd_merge_private_bfd_data	  _bfd_generic_bfd_merge_private_bfd_data
 #define vms_bfd_copy_private_section_data _bfd_generic_bfd_copy_private_section_data
 #define vms_bfd_copy_private_symbol_data  _bfd_generic_bfd_copy_private_symbol_data
+#define vms_bfd_copy_private_header_data  _bfd_generic_bfd_copy_private_header_data
 #define vms_bfd_set_private_flags	  _bfd_generic_bfd_set_private_flags
-#define vms_bfd_merge_private_bfd_data	  _bfd_generic_bfd_merge_private_bfd_data
 
 /* Symbols table.  */
 #define alpha_vms_make_empty_symbol	   _bfd_generic_make_empty_symbol
@@ -10124,7 +10131,7 @@ bfd_vms_get_data (bfd *abfd)
 
 /* Generic table.  */
 #define alpha_vms_close_and_cleanup	   vms_close_and_cleanup
-#define alpha_vms_bfd_free_cached_info	   vms_bfd_free_cached_info
+#define alpha_vms_bfd_free_cached_info	   _bfd_bool_bfd_true
 #define alpha_vms_new_section_hook	   vms_new_section_hook
 #define alpha_vms_set_section_contents	   _bfd_vms_set_section_contents
 #define alpha_vms_get_section_contents_in_window _bfd_generic_get_section_contents_in_window

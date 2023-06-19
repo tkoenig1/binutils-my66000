@@ -225,7 +225,7 @@ tui_rl_command_key (int count, int key)
 	  rl_newline (1, '\n');
 
 	  /* Switch to gdb command mode while executing the command.
-	     This way the gdb's continue prompty will be displayed.  */
+	     This way the gdb's continue prompt will be displayed.  */
 	  tui_set_key_mode (TUI_ONE_COMMAND_MODE);
 	  return 0;
 	}
@@ -251,6 +251,13 @@ tui_rl_next_keymap (int notused1, int notused2)
 {
   if (!tui_active)
     tui_rl_switch_mode (0 /* notused */, 0 /* notused */);
+
+  if (rl_end)
+    {
+      rl_end = 0;
+      rl_point = 0;
+      rl_mark = 0;
+    }
 
   tui_set_key_mode (tui_current_key_mode == TUI_COMMAND_MODE
 		    ? TUI_SINGLE_KEY_MODE : TUI_COMMAND_MODE);

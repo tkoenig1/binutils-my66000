@@ -261,7 +261,7 @@ extern int bfd_generic_stat_arch_elt
 extern bool _bfd_archive_close_and_cleanup
   (bfd *) ATTRIBUTE_HIDDEN;
 extern void _bfd_unlink_from_archive_parent (bfd *) ATTRIBUTE_HIDDEN;
-#define _bfd_generic_bfd_free_cached_info _bfd_bool_bfd_true
+#define _bfd_generic_bfd_free_cached_info _bfd_free_cached_info
 extern bool _bfd_generic_new_section_hook
   (bfd *, asection *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_generic_get_section_contents
@@ -787,6 +787,8 @@ struct ecoff_debug_swap;
 struct ecoff_extr;
 struct ecoff_find_line;
 
+extern void _bfd_ecoff_free_ecoff_debug_info
+  (struct ecoff_debug_info *debug);
 extern bool _bfd_ecoff_locate_line
   (bfd *, asection *, bfd_vma, struct ecoff_debug_info * const,
    const struct ecoff_debug_swap * const, struct ecoff_find_line *,

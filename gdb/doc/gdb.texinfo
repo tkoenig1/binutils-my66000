@@ -5962,18 +5962,29 @@ explicitly-supplied command lists.)
 @table @code
 @item gdb
 @kindex dprintf-style gdb
-Handle the output using the @value{GDBN} @code{printf} command.
+Handle the output using the @value{GDBN} @code{printf} command.  When
+using this style, it is possible to use the @samp{%V} format specifier
+(@pxref{%V Format Specifier}).
 
 @item call
 @kindex dprintf-style call
 Handle the output by calling a function in your program (normally
-@code{printf}).
+@code{printf}).  When using this style the supported format specifiers
+depend entirely on the function being called.
+
+Most of @value{GDBN}'s format specifiers align with those supported by
+the @code{printf} function, however, @value{GDBN}'s @samp{%V} format
+specifier extension is not supported by @code{printf}.  When using
+@samp{call} style dprintf, care should be taken to ensure that only
+format specifiers supported by the output function are used, otherwise
+the results will be undefined.
 
 @item agent
 @kindex dprintf-style agent
-Have the remote debugging agent (such as @code{gdbserver}) handle
-the output itself.  This style is only available for agents that
-support running commands on the target.
+Have the remote debugging agent (such as @code{gdbserver}) handle the
+output itself.  This style is only available for agents that support
+running commands on the target.  This style does not support the
+@samp{%V} format specifier.
 @end table
 
 @item set dprintf-function @var{function}
@@ -7048,6 +7059,7 @@ locking the OS scheduler to allow only a single thread to run.
 
 @table @code
 @item set scheduler-locking @var{mode}
+@cindex scheduler-locking
 @cindex scheduler locking mode
 @cindex lock scheduler
 Set the scheduler locking mode.  It applies to normal execution,
@@ -13140,6 +13152,10 @@ frame specified by @var{number_of_frames}.
 
 @findex $_as_string@r{, convenience function}
 @item $_as_string(@var{value})
+This convenience function is considered deprecated, and could be
+removed from future versions of @value{GDBN}.  Use the @samp{%V} format
+specifier instead (@pxref{%V Format Specifier}).
+
 Return the string representation of @var{value}.
 
 This function is useful to obtain the textual label (enumerator) of an
@@ -20586,7 +20602,9 @@ an address of your own choosing, with the following commands:
 Resume execution at the address of the code location that results from
 resolving @var{locspec}.
 @xref{Location Specifications}, for a description of the different
-forms of @var{locspec}.  If @var{locspec} resolves to more than one
+forms of @var{locspec}.  If @var{locspec} resolves to more than one address,
+those outside the current compilation unit are ignored.  If considering just
+the addresses in the current compilation unit still doesn't yield a unique
 address, the command aborts before jumping.
 Execution stops again immediately if there is a breakpoint there.  It
 is common practice to use the @code{tbreak} command in conjunction
@@ -29048,6 +29066,36 @@ Here's an example of printing DFP types using the above conversion letters:
 printf "D32: %Hf - D64: %Df - D128: %DDf\n",1.2345df,1.2E10dd,1.2E1dl
 @end smallexample
 
+@anchor{%V Format Specifier}
+Additionally, @code{printf} supports a special @samp{%V} output format.
+This format prints the string representation of an expression just as
+@value{GDBN} would produce with the standard @kbd{print} command
+(@pxref{Data, ,Examining Data}):
+
+@smallexample
+(@value{GDBP}) print array
+$1 = @{0, 1, 2, 3, 4, 5@}
+(@value{GDBP}) printf "Array is: %V\n", array
+Array is: @{0, 1, 2, 3, 4, 5@}
+@end smallexample
+
+It is possible to include print options with the @samp{%V} format by
+placing them in @samp{[...]} immediately after the @samp{%V}, like
+this:
+
+@smallexample
+(@value{GDBP}) printf "Array is: %V[-array-indexes on]\n", array
+Array is: @{[0] = 0, [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 5@}
+@end smallexample
+
+If you need to print a literal @samp{[} directly after a @samp{%V}, then
+just include an empty print options list:
+
+@smallexample
+(@value{GDBP}) printf "Array is: %V[][Hello]\n", array
+Array is: @{0, 1, 2, 3, 4, 5@}[Hello]
+@end smallexample
+
 @anchor{eval}
 @kindex eval
 @item eval @var{template}, @var{expressions}@dots{}
@@ -30311,10 +30359,9 @@ assembly windows.
 @item set tui compact-source @r{[}on@r{|}off@r{]}
 @kindex set tui compact-source
 Set whether the TUI source window is displayed in ``compact'' form.
-The default display uses more space for line numbers and starts the
-source text at the next tab stop; the compact display uses only as
-much space as is needed for the line numbers in the current file, and
-only a single space to separate the line numbers from the source.
+The default display uses more space for line numbers; the compact
+display uses only as much space as is needed for the line numbers in
+the current file.
 
 @kindex set debug tui
 @item set debug tui @r{[}on|off@r{]}
@@ -30560,7 +30607,7 @@ occurs exactly once.
 @section @sc{gdb/mi} General Design
 @cindex GDB/MI General Design
 
-Interaction of a @sc{GDB/MI} frontend with @value{GDBN} involves three
+Interaction of a @sc{gdb/mi} frontend with @value{GDBN} involves three
 parts---commands sent to @value{GDBN}, responses to those commands
 and notifications.  Each command results in exactly one response,
 indicating either successful completion of the command, or an error.
@@ -32281,9 +32328,14 @@ times="0"@}]@}
 @smallexample
  -dprintf-insert [ -t ] [ -f ] [ -d ] [ --qualified ]
     [ -c @var{condition} ] [--force-condition] [ -i @var{ignore-count} ]
-    [ -p @var{thread-id} ] [ @var{locspec} ] [ @var{format} ]
-    [ @var{argument} ]
+    [ -p @var{thread-id} ] [ @var{locspec} ] @var{format}
+    [ @var{argument}@dots{} ]
 @end smallexample
+
+@noindent
+Insert a new dynamic print breakpoint at the given location.
+@xref{Dynamic Printf}.  @var{format} is the format to use, and any
+remaining arguments are passed as expressions to substitute.
 
 @noindent
 If supplied, @var{locspec} and @code{--qualified} may be specified
@@ -34999,7 +35051,7 @@ objects.
 @end table
 
 In the future new values may be added to this list so the front should
-be prepared for this possibility.  @xref{GDB/MI Development and Front Ends, ,@sc{GDB/MI} Development and Front Ends}.
+be prepared for this possibility.  @xref{GDB/MI Development and Front Ends, ,@sc{gdb/mi} Development and Front Ends}.
 
 @item type_changed
 This is only present if the varobj is still valid.  If the type
@@ -38998,13 +39050,41 @@ Generally, @value{GDBN} implements the Debugger Adapter Protocol as
 written.  However, in some cases, extensions are either needed or even
 expected.
 
-@value{GDBN} defines a parameter that can be passed to the
+@value{GDBN} defines some parameters that can be passed to the
 @code{launch} request:
 
 @table @code
+@item args
+If provided, this should be an array of strings.  These strings are
+provided as command-line arguments to the inferior, as if by
+@code{set args}.  @xref{Arguments}.
+
+@item env
+If provided, this should be an object.  Each key of the object will be
+used as the name of an environment variable; each value must be a
+string and will be the value of that variable.  The environment of the
+inferior will be set to exactly as passed in.  @xref{Environment}.
+
 @item program
 If provided, this is a string that specifies the program to use.  This
 corresponds to the @code{file} command.  @xref{Files}.
+
+@item stopAtBeginningOfMainSubprogram
+If provided, this must be a boolean.  When @samp{True}, @value{GDBN}
+will set a temporary breakpoint at the program's main procedure, using
+the same approach as the @code{start} command.  @xref{Starting}.
+@end table
+
+@value{GDBN} defines some parameters that can be passed to the
+@code{attach} request.  One of these must be specified.
+
+@table @code
+@item pid
+The process ID to which @value{GDBN} should attach.  @xref{Attach}.
+
+@item target
+The target to which @value{GDBN} should connect.  This is a string and
+is passed to the @code{target remote} command.  @xref{Connecting}.
 @end table
 
 @node JIT Interface
@@ -43189,7 +43269,7 @@ Hex encoded (big endian) bytes representing the linear address of the
 thread information block.
 
 @item E @var{nn}
-An error occured.  This means that either the thread was not found, or the
+An error occurred.  This means that either the thread was not found, or the
 address could not be retrieved.
 
 @item @w{}
@@ -43240,7 +43320,7 @@ Hex encoded sequence of uninterpreted bytes, @var{xx}@dots{}, representing the
 tags found in the requested memory range.
 
 @item E @var{nn}
-An error occured.  This means that fetching of memory tags failed for some
+An error occurred.  This means that fetching of memory tags failed for some
 reason.
 
 @item @w{}
@@ -43289,7 +43369,7 @@ The request was successful and the memory tag granules were modified
 accordingly.
 
 @item E @var{nn}
-An error occured.  This means that modifying the memory tag granules failed
+An error occurred.  This means that modifying the memory tag granules failed
 for some reason.
 
 @item @w{}
@@ -45339,7 +45419,7 @@ The valid responses to Host I/O packets are:
 
 @item F @var{result} [, @var{errno}] [; @var{attachment}]
 @var{result} is the integer value returned by this operation, usually
-non-negative for success and -1 for errors.  If an error has occured,
+non-negative for success and -1 for errors.  If an error has occurred,
 @var{errno} will be included in the result specifying a
 value defined by the File-I/O protocol (@pxref{Errno Values}).  For
 operations which return data, @var{attachment} supplies the data as a
@@ -49600,7 +49680,7 @@ terminates) is not issued when running in batch mode.
 
 @item --batch-silent
 Run in batch mode, just like @option{--batch}, but totally silent.  All @value{GDBN}
-output is supressed (stderr is unaffected).  This is much quieter than
+output is suppressed (stderr is unaffected).  This is much quieter than
 @option{--silent} and would be useless for an interactive session.
 
 This is particularly useful when using targets that give @samp{Loading section}

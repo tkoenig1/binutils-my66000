@@ -913,7 +913,7 @@ i386_displaced_step_fixup (struct gdbarch *gdbarch,
 	  && pc != to + (insn - insn_start) + insn_len
 	  /* GDB can get control back after the insn after the syscall.
 	     Presumably this is a kernel bug.
-	     i386_displaced_step_copy_insn ensures its a nop,
+	     i386_displaced_step_copy_insn ensures it's a nop,
 	     we add one to the length for it.  */
 	  && pc != to + (insn - insn_start) + insn_len + 1)
 	displaced_debug_printf ("syscall changed %%eip; not relocating");
@@ -8656,7 +8656,7 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_fetch_pointer_argument (gdbarch, i386_fetch_pointer_argument);
 
   /* Hook the function epilogue frame unwinder.  This unwinder is
-     appended to the list first, so that it supercedes the DWARF
+     appended to the list first, so that it supersedes the DWARF
      unwinder in function epilogues (where the DWARF unwinder
      currently fails).  */
   if (info.bfd_arch_info->bits_per_word == 32)

@@ -726,6 +726,9 @@ elf_gnu_ifunc_record_cache (const char *name, CORE_ADDR addr)
   if (len > 4 && strcmp (target_name + len - 4, "@plt") == 0)
     return 0;
 
+  if (strcmp (target_name, "_PROCEDURE_LINKAGE_TABLE_") == 0)
+    return 0;
+
   htab = elf_objfile_gnu_ifunc_cache_data.get (objfile);
   if (htab == NULL)
     {
@@ -970,11 +973,11 @@ elf_gnu_ifunc_resolver_stop (code_breakpoint *b)
        b_return = b_return->related_breakpoint)
     {
       gdb_assert (b_return->type == bp_gnu_ifunc_resolver_return);
-      gdb_assert (b_return->loc != NULL && b_return->loc->next == NULL);
+      gdb_assert (b_return->has_single_location ());
       gdb_assert (frame_id_p (b_return->frame_id));
 
       if (b_return->thread == thread_id
-	  && b_return->loc->requested_address == prev_pc
+	  && b_return->first_loc ().requested_address == prev_pc
 	  && b_return->frame_id == prev_frame_id)
 	break;
     }
@@ -1039,11 +1042,11 @@ elf_gnu_ifunc_resolver_return_stop (code_breakpoint *b)
       b = (code_breakpoint *) b_next;
     }
   gdb_assert (b->type == bp_gnu_ifunc_resolver);
-  gdb_assert (b->loc->next == NULL);
+  gdb_assert (b->has_single_location ());
 
   func_func = value::allocate (func_func_type);
   func_func->set_lval (lval_memory);
-  func_func->set_address (b->loc->related_address);
+  func_func->set_address (b->first_loc ().related_address);
 
   value = value::allocate (value_type);
   gdbarch_return_value_as_value (gdbarch, func_func, value_type, regcache,

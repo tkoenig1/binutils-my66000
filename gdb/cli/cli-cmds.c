@@ -2215,12 +2215,26 @@ setting_cmd (const char *fnname, struct cmd_list_element *showlist,
       && type0->code () != TYPE_CODE_STRING)
     error (_("First argument of %s must be a string."), fnname);
 
-  const char *a0 = (const char *) argv[0]->contents ().data ();
+  /* Not all languages null-terminate their strings, by moving the string
+     content into a std::string we ensure that a null-terminator is added.
+     For languages that do add a null-terminator the std::string might end
+     up with two null characters at the end, but that's harmless.  */
+  const std::string setting ((const char *) argv[0]->contents ().data (),
+			     type0->length ());
+  const char *a0 = setting.c_str ();
   cmd_list_element *cmd = lookup_cmd (&a0, showlist, "", NULL, -1, 0);
 
   if (cmd == nullptr || cmd->type != show_cmd)
-    error (_("First argument of %s must be a "
-	     "valid setting of the 'show' command."), fnname);
+    {
+      gdb_assert (showlist->prefix != nullptr);
+      std::vector<std::string> components
+	= showlist->prefix->command_components ();
+      std::string full_name = components[0];
+      for (int i = 1; i < components.size (); ++i)
+	full_name += " " + components[i];
+      error (_("First argument of %s must be a valid setting of the "
+	       "'%s' command."), fnname, full_name.c_str ());
+    }
 
   return cmd;
 }
@@ -2307,12 +2321,7 @@ value_from_setting (const setting &var, struct gdbarch *gdbarch)
 	    len = st.length ();
 	  }
 
-	if (len > 0)
-	  return value_cstring (value, len,
-				builtin_type (gdbarch)->builtin_char);
-	else
-	  return value_cstring ("", 1,
-				builtin_type (gdbarch)->builtin_char);
+	return current_language->value_string (gdbarch, value, len);
       }
     default:
       gdb_assert_not_reached ("bad var_type");
@@ -2364,8 +2373,8 @@ str_value_from_setting (const setting &var, struct gdbarch *gdbarch)
       {
 	std::string cmd_val = get_setshow_command_value_string (var);
 
-	return value_cstring (cmd_val.c_str (), cmd_val.size (),
-			      builtin_type (gdbarch)->builtin_char);
+	return current_language->value_string (gdbarch, cmd_val.c_str (),
+					       cmd_val.size ());
       }
 
     case var_string:
@@ -2392,12 +2401,7 @@ str_value_from_setting (const setting &var, struct gdbarch *gdbarch)
 	    len = st.length ();
 	  }
 
-	if (len > 0)
-	  return value_cstring (value, len,
-				builtin_type (gdbarch)->builtin_char);
-	else
-	  return value_cstring ("", 1,
-				builtin_type (gdbarch)->builtin_char);
+	return current_language->value_string (gdbarch, value, len);
       }
     default:
       gdb_assert_not_reached ("bad var_type");

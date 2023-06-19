@@ -2107,6 +2107,7 @@ make_head (bfd *parent)
   tmp_seq++;
 
   abfd = bfd_create (oname, parent);
+  free (oname);
   bfd_find_target (pe_details->object_target, abfd);
   bfd_make_writable (abfd);
 
@@ -2200,6 +2201,7 @@ make_tail (bfd *parent)
   tmp_seq++;
 
   abfd = bfd_create (oname, parent);
+  free (oname);
   bfd_find_target (pe_details->object_target, abfd);
   bfd_make_writable (abfd);
 
@@ -2321,6 +2323,31 @@ make_one (def_file_export *exp, bfd *parent, bool include_jmp_stub)
   bfd *abfd;
   const unsigned char *jmp_bytes = NULL;
   int jmp_byte_count = 0;
+  const char *internal_name = exp->internal_name;
+
+  if (!exp->flag_noname)
+    {
+      /* Check for a decorated symbol name */
+      struct decoration_hash_entry *entry;
+
+      entry = (struct decoration_hash_entry *)
+	      bfd_hash_lookup (&(coff_hash_table (&link_info)->decoration_hash),
+			       internal_name, false, false);
+      if (entry)
+	{
+	  if (entry->decorated_link)
+	    {
+	      internal_name = entry->decorated_link->root.string;
+
+	      if (pe_details->underscored && internal_name[0] == '_')
+		internal_name++;
+	    }
+	  else
+	    {
+	      einfo (_("%P: error: NULL decorated name for %s\n"), internal_name);
+	    }
+	}
+    }
 
   /* Include the jump stub section only if it is needed. A jump
      stub is needed if the symbol being imported <sym> is a function
@@ -2367,6 +2394,7 @@ make_one (def_file_export *exp, bfd *parent, bool include_jmp_stub)
   tmp_seq++;
 
   abfd = bfd_create (oname, parent);
+  free (oname);
   bfd_find_target (pe_details->object_target, abfd);
   bfd_make_writable (abfd);
 
@@ -2382,13 +2410,13 @@ make_one (def_file_export *exp, bfd *parent, bool include_jmp_stub)
   id4 = quick_section (abfd, ".idata$4", SEC_HAS_CONTENTS, 2);
   id6 = quick_section (abfd, ".idata$6", SEC_HAS_CONTENTS, 2);
 
-  if  (*exp->internal_name == '@')
+  if  (*internal_name == '@')
     {
       quick_symbol (abfd, U ("_head_"), dll_symname, "", UNDSEC,
 		    BSF_GLOBAL, 0);
       if (include_jmp_stub)
-	quick_symbol (abfd, "", exp->internal_name, "", tx, BSF_GLOBAL, 0);
-      quick_symbol (abfd, "__imp_", exp->internal_name, "", id5,
+	quick_symbol (abfd, "", internal_name, "", tx, BSF_GLOBAL, 0);
+      quick_symbol (abfd, "__imp_", internal_name, "", id5,
 		    BSF_GLOBAL, 0);
       /* Fastcall applies only to functions,
 	 so no need for auto-import symbol.  */
@@ -2398,18 +2426,18 @@ make_one (def_file_export *exp, bfd *parent, bool include_jmp_stub)
       quick_symbol (abfd, U ("_head_"), dll_symname, "", UNDSEC,
 		    BSF_GLOBAL, 0);
       if (include_jmp_stub)
-	quick_symbol (abfd, U (""), exp->internal_name, "", tx,
+	quick_symbol (abfd, U (""), internal_name, "", tx,
 		      BSF_GLOBAL, 0);
-      quick_symbol (abfd, "__imp_", U (""), exp->internal_name, id5,
+      quick_symbol (abfd, "__imp_", U (""), internal_name, id5,
 		    BSF_GLOBAL, 0);
       /* Symbol to reference ord/name of imported
 	 data symbol, used to implement auto-import.  */
       if (exp->flag_data)
-	quick_symbol (abfd, "__nm_", U (""), exp->internal_name, id6,
+	quick_symbol (abfd, "__nm_", U (""), internal_name, id6,
 		      BSF_GLOBAL,0);
     }
   if (pe_dll_compat_implib)
-    quick_symbol (abfd, "___imp_", exp->internal_name, "", id5,
+    quick_symbol (abfd, "___imp_", internal_name, "", id5,
 		  BSF_GLOBAL, 0);
 
   if (include_jmp_stub)
@@ -2561,6 +2589,7 @@ make_singleton_name_thunk (const char *import, bfd *parent)
   tmp_seq++;
 
   abfd = bfd_create (oname, parent);
+  free (oname);
   bfd_find_target (pe_details->object_target, abfd);
   bfd_make_writable (abfd);
 
@@ -2641,6 +2670,7 @@ make_import_fixup_entry (const char *name,
   tmp_seq++;
 
   abfd = bfd_create (oname, parent);
+  free (oname);
   bfd_find_target (pe_details->object_target, abfd);
   bfd_make_writable (abfd);
 
@@ -2699,6 +2729,7 @@ make_runtime_pseudo_reloc (const char *name ATTRIBUTE_UNUSED,
   tmp_seq++;
 
   abfd = bfd_create (oname, parent);
+  free (oname);
   bfd_find_target (pe_details->object_target, abfd);
   bfd_make_writable (abfd);
 
@@ -2720,6 +2751,7 @@ make_runtime_pseudo_reloc (const char *name ATTRIBUTE_UNUSED,
 
   rt_rel
     = quick_section (abfd, ".rdata_runtime_pseudo_reloc", SEC_HAS_CONTENTS, 2);
+  bfd_coff_set_long_section_names (abfd, true);
 
   quick_symbol (abfd, "", fixup_name, "", UNDSEC, BSF_GLOBAL, 0);
 
@@ -2790,6 +2822,7 @@ pe_create_runtime_relocator_reference (bfd *parent)
   tmp_seq++;
 
   abfd = bfd_create (oname, parent);
+  free (oname);
   bfd_find_target (pe_details->object_target, abfd);
   bfd_make_writable (abfd);
 

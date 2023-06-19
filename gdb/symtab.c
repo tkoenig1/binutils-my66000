@@ -344,7 +344,7 @@ compunit_symtab::find_call_site (CORE_ADDR pc) const
     return nullptr;
 
   CORE_ADDR delta = this->objfile ()->text_section_offset ();
-  CORE_ADDR unrelocated_pc = pc - delta;
+  unrelocated_addr unrelocated_pc = (unrelocated_addr) (pc - delta);
 
   struct call_site call_site_local (unrelocated_pc, nullptr, nullptr);
   void **slot
@@ -360,7 +360,8 @@ compunit_symtab::find_call_site (CORE_ADDR pc) const
   if (pc == new_pc)
     return nullptr;
 
-  call_site new_call_site_local (new_pc - delta, nullptr, nullptr);
+  unrelocated_pc = (unrelocated_addr) (new_pc - delta);
+  call_site new_call_site_local (unrelocated_pc, nullptr, nullptr);
   slot = htab_find_slot (m_call_site_htab, &new_call_site_local, NO_INSERT);
   if (slot == nullptr)
     return nullptr;
@@ -1099,7 +1100,7 @@ struct obj_section *
 general_symbol_info::obj_section (const struct objfile *objfile) const
 {
   if (section_index () >= 0)
-    return &objfile->sections[section_index ()];
+    return &objfile->sections_start[section_index ()];
   return nullptr;
 }
 
@@ -1770,14 +1771,12 @@ fixup_symbol_section (struct symbol *sym, struct objfile *objfile)
 	 this reason, we still attempt a lookup by name prior to doing
 	 a search of the section table.  */
 
-      struct obj_section *s;
-
-      ALL_OBJFILE_OSECTIONS (objfile, s)
+      for (obj_section *s : objfile->sections ())
 	{
 	  if ((bfd_section_flags (s->the_bfd_section) & SEC_ALLOC) == 0)
 	    continue;
 
-	  int idx = s - objfile->sections;
+	  int idx = s - objfile->sections_start;
 	  CORE_ADDR offset = objfile->section_offsets[idx];
 
 	  if (fallback == -1)
@@ -3165,13 +3164,13 @@ find_pc_sect_line (CORE_ADDR pc, struct obj_section *section, int notcurrent)
       /* Is this file's first line closer than the first lines of other files?
 	 If so, record this file, and its first line, as best alternate.  */
       if (item->pc (objfile) > pc
-	  && (!alt || item->raw_pc () < alt->raw_pc ()))
+	  && (!alt || item->unrelocated_pc () < alt->unrelocated_pc ()))
 	alt = item;
 
       auto pc_compare = [] (const unrelocated_addr &comp_pc,
 			    const struct linetable_entry & lhs)
       {
-	return comp_pc < lhs.raw_pc ();
+	return comp_pc < lhs.unrelocated_pc ();
       };
 
       const linetable_entry *first = item;
@@ -3193,7 +3192,8 @@ find_pc_sect_line (CORE_ADDR pc, struct obj_section *section, int notcurrent)
 	 save prev if it represents the end of a function (i.e. line number
 	 0) instead of a real line.  */
 
-      if (prev && prev->line && (!best || prev->raw_pc () > best->raw_pc ()))
+      if (prev && prev->line
+	  && (!best || prev->unrelocated_pc () > best->unrelocated_pc ()))
 	{
 	  best = prev;
 	  best_symtab = iter_s;
@@ -3208,7 +3208,8 @@ find_pc_sect_line (CORE_ADDR pc, struct obj_section *section, int notcurrent)
 	  if (!best->is_stmt)
 	    {
 	      const linetable_entry *tmp = best;
-	      while (tmp > first && (tmp - 1)->raw_pc () == tmp->raw_pc ()
+	      while (tmp > first
+		     && (tmp - 1)->unrelocated_pc () == tmp->unrelocated_pc ()
 		     && (tmp - 1)->line != 0 && !tmp->is_stmt)
 		--tmp;
 	      if (tmp->is_stmt)
@@ -3223,7 +3224,8 @@ find_pc_sect_line (CORE_ADDR pc, struct obj_section *section, int notcurrent)
       /* If another line (denoted by ITEM) is in the linetable and its
 	 PC is after BEST's PC, but before the current BEST_END, then
 	 use ITEM's PC as the new best_end.  */
-      if (best && item < last && item->raw_pc () > best->raw_pc ()
+      if (best && item < last
+	  && item->unrelocated_pc () > best->unrelocated_pc ()
 	  && (best_end == 0 || best_end > item->pc (objfile)))
 	best_end = item->pc (objfile);
     }
@@ -3710,12 +3712,12 @@ skip_prologue_using_linetable (CORE_ADDR func_addr)
 	(linetable->item, linetable->item + linetable->nitems, unrel_start,
 	 [] (const linetable_entry &lte, unrelocated_addr pc)
 	 {
-	   return lte.raw_pc () < pc;
+	   return lte.unrelocated_pc () < pc;
 	 });
 
       for (;
 	   (it < linetable->item + linetable->nitems
-	    && it->raw_pc () < unrel_end);
+	    && it->unrelocated_pc () < unrel_end);
 	   it++)
 	if (it->prologue_end)
 	  return {it->pc (objfile)};
@@ -3955,15 +3957,17 @@ skip_prologue_using_sal (struct gdbarch *gdbarch, CORE_ADDR func_addr)
 	  struct objfile *objfile
 	    = prologue_sal.symtab->compunit ()->objfile ();
 	  const linetable *linetable = prologue_sal.symtab->linetable ();
+	  gdb_assert (linetable->nitems > 0);
 	  int idx = 0;
 
 	  /* Skip any earlier lines, and any end-of-sequence marker
 	     from a previous function.  */
-	  while (linetable->item[idx].pc (objfile) != prologue_sal.pc
-		 || linetable->item[idx].line == 0)
+	  while (idx + 1 < linetable->nitems
+		 && (linetable->item[idx].pc (objfile) != prologue_sal.pc
+		     || linetable->item[idx].line == 0))
 	    idx++;
 
-	  if (idx+1 < linetable->nitems
+	  if (idx + 1 < linetable->nitems
 	      && linetable->item[idx+1].line != 0
 	      && linetable->item[idx+1].pc (objfile) == start_pc)
 	    return start_pc;
@@ -6353,7 +6357,7 @@ static int next_aclass_value = LOC_FINAL_VALUE;
 
 /* The maximum number of "aclass" registrations we support.  This is
    constant for convenience.  */
-#define MAX_SYMBOL_IMPLS (LOC_FINAL_VALUE + 10)
+#define MAX_SYMBOL_IMPLS (LOC_FINAL_VALUE + 11)
 
 /* The objects representing the various "aclass" values.  The elements
    from 0 up to LOC_FINAL_VALUE-1 represent themselves, and subsequent
@@ -6414,7 +6418,8 @@ register_symbol_block_impl (enum address_class aclass,
 
   /* Sanity check OPS.  */
   gdb_assert (ops != NULL);
-  gdb_assert (ops->find_frame_base_location != NULL);
+  gdb_assert (ops->find_frame_base_location != nullptr
+	      || ops->get_block_value != nullptr);
 
   return result;
 }
@@ -6498,17 +6503,10 @@ get_symbol_address (const struct symbol *sym)
   gdb_assert (sym->aclass () == LOC_STATIC);
 
   const char *linkage_name = sym->linkage_name ();
-
-  for (objfile *objfile : current_program_space->objfiles ())
-    {
-      if (objfile->separate_debug_objfile_backlink != nullptr)
-	continue;
-
-      bound_minimal_symbol minsym
-	= lookup_minimal_symbol_linkage (linkage_name, objfile);
-      if (minsym.minsym != nullptr)
-	return minsym.value_address ();
-    }
+  bound_minimal_symbol minsym = lookup_minimal_symbol_linkage (linkage_name,
+							       false);
+  if (minsym.minsym != nullptr)
+    return minsym.value_address ();
   return sym->m_value.address;
 }
 
@@ -6521,18 +6519,10 @@ get_msymbol_address (struct objfile *objf, const struct minimal_symbol *minsym)
   gdb_assert ((objf->flags & OBJF_MAINLINE) == 0);
 
   const char *linkage_name = minsym->linkage_name ();
-
-  for (objfile *objfile : current_program_space->objfiles ())
-    {
-      if (objfile->separate_debug_objfile_backlink == nullptr
-	  && (objfile->flags & OBJF_MAINLINE) != 0)
-	{
-	  bound_minimal_symbol found
-	    = lookup_minimal_symbol_linkage (linkage_name, objfile);
-	  if (found.minsym != nullptr)
-	    return found.value_address ();
-	}
-    }
+  bound_minimal_symbol found = lookup_minimal_symbol_linkage (linkage_name,
+							      true);
+  if (found.minsym != nullptr)
+    return found.value_address ();
   return (minsym->m_value.address
 	  + objf->section_offsets[minsym->section_index ()]);
 }
@@ -6991,7 +6981,7 @@ If zero then the symbol cache is disabled."),
 			   _("Show if the PROLOGUE-END flag is ignored."),
 			   _("\
 The PROLOGUE-END flag from the line-table entries is used to place \
-breakpoints past the prologue of functions.  Disabeling its use use forces \
+breakpoints past the prologue of functions.  Disabling its use forces \
 the use of prologue scanners."),
 			   nullptr, nullptr,
 			   &maintenance_set_cmdlist,

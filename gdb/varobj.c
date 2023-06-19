@@ -2391,7 +2391,7 @@ varobj_invalidate_if_uses_objfile (struct objfile *objfile)
 	    {
 	      /* The varobj is tied to a block which is going away.  There is
 		 no way to reconstruct something later, so invalidate the
-		 varobj completly and drop the reference to the block which is
+		 varobj completely and drop the reference to the block which is
 		 being freed.  */
 	      var->root->is_valid = false;
 	      var->root->valid_block = nullptr;
@@ -2414,7 +2414,7 @@ varobj_invalidate_if_uses_objfile (struct objfile *objfile)
 
       /* var->value->type and var->type might also reference the objfile.
 	 This is taken care of in value.c:preserve_values which deals with
-	 making sure that objfile-owend types are replaced with
+	 making sure that objfile-owned types are replaced with
 	 gdbarch-owned equivalents.  */
     });
 }

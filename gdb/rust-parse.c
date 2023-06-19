@@ -1682,6 +1682,16 @@ rust_parser::parse_slice_type ()
 {
   assume ('&');
 
+  /* Handle &str specially.  This is an important type in Rust.  While
+     the compiler does emit the "&str" type in the DWARF, just "str"
+     itself isn't always available -- but it's handy if this works
+     seamlessly.  */
+  if (current_token == IDENT && get_string () == "str")
+    {
+      lex ();
+      return rust_slice_type ("&str", get_type ("u8"), get_type ("usize"));
+    }
+
   bool is_slice = current_token == '[';
   if (is_slice)
     lex ();
@@ -2300,7 +2310,7 @@ rust_lex_tests (void)
 {
   /* Set up dummy "parser", so that rust_type works.  */
   struct parser_state ps (language_def (language_rust), target_gdbarch (),
-			  nullptr, 0, 0, nullptr, 0, nullptr, false);
+			  nullptr, 0, 0, nullptr, 0, nullptr);
   rust_parser parser (&ps);
 
   rust_lex_test_one (&parser, "", 0);

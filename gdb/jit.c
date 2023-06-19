@@ -491,7 +491,8 @@ jit_symtab_line_mapping_add_impl (struct gdb_symbol_callbacks *cb,
   stab->linetable->nitems = nlines;
   for (i = 0; i < nlines; i++)
     {
-      stab->linetable->item[i].set_raw_pc (unrelocated_addr (map[i].pc));
+      stab->linetable->item[i].set_unrelocated_pc
+	(unrelocated_addr (map[i].pc));
       stab->linetable->item[i].line = map[i].line;
       stab->linetable->item[i].is_stmt = true;
     }
@@ -845,14 +846,14 @@ jit_breakpoint_deleted (struct breakpoint *b)
   if (b->type != bp_jit_event)
     return;
 
-  for (bp_location *iter : b->locations ())
+  for (bp_location &iter : b->locations ())
     {
-      for (objfile *objf : iter->pspace->objfiles ())
+      for (objfile *objf : iter.pspace->objfiles ())
 	{
 	  jiter_objfile_data *jiter_data = objf->jiter_data.get ();
 
 	  if (jiter_data != nullptr
-	      && jiter_data->jit_breakpoint == iter->owner)
+	      && jiter_data->jit_breakpoint == iter.owner)
 	    {
 	      jiter_data->cached_code_address = 0;
 	      jiter_data->jit_breakpoint = nullptr;
