@@ -1628,4 +1628,9 @@ static void handle_jt (int num ATTRIBUTE_UNUSED)
     }
 
   input_line_pointer = cp;
+
+  /* Aligh to a four-byte boundary - there should be a .p2align 2
+     there, but just in case the user forgot.  */
+  
+  do_align (2, (char *) 0, 0, 0);
 }

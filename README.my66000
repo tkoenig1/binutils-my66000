@@ -1,5 +1,5 @@
 This is the an experimental branch of binutils to support Mitch
 Alsup's My 66000 architecture.
 
-At the moment, this is just the beginning of the boilerplate
-necessary for integration into the binutils interface.
+Currently, the assembler works partially, no work has been done
+on the linker or debugger yet.
