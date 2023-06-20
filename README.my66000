@@ -3,3 +3,7 @@ Alsup's My 66000 architecture.
 
 Currently, the assembler works partially, no work has been done
 on the linker or debugger yet.
+
+Configure with
+
+./configure --target=my66000-elf 
