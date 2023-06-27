@@ -266,6 +266,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	  case MY66000_OPS_PRTHEN:
 	  case MY66000_OPS_PRELSE:
 	  case MY66000_OPS_SI5:
+	  case MY66000_OPS_MSCALE:
 	    /* An integer constant.  */
 	    v = val;
 	    fpr (stream, "%d", v);
@@ -417,7 +418,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
       jt_fill --;
       return jt_size;
     }
-  
+
   if ((status = info->read_memory_func (addr, buffer, 4, info)))
     goto fail;
 

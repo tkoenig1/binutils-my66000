@@ -769,6 +769,12 @@ match_64_bit_vanilla (char **ptr, char **errmsg, expressionS *ex)
   return match_num_or_label (ptr, errmsg, ex, 64, true);
 }
 
+static uint8_t
+match_scale (char **ptr, char **errmsg)
+{
+  return match_integer (ptr, errmsg, 0, 3);
+}
+
 /* Match an INS pattern <a:b>.  */
 
 static uint32_t
@@ -899,6 +905,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_UIMM16:
 	  bits = match_16bit_u (&sp, errmsg);
 	  needs_jt = bits + 1;
+	  break;
+
+	case MY66000_OPS_MSCALE:
+	  bits = match_scale (&sp, errmsg);
 	  break;
 
 	case MY66000_OPS_CARRY:

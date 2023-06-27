@@ -280,7 +280,7 @@ static const my66000_opc_info_t opc_om7[] =
 #define XOP1_d(c) ((c) << XOP1_d_SHFT)
 #define XOP1_d_MASK XOP1_d(1)
 
-#define MRR_FMT_MASK (XOP1_D_MASK | XOP1_SCALE_MASK | XOP1_d_MASK)
+#define MRR_FMT_MASK (XOP1_D_MASK | XOP1_d_MASK)
 
 /* Mask for rindex=0 */
 
@@ -319,7 +319,7 @@ static const my66000_opc_info_t opc_om7[] =
 
 #define IP_MASK (31 << 16)
 
-#define XOP1_BITS(D,scale,d) (XOP1_D(D) | XOP1_SCALE(scale) | XOP1_d(d))
+#define XOP1_BITS(D,d) (XOP1_D(D) | XOP1_d(d))
 
 /* Definition for the various modifier bits in the XOP2 group.  */
 
@@ -1068,6 +1068,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_VEC,     OPERAND_ENTRY (21, 0), "Vector bitfield",          'h' },
  {MY66000_OPS_UIMM16,  OPERAND_ENTRY (16, 0), "16-bit unsigned immediate",'i' },
  {MY66000_OPS_SI5,     OPERAND_ENTRY ( 5,21), "5-bit immediate store",    'j' },
+ {MY66000_OPS_MSCALE,  OPERAND_ENTRY ( 3,13), "Scale for indexed ld/st",  'k' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1160,39 +1161,43 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
 {
  /* This is for disassembly only, we prefer offset 0 for
     just indirect load.  */
- { "A,[K]",        XOP1_BITS(0,0,0), MRR_FMT_MASK | RIND_ZERO_MASK, 0},
+ { "A,[K]",        XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
  /* Different syntax variants of scaled indexing without offset.  */
- { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
- { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
- { "A,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
- { "A,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_FMT_MASK, 0},
- { "A,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_FMT_MASK, 0},
- { "A,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_FMT_MASK, 0},
- { "A,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_FMT_MASK, 0},
- { "A,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_FMT_MASK, 0},
- { "A,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_FMT_MASK, 0},
+ { "A,[K,D,0]",    XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "A,[K,D<<k]",   XOP1_BITS(0,0), MRR_FMT_MASK, 0},
+ { "A,[K,D<<k,0]", XOP1_BITS(0,0), MRR_FMT_MASK, 0},
 
  /* FIXME:  Relocations for symbols which are not offset
     with respect to the IP are poorly defined at the moment.  */
 
  /* IP-relative, without register offset, and an IP-relative 32-bit
     and 64-bit relocations, respectively.  */
- { "A,[K,M]",      XOP1_BITS(0,0,1), MRR_FMT_MASK | RIND_ZERO_MASK, 1},
- { "A,[K,Q]",      XOP1_BITS(1,0,1), MRR_FMT_MASK | RIND_ZERO_MASK, 0},
+ { "A,[K,M]",      XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
+ { "A,[K,Q]",      XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
 
  /* IP-relative, with scaled index register and offset.  If the index register is zero, this
     gets picked up earlier.*/
 
- { "A,[K,D,M]",    XOP1_BITS(0,0,1), MRR_FMT_MASK, 1},
- { "A,[K,D,Q}",    XOP1_BITS(1,0,1), MRR_FMT_MASK, 0},
- { "A,[K,D<<0,M]", XOP1_BITS(0,0,1), MRR_FMT_MASK, 1},
- { "A,[K,D<<0,Q}", XOP1_BITS(1,0,1), MRR_FMT_MASK, 0},
- { "A,[K,D<<1,M]", XOP1_BITS(0,1,1), MRR_FMT_MASK, 1},
- { "A,[K,D<<1,Q}", XOP1_BITS(1,1,1), MRR_FMT_MASK, 0},
- { "A,[K,D<<2,M]", XOP1_BITS(0,2,1), MRR_FMT_MASK, 1},
- { "A,[K,D<<2,Q}", XOP1_BITS(1,2,1), MRR_FMT_MASK, 0},
- { "A,[K,D<<3,M]", XOP1_BITS(0,3,1), MRR_FMT_MASK, 1},
- { "A,[K,D<<3,Q}", XOP1_BITS(1,3,1), MRR_FMT_MASK, 0},
+ { "A,[K,D,M]",    XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
+ { "A,[K,D,Q}",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "A,[K,D<<k,M]", XOP1_BITS(0,1), MRR_FMT_MASK, 1},
+ { "A,[K,D<<k,Q}", XOP1_BITS(1,1), MRR_FMT_MASK, 0},
+ { NULL, 0, 0, 0},
+};
+
+
+static const my66000_fmt_spec_t si_fmt_list [] =
+{
+ { NULL, 0, 0, 0},
+};
+
+static const my66000_fmt_spec_t si5_fmt_list [] =
+{
+ { "#j,[K]",        XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+ { "#j,[K,D]",      XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#j,[K,D,0]",    XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#j,[K,D<<k]",   XOP1_BITS(0,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<k,0]", XOP1_BITS(0,0), MRR_FMT_MASK, 0},
  { NULL, 0, 0, 0},
 };
 
@@ -1356,27 +1361,6 @@ static const my66000_fmt_spec_t vec_fmt_list[] =
 static const my66000_fmt_spec_t empty_fmt_list[] =
 {
  { "",     0, 0, 0},
-};
-
-static const my66000_fmt_spec_t si_fmt_list [] =
-{
- { NULL, 0, 0, 0},
-};
-
-static const my66000_fmt_spec_t si5_fmt_list [] =
-{
- { "#j,[K]",        XOP1_BITS(0,0,0), MRR_FMT_MASK | RIND_ZERO_MASK, 0},
- { "#j,[K,D]",      XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
- { "#j,[K,D,0]",    XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
- { "#j,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
- { "#j,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
- { "#j,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_FMT_MASK, 0},
- { "#j,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_FMT_MASK, 0},
- { "#j,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_FMT_MASK, 0},
- { "#j,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_FMT_MASK, 0},
- { "#j,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_FMT_MASK, 0},
- { "#j,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_FMT_MASK, 0},
- { NULL, 0, 0, 0},
 };
 
 /* Where to look up the operand list for a certain instruction

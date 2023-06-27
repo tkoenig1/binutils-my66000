@@ -154,6 +154,7 @@ typedef enum my66000_operands
  MY66000_OPS_VEC,      /* A vector bitmap.  */
  MY66000_OPS_UIMM16,   /* A 16-bit unsigned immediate.  */
  MY66000_OPS_SI5,      /* A 5-bit immediate store constant.  */
+ MY66000_OPS_MSCALE,   /* Scale for load and store.  */
  MY66000_OPS_END
 } my66000_operands;
 
