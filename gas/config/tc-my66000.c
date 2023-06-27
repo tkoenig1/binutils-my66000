@@ -596,12 +596,15 @@ match_register (char **ptr, char **errmsg, htab_t map)
   for (i=0; ISALNUM(s[i]); i++)
     buf[i] = TOLOWER(s[i]);
 
+
   buf[i] = '\0';
+  //  fprintf (stderr,"match_register : '%s'", buf);
 
   /* Look for the register from map.  */
   rp = (char *) str_hash_find (map, buf);
   if (rp == NULL)
     {
+      //      fprintf (stderr,"failed\n");
       snprintf (errbuf, sizeof(errbuf), "%s: %s", (_("bad register name")), buf);
       *errmsg = errbuf;
       reg = 0;  /* Error will be reported via errmsg anyway.  */
@@ -610,6 +613,7 @@ match_register (char **ptr, char **errmsg, htab_t map)
     {
       *ptr = s + i;
       reg = *rp;
+      //      fprintf (stderr,"%d\n", reg);
     }
   return reg;
 }
@@ -818,7 +822,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   _Bool imm_pcrel = false;
   int prthen = -1, prelse = -1;
 
-  //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
+  //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s", iword, str, spec->fmt);
   for (; *fp; fp++)
     {
       uint32_t bits = 0;
@@ -826,7 +830,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	{
 	  match_string (&fp, &sp, errmsg);
 	  if (*errmsg)
-	    return;
+	    {
+	      //	      fprintf (stderr,"match_string failed\n");
+	      return;
+	    }
 
 	  continue;
 	}
@@ -834,7 +841,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	{
 	  match_character (*fp, &sp, errmsg);
 	  if (*errmsg)
+	    {
+	      //	      fprintf (stderr,"match_character failed: %c\n", *fp);
 	      return;
+	    }
 
 	  continue;
 	}
@@ -873,6 +883,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 	case MY66000_OPS_I1:
 	case MY66000_OPS_I2:
+	case MY66000_OPS_SI5:
 	  bits = match_5bit (&sp, errmsg);
 	  break;
 	case MY66000_OPS_BB1:
@@ -1041,6 +1052,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	as_fatal ("Internal error: failure after memory already allocated");
 
       //      fprintf (stderr, "errmsg = %s\n", *errmsg);
+      //      fprintf (stderr,"failure\n");
       return;
     }
 
@@ -1167,10 +1179,15 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
       *errmsg = NULL;
       match_arglist (iword, spec, str, errmsg);
       if (*errmsg == NULL)
-	return;
+	{
+	  // fprintf (stderr,"success\n");
+	  return;
+	}
     }
   if (*errmsg == NULL)
     *errmsg = (_("garbeled operand list"));
+
+  // fprintf (stderr,"failure\n");
 }
 
 /* This routine is called for each instruction to be assembled.  */
@@ -1198,7 +1215,7 @@ md_assemble (char *str)
   buffer[i] = '\0';
 
   if (i == 0)
-    as_bad ("%s: %s",_("Illegal instruction"), buffer);
+    as_bad ("%s '%s'",_("Illegal instruction"), buffer);
 
   /* If we see an instruction while there are still .jt statements to do,
      this is an error.  */
@@ -1226,7 +1243,7 @@ md_assemble (char *str)
 	  if (errmsg != NULL)
 	    as_bad ("%s: %s", buffer, errmsg);
 	  else
-	    as_bad ("illegal instruction %s", buffer);
+	    as_bad ("illegal instruction '%s'", buffer);
 	  return;
 	}
       if (opc->enc == MY66000_CARRY && num_carry > 0)
@@ -1631,6 +1648,6 @@ static void handle_jt (int num ATTRIBUTE_UNUSED)
 
   /* Aligh to a four-byte boundary - there should be a .p2align 2
      there, but just in case the user forgot.  */
-  
+
   do_align (2, (char *) 0, 0, 0);
 }

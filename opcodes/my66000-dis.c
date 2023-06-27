@@ -265,6 +265,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	  case MY66000_OPS_FL_ENTER:
 	  case MY66000_OPS_PRTHEN:
 	  case MY66000_OPS_PRELSE:
+	  case MY66000_OPS_SI5:
 	    /* An integer constant.  */
 	    v = val;
 	    fpr (stream, "%d", v);

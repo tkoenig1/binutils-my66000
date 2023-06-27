@@ -359,7 +359,11 @@ static const my66000_opc_info_t opc_om7[] =
 
 /* We use a single table here and index in here from opc_op1.  It would
    be too many tables otherwise.  This would be easier if the L bit
-   was adjacent to the opcode.  */
+   was adjacent to the opcode.
+
+   Unlikeother my66000_opc_info_t tables, we can order this one
+   arbitrarily.  We (ab)use this by not filling it completely, and by
+   rearraning the order when it suits us.  */
 
 static const my66000_opc_info_t opc_mrr[] =
 {
@@ -377,9 +381,8 @@ static const my66000_opc_info_t opc_mrr[] =
  { "ldshl", MAJOR(9) | MINOR( 5) | XOP1_L(1), MY66000_MRR, NULL, 0, 0},
  { "ldsw",  MAJOR(9) | MINOR( 6) | XOP1_L(0), MY66000_MRR, NULL, 0, 0},  // +12
  { "ldswl", MAJOR(9) | MINOR( 6) | XOP1_L(1), MY66000_MRR, NULL, 0, 0},
- /* la is put here to keep the table regular.  */
  { "la",    MAJOR(9) | MINOR( 7) | XOP1_L(0), MY66000_MRR, NULL, 0, 0}, // +14
- { NULL,    0,                                MY66000_BAD, NULL, 0, 0},
+ { "lal",   MAJOR(9) | MINOR( 7) | XOP1_L(1), MY66000_MRR, NULL, 0, 0},
  { "stb",   MAJOR(9) | MINOR( 8) | XOP1_L(0), MY66000_MRR, NULL, 0, 0}, // +16
  { "stbl" , MAJOR(9) | MINOR( 8) | XOP1_L(1), MY66000_MRR, NULL, 0, 0},
  { "sth",   MAJOR(9) | MINOR( 9) | XOP1_L(0), MY66000_MRR, NULL, 0, 0}, // +18
@@ -388,6 +391,27 @@ static const my66000_opc_info_t opc_mrr[] =
  { "stwl" , MAJOR(9) | MINOR(10) | XOP1_L(1), MY66000_MRR, NULL, 0, 0},
  { "std",   MAJOR(9) | MINOR(11) | XOP1_L(0), MY66000_MRR, NULL, 0, 0}, // +22
  { "stdl" , MAJOR(9) | MINOR(11) | XOP1_L(1), MY66000_MRR, NULL, 0, 0},
+
+ /* We put the five-bit immediate stores before the others because we want
+    to find them first.  */
+
+ { "stb",   MAJOR(9) | MINOR(28) | XOP1_L(0), MY66000_SI5,  NULL, 0, 0}, // +24
+ { "stbl",  MAJOR(9) | MINOR(28) | XOP1_L(1), MY66000_SI5,  NULL, 0, 0},
+ { "sth",   MAJOR(9) | MINOR(29) | XOP1_L(0), MY66000_SI5,  NULL, 0, 0}, // +26
+ { "sthl",  MAJOR(9) | MINOR(29) | XOP1_L(1), MY66000_SI5,  NULL, 0, 0},
+ { "stw",   MAJOR(9) | MINOR(30) | XOP1_L(0), MY66000_SI5,  NULL, 0, 0}, // +28
+ { "stwl",  MAJOR(9) | MINOR(30) | XOP1_L(1), MY66000_SI5,  NULL, 0, 0},
+ { "std",   MAJOR(9) | MINOR(31) | XOP1_L(0), MY66000_SI5,  NULL, 0, 0}, // +30
+ { "stdl",  MAJOR(9) | MINOR(31) | XOP1_L(1), MY66000_SI5,  NULL, 0, 0},
+
+ { "stb",   MAJOR(9) | MINOR(24) | XOP1_L(0), MY66000_SI,  NULL, 0, 0}, // +32
+ { "stbl",  MAJOR(9) | MINOR(24) | XOP1_L(1), MY66000_SI,  NULL, 0, 0},
+ { "sth",   MAJOR(9) | MINOR(25) | XOP1_L(0), MY66000_SI,  NULL, 0, 0}, // +34
+ { "sthl",  MAJOR(9) | MINOR(25) | XOP1_L(1), MY66000_SI,  NULL, 0, 0},
+ { "stw",   MAJOR(9) | MINOR(26) | XOP1_L(0), MY66000_SI,  NULL, 0, 0}, // +36
+ { "stwl",  MAJOR(9) | MINOR(26) | XOP1_L(1), MY66000_SI,  NULL, 0, 0},
+ { "std",   MAJOR(9) | MINOR(27) | XOP1_L(0), MY66000_SI,  NULL, 0, 0}, // +38
+ { "stdl",  MAJOR(9) | MINOR(27) | XOP1_L(1), MY66000_SI,  NULL, 0, 0},
 
  { NULL,    0, 0, NULL, 0, 0},
  { NULL,    0, 0, NULL, 0, 0},
@@ -421,14 +445,14 @@ static const my66000_opc_info_t opc_op1[] =
  { "mm",   MAJOR(9) | MINOR (21), MY66000_MM,  NULL, 0, 0},
  { "ms",   MAJOR(9) | MINOR (22), MY66000_MM,  NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (23), MY66000_BAD, NULL, 0, 0},
- { "stb",  MAJOR(9) | MINOR (24), MY66000_BAD, NULL, 0, 0}, /* !!! */
- { NULL,   MAJOR(9) | MINOR (25), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (26), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (27), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (28), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (29), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (30), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (31), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(9) | MINOR (24), MY66000_BAD, opc_mrr + 32, XOP1_L_MASK, XOP1_L_SHFT},
+ { NULL,   MAJOR(9) | MINOR (25), MY66000_BAD, opc_mrr + 34, XOP1_L_MASK, XOP1_L_SHFT},
+ { NULL,   MAJOR(9) | MINOR (26), MY66000_BAD, opc_mrr + 36, XOP1_L_MASK, XOP1_L_SHFT},
+ { NULL,   MAJOR(9) | MINOR (27), MY66000_BAD, opc_mrr + 38, XOP1_L_MASK, XOP1_L_SHFT},
+ { NULL,   MAJOR(9) | MINOR (28), MY66000_BAD, opc_mrr + 24, XOP1_L_MASK, XOP1_L_SHFT},
+ { NULL,   MAJOR(9) | MINOR (29), MY66000_BAD, opc_mrr + 26, XOP1_L_MASK, XOP1_L_SHFT},
+ { NULL,   MAJOR(9) | MINOR (30), MY66000_BAD, opc_mrr + 28, XOP1_L_MASK, XOP1_L_SHFT},
+ { NULL,   MAJOR(9) | MINOR (31), MY66000_BAD, opc_mrr + 30, XOP1_L_MASK, XOP1_L_SHFT},
  { NULL,   MAJOR(9) | MINOR (32), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (33), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (34), MY66000_BAD, NULL, 0, 0},
@@ -1043,6 +1067,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_INS,     0, 0, 4, 1,            "INS specifier",            'g' },
  {MY66000_OPS_VEC,     OPERAND_ENTRY (21, 0), "Vector bitfield",          'h' },
  {MY66000_OPS_UIMM16,  OPERAND_ENTRY (16, 0), "16-bit unsigned immediate",'i' },
+ {MY66000_OPS_SI5,     OPERAND_ENTRY ( 5,21), "5-bit immediate store",    'j' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1074,7 +1099,7 @@ static const my66000_fmt_spec_t mem_fmt_list[] =
  { NULL,      0, 0,      0},
 };
 
-/* This is table 13-2, 2-Operand Specification.  */
+/* This is table 15: 2-Operand Specification.  */
 
 static const my66000_fmt_spec_t arith_fmt_list [] =
 {
@@ -1133,6 +1158,9 @@ static const my66000_fmt_spec_t tt_fmt_list [] =
 
 static const my66000_fmt_spec_t mrr_fmt_list [] =
 {
+ /* This is for disassembly only, we prefer offset 0 for
+    just indirect load.  */
+ { "A,[K]",        XOP1_BITS(0,0,0), MRR_FMT_MASK | RIND_ZERO_MASK, 0},
  /* Different syntax variants of scaled indexing without offset.  */
  { "A,[K,D,0]",    XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
  { "A,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
@@ -1216,7 +1244,7 @@ static const my66000_fmt_spec_t mov3_fmt_list[] =
 
 static const my66000_fmt_spec_t mux32_fmt_list[] =
 {
- { "A,B,#L",   0, 0, 0},
+ { "A,B,C,#L", 0, 0, 0},
  { NULL,       0, 0, 0},
 };
 
@@ -1228,7 +1256,7 @@ static const my66000_fmt_spec_t mov32_fmt_list[] =
 
 static const my66000_fmt_spec_t mux64_fmt_list[] =
 {
- { "A,B,#P",   0, 0, 0},
+ { "A,B,C,#P", 0, 0, 0},
  { NULL,       0, 0, 0},
 };
 
@@ -1330,6 +1358,27 @@ static const my66000_fmt_spec_t empty_fmt_list[] =
  { "",     0, 0, 0},
 };
 
+static const my66000_fmt_spec_t si_fmt_list [] =
+{
+ { NULL, 0, 0, 0},
+};
+
+static const my66000_fmt_spec_t si5_fmt_list [] =
+{
+ { "#j,[K]",        XOP1_BITS(0,0,0), MRR_FMT_MASK | RIND_ZERO_MASK, 0},
+ { "#j,[K,D]",      XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D,0]",    XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<0]",   XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<0,0]", XOP1_BITS(0,0,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<1]",   XOP1_BITS(0,1,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<1,0]", XOP1_BITS(0,1,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<2]",   XOP1_BITS(0,2,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<2,0]", XOP1_BITS(0,2,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<3]",   XOP1_BITS(0,3,0), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<3,0]", XOP1_BITS(0,3,0), MRR_FMT_MASK, 0},
+ { NULL, 0, 0, 0},
+};
+
 /* Where to look up the operand list for a certain instruction
    format.  Warning: Keep this table in the same order as enum
    my66000_encoding in include/opcode/my66000.h, this will be checked
@@ -1369,7 +1418,9 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { calli_fmt_list,    MY66000_CALLI,  0},
    { ins_fmt_list,      MY66000_INS,    0},
    { vec_fmt_list,      MY66000_VEC,    0},
-   { tt_fmt_list,       MY66000_TT,     0}, /* We can reuse BC here.  */
+   { tt_fmt_list,       MY66000_TT,     0},
+   { si5_fmt_list,      MY66000_SI5,    0},
+   { si_fmt_list,       MY66000_SI,     0},
    { NULL,	        MY66000_END,    0},
   };
 

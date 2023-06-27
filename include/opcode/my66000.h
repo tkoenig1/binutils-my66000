@@ -65,11 +65,11 @@ typedef enum my66000_encoding
  MY66000_INS,      /* INS instruction.  */
  MY66000_VEC,      /* Vector instruction, with immediate.  */
  MY66000_TT,
+ MY66000_SI5,      /* Store immediate with five-bit operands.  */
+ MY66000_SI,	   /* Store immediate.  */
  MY66000_LOOP,     /* Loop instruction.  */
  MY66000_EXIT,
  MY66000_MM,     /* Load/store multiple.  */
- MY66000_SI,	 /* Store immediate.  */
- MY66000_SI5,	 /* Store 5-bit immediate.  */
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -153,6 +153,7 @@ typedef enum my66000_operands
  MY66000_OPS_INS,      /* A 32-bit INS specifier.  */
  MY66000_OPS_VEC,      /* A vector bitmap.  */
  MY66000_OPS_UIMM16,   /* A 16-bit unsigned immediate.  */
+ MY66000_OPS_SI5,      /* A 5-bit immediate store constant.  */
  MY66000_OPS_END
 } my66000_operands;
 
