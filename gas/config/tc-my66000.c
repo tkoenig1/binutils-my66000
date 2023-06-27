@@ -1480,6 +1480,9 @@ relaxed_tt_length (fragS *fragP, segT segment, _Bool update)
       else
 	ret = 8;
     }
+  else
+    ret = 8;
+
   if (size_insn > ret)
     ret = size_insn;
 
@@ -1576,6 +1579,9 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 	  break;
 	case 8:
 	  reloc = BFD_RELOC_64_PCREL_S2;
+	  break;
+	default:
+	  abort();
 	}
       fix_new_exp (fragP, fragP->fr_fix, size, &ex, true, reloc);
       //      fprintf (stderr, "fix_new_exp\n");
