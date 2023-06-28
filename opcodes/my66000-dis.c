@@ -193,6 +193,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	uint32_t val;
 	int16_t v;;
 	const char *out_fmt;
+	bfd_byte *buf;
 
 	op_info = &my66000_operand_table[*f - 'A'];
 	val = (iword & op_info->mask) >> op_info->shift;
@@ -202,7 +203,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	  case 0:
 	    break;
 	  case 4:
-	    val_32 = bfd_getl32 (buf1);
+	    buf = op_info->seq == 1 ? buf1 : buf2;
+	    val_32 = bfd_getl32 (buf);
 	    if (op_info->oper == MY66000_OPS_INS)
 	      {
 		print_ins (val_32);
@@ -214,7 +216,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	      }
 	    continue;
 	  case 8:
-	    val_64 = bfd_getl64 (buf1);
+	    buf = op_info->seq == 1 ? buf1 : buf2;
+	    val_64 = bfd_getl64 (buf);
 	    out_fmt = op_info->oper == MY66000_OPS_I64_HEX ? "0x%16.16lx" : "%lu";
 	    fpr (stream, out_fmt, val_64);
 	    continue;

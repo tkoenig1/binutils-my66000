@@ -1162,6 +1162,7 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
  /* This is for disassembly only, we prefer offset 0 for
     just indirect load.  */
  { "A,[K]",        XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+
  /* Different syntax variants of scaled indexing without offset.  */
  { "A,[K,D,0]",    XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
  { "A,[K,D<<k]",   XOP1_BITS(0,0), MRR_FMT_MASK, 0},
@@ -1188,6 +1189,7 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
 
 static const my66000_fmt_spec_t si_fmt_list [] =
 {
+ { "#T,[K]",       XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
  { NULL, 0, 0, 0},
 };
 
