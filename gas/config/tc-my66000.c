@@ -320,13 +320,14 @@ match_string (const char **fmt, char **ptr, char **errmsg)
     }
 }
 
-/* Match an integer.  This is done via gas expressions, so
-   that symbols etc can appear in this.  */
 
-static uint64_t
-match_integer (char **ptr, char **errmsg, offsetT minval, offsetT maxval)
+/* Match an integer and record the resulting expression in ex.  */;
+
+static void
+match_integer_expr_ex (char **ptr, char **errmsg, offsetT minval, offsetT maxval,
+		       expressionS *ex)
+
 {
-  expressionS ex;
   char *save, *endp, *str;
   char saved_char;
 
@@ -355,21 +356,31 @@ match_integer (char **ptr, char **errmsg, offsetT minval, offsetT maxval)
 
   saved_char = *endp;
   *endp = '\0';
-  expression_and_evaluate (&ex);
+  expression_and_evaluate (ex);
   *endp = saved_char;
   input_line_pointer = save;
-  if (ex.X_op != O_constant)
+  if (ex->X_op != O_constant)
     {
       strcpy (errbuf, "Not a constant");
       *errmsg = errbuf;
-      return 0;
+      return;
     }
-  else if (ex.X_add_number < minval || ex.X_add_number > maxval)
+  else if (ex->X_add_number < minval || ex->X_add_number > maxval)
     {
       strcpy (errbuf, "Constant out of range");
       *errmsg = errbuf;
+      return;
     }
   *ptr = endp;
+}
+
+/* Match an integer; just a wrapper for the _ex version.  */
+
+static uint64_t
+match_integer (char **ptr, char **errmsg, offsetT minval, offsetT maxval)
+{
+  expressionS ex;
+  match_integer_expr_ex (ptr, errmsg, minval, maxval, &ex);
   return ex.X_add_number;
 }
 
@@ -391,10 +402,10 @@ match_3bit (char **ptr, char **errmsg)
 
 /* Match a five-bit positive constant.  */
 
-static int
+static uint8_t
 match_5bit (char **ptr, char **errmsg)
 {
-  return match_integer (ptr, errmsg, 0, 31);
+  return match_integer (ptr, errmsg, -16, 15) & 31;
 }
 
 /* Match an integer between 0 and 8 inclusive, this is for
@@ -440,7 +451,6 @@ match_16bit_u (char **ptr, char **errmsg)
 {
   return match_integer (ptr, errmsg, 0, UINT16_MAX);
 }
-
 
 /* Match a modifier list item and set the pointer to the
    beginning of the next item or the trailing }.  */
@@ -824,7 +834,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   int length = 4;
   expressionS imm, imm_st;
   int imm_size = 0, imm_st_size = 0;
-  uint64_t val_imm = 0, val_imm_st = 0;
+  uint64_t val_imm = 0;
   _Bool imm_pcrel = false;
   int prthen = -1, prelse = -1;
 
@@ -1028,16 +1038,44 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = 0;
 	  break;
 
+	  /* This one is a bit special.  We can either match a positive
+	     unsigned number, or number in the range between -MIN to
+	     zero.  Eventually, we would also like to match an IP-relative
+	     label, but that would probably have to be restricted in size.  Oh
+	     well...  */
+
 	case MY66000_OPS_I32_ST:
-	  val_imm_st = match_32_bit_or_label (&sp, errmsg, &imm_st);
-	  if (*errmsg)
-	    break;
-	  imm_st_size = 4;
-	  bits = 0;
+	  {
+	    offsetT upper, lower;
+	    switch (my66000_get_imm_sz(iword))
+	      {
+	      case 0:
+		upper = UINT8_MAX;
+		lower = INT8_MIN;
+		break;
+	      case 1:
+		upper = UINT16_MAX;
+		lower = INT16_MIN;
+		break;
+	      case 2:
+		upper = UINT32_MAX;
+		lower = INT32_MIN;
+		break;
+	      default:
+		abort ();
+	      }
+
+	    match_integer_expr_ex (&sp, errmsg, lower, upper, &imm_st);
+	    if (*errmsg)
+	      break;
+	    imm_st_size = 4;
+	    bits = 0;
+	  }
+
 	  break;
 
 	case MY66000_OPS_I64_ST:
-	  val_imm_st = match_32_bit_or_label (&sp, errmsg, &imm_st);
+	  match_64_bit_vanilla (&sp, errmsg, &imm_st);
 	  if (*errmsg)
 	    break;
 	  imm_st_size = 8;
@@ -1148,7 +1186,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	}
       else if (imm_st.X_op == O_constant)
 	{
-	  md_number_to_chars (p, val_imm_st, imm_st_size);
+	  md_number_to_chars (p, imm_st.X_add_number, imm_st_size);
 	}
       else
 	as_fatal ("Weird expression value");

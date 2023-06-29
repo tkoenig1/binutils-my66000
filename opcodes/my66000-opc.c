@@ -1045,7 +1045,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel",  'Q' },
  {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit float immediate",   'R' },
  {MY66000_OPS_IMM13,  OPERAND_ENTRY (16, 0),  "13-bit aligned immediate", 'S' },
- {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate store",   'T' },
+ {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate stw",     'T' },
  {MY66000_OPS_I64_ST,    0, 0, 8, 2,          "64-bit immediate store",   'U' },
  {MY66000_OPS_WIDTH,   OPERAND_ENTRY ( 6, 6), "6-bit width",		  'V' },
  {MY66000_OPS_OFFSET,  OPERAND_ENTRY ( 6, 0), "6-bit offset",		  'W' },
@@ -1189,17 +1189,36 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
 
 static const my66000_fmt_spec_t si_fmt_list [] =
 {
- { "#T,[K]",       XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#T,[K]",        XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+ { "#T,[K,D,0]",    XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#T,[K,D<<k]",   XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
+ { "#T,[K,D<<k,0]", XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
+
+ { "#T,[K,M]",      XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
+ { "#T,[K,Q]",      XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+
+ { "#T,[K,D,M]",    XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
+ { "#T,[K,D,Q}",    XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#T,[K,D<<k,M]", XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK, 1},
+ { "#T,[K,D<<k,Q}", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
+
  { NULL, 0, 0, 0},
 };
 
 static const my66000_fmt_spec_t si5_fmt_list [] =
 {
  { "#j,[K]",        XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
- { "#j,[K,D]",      XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
  { "#j,[K,D,0]",    XOP1_BITS(0,0), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
  { "#j,[K,D<<k]",   XOP1_BITS(0,0), MRR_FMT_MASK, 0},
  { "#j,[K,D<<k,0]", XOP1_BITS(0,0), MRR_FMT_MASK, 0},
+
+ { "#j,[K,M]",      XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
+ { "#j,[K,Q]",      XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+
+ { "#j,[K,D,M]",    XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
+ { "#j,[K,D,Q}",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#j,[K,D<<k,M]", XOP1_BITS(0,1), MRR_FMT_MASK, 1},
+ { "#j,[K,D<<k,Q}", XOP1_BITS(1,1), MRR_FMT_MASK, 0},
  { NULL, 0, 0, 0},
 };
 
@@ -1510,4 +1529,25 @@ my66000_set_tt_size (uint32_t iword, uint32_t size)
       exit (EXIT_FAILURE);
     }
   return ret;
+}
+
+/* Return true if this is a "store immediate" instruction which
+   requires a 32-bit or 64-bit immediate.  */
+
+bool
+my66000_is_imm_st (uint32_t iword)
+{
+  uint32_t major = (iword & MAJOR_MASK) >> MY66000_MAJOR_SHIFT;
+  uint32_t minor = (iword & MINOR_MASK) >> MINOR_OFFS;
+  return major == 9 &&  minor >= 24 && minor <= 27;
+}
+
+/* Return the size field hidden in the opcode for the store immedaite
+   instruction.  */
+
+uint32_t
+my66000_get_imm_sz (uint32_t iword)
+{
+  assert (my66000_is_imm_st(iword));
+  return (iword >> MINOR_OFFS) & 3;
 }
