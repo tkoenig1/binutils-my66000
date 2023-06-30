@@ -67,6 +67,7 @@ typedef enum my66000_encoding
  MY66000_TT,
  MY66000_SI5,      /* Store immediate with five-bit operands.  */
  MY66000_SI,	   /* Store immediate.  */
+ MY66000_SI_STD,   /* Store immediate doubleword.  */
  MY66000_LOOP,     /* Loop instruction.  */
  MY66000_EXIT,
  MY66000_MM,     /* Load/store multiple.  */

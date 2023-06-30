@@ -410,8 +410,8 @@ static const my66000_opc_info_t opc_mrr[] =
  { "sthl",  MAJOR(9) | MINOR(25) | XOP1_L(1), MY66000_SI,  NULL, 0, 0},
  { "stw",   MAJOR(9) | MINOR(26) | XOP1_L(0), MY66000_SI,  NULL, 0, 0}, // +36
  { "stwl",  MAJOR(9) | MINOR(26) | XOP1_L(1), MY66000_SI,  NULL, 0, 0},
- { "std",   MAJOR(9) | MINOR(27) | XOP1_L(0), MY66000_SI,  NULL, 0, 0}, // +38
- { "stdl",  MAJOR(9) | MINOR(27) | XOP1_L(1), MY66000_SI,  NULL, 0, 0},
+ { "std",   MAJOR(9) | MINOR(27) | XOP1_L(0), MY66000_SI_STD, NULL, 0, 0}, // +38
+ { "stdl",  MAJOR(9) | MINOR(27) | XOP1_L(1), MY66000_SI_STD, NULL, 0, 0},
 
  { NULL,    0, 0, NULL, 0, 0},
  { NULL,    0, 0, NULL, 0, 0},
@@ -1095,8 +1095,8 @@ static const my66000_fmt_spec_t mvimm_fmt_list[] =
 
 static const my66000_fmt_spec_t mem_fmt_list[] =
 {
- { "A,[D]",   0, 0xffff, 0},
- { "A,[D,E]", 0, 0,      0},
+ { "A,[K]",   0, 0xffff, 0},
+ { "A,[K,E]", 0, 0,      0},
  { NULL,      0, 0,      0},
 };
 
@@ -1180,9 +1180,9 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
     gets picked up earlier.*/
 
  { "A,[K,D,M]",    XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
- { "A,[K,D,Q}",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "A,[K,D,Q]",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
  { "A,[K,D<<k,M]", XOP1_BITS(0,1), MRR_FMT_MASK, 1},
- { "A,[K,D<<k,Q}", XOP1_BITS(1,1), MRR_FMT_MASK, 0},
+ { "A,[K,D<<k,Q]", XOP1_BITS(1,1), MRR_FMT_MASK, 0},
  { NULL, 0, 0, 0},
 };
 
@@ -1198,12 +1198,30 @@ static const my66000_fmt_spec_t si_fmt_list [] =
  { "#T,[K,Q]",      XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
 
  { "#T,[K,D,M]",    XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
- { "#T,[K,D,Q}",    XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#T,[K,D,Q]",    XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
  { "#T,[K,D<<k,M]", XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK, 1},
- { "#T,[K,D<<k,Q}", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
+ { "#T,[K,D<<k,Q]", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
 
  { NULL, 0, 0, 0},
 };
+
+static const my66000_fmt_spec_t si_ldd_fmt_list [] =
+{
+ { "#U,[K]",        XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+ { "#U,[K,D,0]",    XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#U,[K,D<<k]",   XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
+ { "#U,[K,D<<k,0]", XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
+
+ { "#U,[K,M]",      XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
+ { "#U,[K,Q]",      XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+
+ { "#U,[K,D,M]",    XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
+ { "#U,[K,D,Q]",    XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#U,[K,D<<k,M]", XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK, 1},
+ { "#U,[K,D<<k,Q]", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
+
+};
+
 
 static const my66000_fmt_spec_t si5_fmt_list [] =
 {
@@ -1216,9 +1234,9 @@ static const my66000_fmt_spec_t si5_fmt_list [] =
  { "#j,[K,Q]",      XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
 
  { "#j,[K,D,M]",    XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
- { "#j,[K,D,Q}",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "#j,[K,D,Q]",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
  { "#j,[K,D<<k,M]", XOP1_BITS(0,1), MRR_FMT_MASK, 1},
- { "#j,[K,D<<k,Q}", XOP1_BITS(1,1), MRR_FMT_MASK, 0},
+ { "#j,[K,D<<k,Q]", XOP1_BITS(1,1), MRR_FMT_MASK, 0},
  { NULL, 0, 0, 0},
 };
 
@@ -1426,6 +1444,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { tt_fmt_list,       MY66000_TT,     0},
    { si5_fmt_list,      MY66000_SI5,    0},
    { si_fmt_list,       MY66000_SI,     0},
+   { si_ldd_fmt_list,   MY66000_SI_STD, 0},
    { NULL,	        MY66000_END,    0},
   };
 

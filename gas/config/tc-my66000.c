@@ -1038,34 +1038,25 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = 0;
 	  break;
 
-	  /* This one is a bit special.  We can either match a positive
-	     unsigned number, or number in the range between -MIN to
-	     zero.  Eventually, we would also like to match an IP-relative
-	     label, but that would probably have to be restricted in size.  Oh
-	     well...  */
 
+	  /* A 32-bit constant.  This can occur in stb, sth and stb,
+	     but unused parts are just silently ignored.  */
 	case MY66000_OPS_I32_ST:
 	  {
 	    offsetT upper, lower;
 	    switch (my66000_get_imm_sz(iword))
 	      {
 	      case 0:
-		upper = UINT8_MAX;
-		lower = INT8_MIN;
-		break;
 	      case 1:
-		upper = UINT16_MAX;
-		lower = INT16_MIN;
-		break;
 	      case 2:
 		upper = UINT32_MAX;
 		lower = INT32_MIN;
+		match_integer_expr_ex (&sp, errmsg, lower, upper, &imm_st);
 		break;
 	      default:
 		abort ();
 	      }
 
-	    match_integer_expr_ex (&sp, errmsg, lower, upper, &imm_st);
 	    if (*errmsg)
 	      break;
 	    imm_st_size = 4;
