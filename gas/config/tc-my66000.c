@@ -1477,8 +1477,16 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
     ret = 8;
 
   if (update)
-      fragP->fr_subtype = ret == 4 ? RELAX_IMM4 : RELAX_IMM8;
+    {
+      uint32_t *ip;
+      ip = get_opc_insn (fragP->fr_opcode);
+      if (ret == 4)
+	fragP->fr_subtype = RELAX_IMM4;
+      else
+	fragP->fr_subtype = RELAX_IMM8;
 
+      *ip = my66000_set_mem_size (*ip, ret);
+    }
   return ret;
 }
 

@@ -1173,15 +1173,15 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
 
  /* IP-relative, without register offset, and an IP-relative 32-bit
     and 64-bit relocations, respectively.  */
- { "A,[K,M]",      XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
+ { "A,[K,M]",      XOP1_BITS(1,0), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
  { "A,[K,Q]",      XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
 
  /* IP-relative, with scaled index register and offset.  If the index register is zero, this
     gets picked up earlier.*/
 
- { "A,[K,D,M]",    XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
+ { "A,[K,D,M]",    XOP1_BITS(1,0), MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
  { "A,[K,D,Q]",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
- { "A,[K,D<<k,M]", XOP1_BITS(0,1), MRR_FMT_MASK, 1},
+ { "A,[K,D<<k,M]", XOP1_BITS(1,0), MRR_FMT_MASK, 1},
  { "A,[K,D<<k,Q]", XOP1_BITS(1,1), MRR_FMT_MASK, 0},
  { NULL, 0, 0, 0},
 };
@@ -1194,12 +1194,12 @@ static const my66000_fmt_spec_t si_fmt_list [] =
  { "#T,[K,D<<k]",   XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
  { "#T,[K,D<<k,0]", XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
 
- { "#T,[K,M]",      XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
+ { "#T,[K,M]",      XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
  { "#T,[K,Q]",      XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
 
- { "#T,[K,D,M]",    XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
+ { "#T,[K,D,M]",    XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
  { "#T,[K,D,Q]",    XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
- { "#T,[K,D<<k,M]", XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK, 1},
+ { "#T,[K,D<<k,M]", XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK, 1},
  { "#T,[K,D<<k,Q]", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
 
  { NULL, 0, 0, 0},
@@ -1212,12 +1212,12 @@ static const my66000_fmt_spec_t si_ldd_fmt_list [] =
  { "#U,[K,D<<k]",   XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
  { "#U,[K,D<<k,0]", XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
 
- { "#U,[K,M]",      XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
+ { "#U,[K,M]",      XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
  { "#U,[K,Q]",      XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
 
- { "#U,[K,D,M]",    XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
+ { "#U,[K,D,M]",    XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
  { "#U,[K,D,Q]",    XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
- { "#U,[K,D<<k,M]", XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK, 1},
+ { "#U,[K,D<<k,M]", XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK, 1},
  { "#U,[K,D<<k,Q]", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
  { NULL,       0, 0, 0},
 };
@@ -1548,6 +1548,34 @@ my66000_set_tt_size (uint32_t iword, uint32_t size)
       exit (EXIT_FAILURE);
     }
   return ret;
+}
+
+bool
+my66000_is_mem (uint32_t iword)
+{
+  return (iword >> MY66000_MAJOR_SHIFT) == 9;
+}
+
+uint32_t
+my66000_set_mem_size (uint32_t iword, uint32_t size)
+{
+  uint32_t mask = -1 ^ XOP1_d_MASK;
+  uint32_t bit, res;
+  assert (my66000_is_mem (iword));
+  assert (XOP1_D(iword));
+  switch (size)
+    {
+    case 4:
+      bit = 0;
+      break;
+    case 8:
+      bit = XOP1_d(1);
+      break;
+    default:
+      abort();
+    }
+  res = (iword & mask) | bit;
+  return res;
 }
 
 /* Return true if this is a "store immediate" instruction which
