@@ -68,9 +68,9 @@ typedef enum my66000_encoding
  MY66000_SI5,      /* Store immediate with five-bit operands.  */
  MY66000_SI,	   /* Store immediate.  */
  MY66000_SI_STD,   /* Store immediate doubleword.  */
+ MY66000_MM,     /* Load/store multiple.  */
  MY66000_LOOP,     /* Loop instruction.  */
  MY66000_EXIT,
- MY66000_MM,     /* Load/store multiple.  */
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table

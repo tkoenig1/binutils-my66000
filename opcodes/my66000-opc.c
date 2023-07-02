@@ -1399,7 +1399,13 @@ static const my66000_fmt_spec_t vec_fmt_list[] =
 
 static const my66000_fmt_spec_t empty_fmt_list[] =
 {
- { "",     0, 0, 0},
+ { NULL, 0, 0, 0},
+};
+
+static const my66000_fmt_spec_t mm_fmt_list [] =
+{
+ { "A,B,C", 0, 0, 0},
+ { NULL, 0, 0, 0},
 };
 
 /* Where to look up the operand list for a certain instruction
@@ -1445,6 +1451,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { si5_fmt_list,      MY66000_SI5,    0},
    { si_fmt_list,       MY66000_SI,     0},
    { si_ldd_fmt_list,   MY66000_SI_STD, 0},
+   { mm_fmt_list,       MY66000_MM,     0},
    { NULL,	        MY66000_END,    0},
   };
 

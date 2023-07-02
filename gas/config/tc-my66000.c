@@ -639,6 +639,8 @@ match_vec (char **ptr, char **errmsg, htab_t map)
   char *p = *ptr;
   while (1)
     {
+      if (*p == '}')
+	break;
       if (*p == '\0')
 	{
 	  snprintf (errbuf, sizeof(errbuf),
@@ -649,8 +651,6 @@ match_vec (char **ptr, char **errmsg, htab_t map)
       if (*errmsg)
 	return 0;
       ret |= 1u << rnum;
-      if (*p == '}')
-	break;
       if (*p == ',')
 	p++;
     }
