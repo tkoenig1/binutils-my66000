@@ -162,7 +162,7 @@ static htab_t s_opc_map[N_MAP];
 static void
 build_opc_hashes (const my66000_opc_info_t * table)
 {
-  for (int i=0; table[i].enc != MY66000_END; i++)
+  for (int i = 0; table[i].enc != MY66000_END; i++)
     {
       void ** slot;
       int j;
@@ -211,7 +211,7 @@ md_begin (void)
   rname_map = str_htab_create ();
   rbase_map = str_htab_create ();
   rind_map  = str_htab_create ();
-  for (int i=0; i<32; i++)
+  for (int i = 0; i < 32; i++)
     {
       str_hash_insert (rname_map, my66000_rname[i],
 		       (void *) &my66000_numtab[i], 0);
@@ -232,7 +232,7 @@ md_begin (void)
   hr_ro_map = str_htab_create();
   hr_rw_map = str_htab_create();
 
-  for (int i=0; i<16; i++)
+  for (int i = 0; i < 16; i++)
     {
       if (my66000_hr_ro[i])
 	str_hash_insert (hr_ro_map, my66000_hr_ro[i],
@@ -244,7 +244,7 @@ md_begin (void)
 
   /* Seting up the table for the VEC instruction, bitmap style.  */
   vec_map = str_htab_create();
-  for (int i=0; i < MY66000_VEC_BITS; i++)
+  for (int i = 0; i < MY66000_VEC_BITS; i++)
     str_hash_insert (vec_map, my66000_vec_reg[i],(void *) &my66000_numtab[i], 0);
 
   /* Internal test for consistency.  We use the enum to index into
@@ -603,7 +603,7 @@ match_register (char **ptr, char **errmsg, htab_t map)
     s++;
 
   /* Search for the end of the potential register name.  */
-  for (i=0; ISALNUM(s[i]); i++)
+  for (i = 0; i < MAX_REG_STR_LEN && ISALNUM(s[i]); i++)
     buf[i] = TOLOWER(s[i]);
 
 
@@ -838,9 +838,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   _Bool imm_pcrel = false;
   int prthen = -1, prelse = -1;
 
-  //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s", iword, str, spec->fmt);
+  //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
   for (; *fp; fp++)
     {
+      //      fprintf (stderr, "fp = %s sp = %s\n", fp, sp);
       uint32_t bits = 0;
       if (*fp == '\'')
 	{
@@ -866,6 +867,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	}
 
       info = &my66000_operand_table[*fp - 'A'];
+      //      fprintf (stderr,"'%c' %s\n",info->letter, info->desc);
       switch (info->oper)
 	{
 	case MY66000_OPS_DST:
@@ -1040,25 +1042,17 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 
 	  /* A 32-bit constant.  This can occur in stb, sth and stb,
-	     but unused parts are just silently ignored.  */
+	     unused parts are masked away.  */
 	case MY66000_OPS_I32_ST:
 	  {
-	    offsetT upper, lower;
-	    switch (my66000_get_imm_sz(iword))
-	      {
-	      case 0:
-	      case 1:
-	      case 2:
-		upper = UINT32_MAX;
-		lower = INT32_MIN;
-		match_integer_expr_ex (&sp, errmsg, lower, upper, &imm_st);
-		break;
-	      default:
-		abort ();
-	      }
+	    uint32_t mask, sz;
+	    sz = my66000_get_imm_sz(iword);
+	    match_integer_expr_ex (&sp, errmsg, INT32_MIN, UINT32_MAX, &imm_st);
 
 	    if (*errmsg)
 	      break;
+	    mask = (1lu << (8lu << sz)) -1;
+	    imm_st.X_add_number &= mask;
 	    imm_st_size = 4;
 	    bits = 0;
 	  }
@@ -1076,6 +1070,9 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	default:
 	  as_fatal ("operand '%c' not handled", *fp);
 	}
+
+      if (*errmsg)
+	return;
 
       iword |= bits << info->shift;
     }
@@ -1244,7 +1241,7 @@ md_assemble (char *str)
     str++;
 
   /* Copy the instruction into the buffer, searching for the end.  */
-  for (i=0; i<MAX_OP_STR_LEN; i++)
+  for (i = 0; i < MAX_OP_STR_LEN; i++)
     {
       char c = str[i];
       if (!c || is_end_of_line[(unsigned char) c] || ISSPACE(c))

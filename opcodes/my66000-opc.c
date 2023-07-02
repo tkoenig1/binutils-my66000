@@ -961,7 +961,7 @@ const char *my66000_rind[32] =
     "",    "r1",  "r2",	 "r3",	"r4",  "r5",  "r6",  "r7",
     "r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15",
     "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
-    "r24", "r25", "r26", "r27", "r28", "r29", "r30", "sp"
+    "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31"
   };
 
 /* HR registers.  */
@@ -1068,7 +1068,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_VEC,     OPERAND_ENTRY (21, 0), "Vector bitfield",          'h' },
  {MY66000_OPS_UIMM16,  OPERAND_ENTRY (16, 0), "16-bit unsigned immediate",'i' },
  {MY66000_OPS_SI5,     OPERAND_ENTRY ( 5,21), "5-bit immediate store",    'j' },
- {MY66000_OPS_MSCALE,  OPERAND_ENTRY ( 3,13), "Scale for indexed ld/st",  'k' },
+ {MY66000_OPS_MSCALE,  OPERAND_ENTRY ( 2,13), "Scale for indexed ld/st",  'k' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1219,7 +1219,7 @@ static const my66000_fmt_spec_t si_ldd_fmt_list [] =
  { "#U,[K,D,Q]",    XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
  { "#U,[K,D<<k,M]", XOP1_BITS(0,1), DST_MASK | MRR_FMT_MASK, 1},
  { "#U,[K,D<<k,Q]", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
-
+ { NULL,       0, 0, 0},
 };
 
 
@@ -1265,7 +1265,7 @@ static const my66000_fmt_spec_t ins_fmt_list [] =
  { "A,B,#O,N",  XOP4_BITS (1,0,1), XOP4_FMT_MASK, 0},
  { "A,B,C,#R",  XOP4_BITS (1,1,0), XOP4_FMT_MASK, 0},
  { "A,B,#R,N",  XOP4_BITS (1,1,1), XOP4_FMT_MASK, 0},
-
+ { NULL,       0, 0, 0},
 };
 
 static const my66000_fmt_spec_t mux_fmt_list[] =

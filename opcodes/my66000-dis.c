@@ -135,8 +135,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
   const char *f;
   uint32_t size_1, size_2;
   bfd_byte buf1[8], buf2[8];
-  uint32_t val_32;
-  uint64_t val_64;
+  int32_t val_32;
+  int64_t val_64;
 
   /* Check for nothing to do.  */
   if (*fmt == '\0')
@@ -211,14 +211,14 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	      }
 	    else
 	      {
-		out_fmt = op_info->oper == MY66000_OPS_I32_HEX ? "0x%8.8x" : "%u";
+		out_fmt = op_info->oper == MY66000_OPS_I32_HEX ? "0x%8.8x" : "%d";
 		fpr (stream, out_fmt, val_32);
 	      }
 	    continue;
 	  case 8:
 	    buf = op_info->seq == 1 ? buf1 : buf2;
 	    val_64 = bfd_getl64 (buf);
-	    out_fmt = op_info->oper == MY66000_OPS_I64_HEX ? "0x%16.16lx" : "%lu";
+	    out_fmt = op_info->oper == MY66000_OPS_I64_HEX ? "0x%16.16lx" : "%ld";
 	    fpr (stream, out_fmt, val_64);
 	    continue;
 	  default:
