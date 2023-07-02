@@ -53,7 +53,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 
 const char *md_shortopts = "";
 
-/* Stuff for handling the JTT instruction.  */
+/* Stuff for handling the pseudo-ops.  */
 static void handle_jt (int);
 static int needs_jt;
 
@@ -63,6 +63,9 @@ const pseudo_typeS md_pseudo_table[] =
  { "jt16", handle_jt, 2 },
  { "jt32", handle_jt, 4 },
  { "jt64", handle_jt, 8 },
+
+ /* .dword is just what other people call .quad.  */
+ { "dword", cons, 8 },
  {0, 0, 0}
 };
 
@@ -1637,7 +1640,8 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 /* Handle jump tables.  We simply ignore the size the compiler tells us
    and use relaxation to figure it out later.  Only look at expressions.  */
 
-static void handle_jt (int num ATTRIBUTE_UNUSED)
+static void
+handle_jt (int num ATTRIBUTE_UNUSED)
 {
   char *endp, *cp;
   char saved_char;
