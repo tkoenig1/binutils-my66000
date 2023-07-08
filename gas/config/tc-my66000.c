@@ -794,9 +794,6 @@ static uint32_t
 match_ins (char **ptr, char **errmsg, expressionS *ex)
 {
   uint32_t v1, v2;
-  match_character ('<', ptr, errmsg);
-  if (*errmsg)
-    return 0;
   v1 = match_6bit (ptr, errmsg);
   if (*errmsg)
     return 0;
@@ -804,9 +801,6 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
   if (*errmsg)
     return 0;
   v2 = match_6bit (ptr, errmsg);
-  if (*errmsg)
-    return 0;
-  match_character ('>', ptr, errmsg);
   if (*errmsg)
     return 0;
   ex->X_op = O_constant;
