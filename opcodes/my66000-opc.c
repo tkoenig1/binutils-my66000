@@ -1321,6 +1321,7 @@ static const my66000_fmt_spec_t pb1_fmt_list[] =
 {
  { "H,B,a,b",   0, 0, 0},
  { "H,B,d",     0, 0, 0},
+ { "H,B,0,d",   0, 0, 0},
  { NULL,        0, 0, 0},
 };
 
