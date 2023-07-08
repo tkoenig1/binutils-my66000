@@ -61,7 +61,7 @@ print_modifier_list (uint32_t io8)
 static void
 print_ins (uint32_t ins)
 {
-  fpr (stream, "<%d:%d>", (ins >> 6) & 0x3f, ins & 0x3f);
+  fpr (stream, "%d:%d", (ins >> 6) & 0x3f, ins & 0x3f);
 }
 
 /* Sign-extend an n-bit value, for offsets.  */
@@ -525,6 +525,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
  error:
   fpr (stream, ".word\t%8.8x", iword);
+  fprintf (stderr, "Unrecognized instruction %8.8x\n", iword);
   return length;
 
  fail:

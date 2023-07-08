@@ -1261,7 +1261,7 @@ static const my66000_fmt_spec_t ins_fmt_list [] =
  { "A,B,C,-N",  XOP4_BITS (0,0,1), XOP4_FMT_MASK, 0},
  { "A,B,-C,N",  XOP4_BITS (0,1,0), XOP4_FMT_MASK, 0},
  { "A,B,-C,-N", XOP4_BITS (0,1,1), XOP4_FMT_MASK, 0},
- { "A,B,C,#g",  XOP4_BITS (1,0,0), XOP4_FMT_MASK, 0},
+ { "A,B,C,#<g>",  XOP4_BITS (1,0,0), XOP4_FMT_MASK, 0},
  { "A,B,#O,N",  XOP4_BITS (1,0,1), XOP4_FMT_MASK, 0},
  { "A,B,C,#R",  XOP4_BITS (1,1,0), XOP4_FMT_MASK, 0},
  { "A,B,#R,N",  XOP4_BITS (1,1,1), XOP4_FMT_MASK, 0},
@@ -1400,6 +1400,7 @@ static const my66000_fmt_spec_t vec_fmt_list[] =
 
 static const my66000_fmt_spec_t empty_fmt_list[] =
 {
+ {"",    0, 0, 0},
  { NULL, 0, 0, 0},
 };
 
