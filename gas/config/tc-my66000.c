@@ -403,10 +403,18 @@ match_3bit (char **ptr, char **errmsg)
   return res;
 }
 
-/* Match a five-bit positive constant.  */
+/* Match a five-bit unsigned constant.  */
 
 static uint8_t
-match_5bit (char **ptr, char **errmsg)
+match_5bitu (char **ptr, char **errmsg)
+{
+  return match_integer (ptr, errmsg, 0, 31) & 31;
+}
+
+/* Match a five-bit signed constant.  */
+
+static uint8_t
+match_5bits (char **ptr, char **errmsg)
 {
   return match_integer (ptr, errmsg, -16, 15) & 31;
 }
@@ -898,8 +906,11 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 	case MY66000_OPS_I1:
 	case MY66000_OPS_I2:
+	  bits = match_5bitu (&sp, errmsg);
+	  break;
+
 	case MY66000_OPS_SI5:
-	  bits = match_5bit (&sp, errmsg);
+	  bits = match_5bits (&sp, errmsg);
 	  break;
 	case MY66000_OPS_BB1:
 	case MY66000_OPS_WIDTH:

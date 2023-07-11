@@ -1,4 +1,4 @@
-#name: Reserved illegal instructions
+#name: FMAC
 #objdump: -d
 
 .*:     file format .*

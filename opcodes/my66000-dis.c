@@ -254,8 +254,6 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    fpr (stream, "%s", my66000_hr_rw[val]);
 	    break;
 
-	  case MY66000_OPS_I1:
-	  case MY66000_OPS_I2:
 	  case MY66000_OPS_SI5:
 	    v = sign_extend (val, 5);
 	    fpr (stream, "%d", v);
@@ -279,6 +277,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    fpr (stream, "%d", v);
 	    break;
 
+	  case MY66000_OPS_I1:
+	  case MY66000_OPS_I2:
 	  case MY66000_OPS_UIMM16:
 	    fpr (stream, "%u", val);
 	    break;

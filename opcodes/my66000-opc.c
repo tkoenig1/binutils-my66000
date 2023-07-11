@@ -79,6 +79,7 @@ static const my66000_opc_info_t opc_om7[];
 static const my66000_opc_info_t opc_mrr[];
 static const my66000_opc_info_t opc_op1[];
 static const my66000_opc_info_t opc_arith[];
+static const my66000_opc_info_t opc_float[];
 static const my66000_opc_info_t opc_op2[];
 static const my66000_opc_info_t opc_mpx[];
 static const my66000_opc_info_t opc_op4[];
@@ -111,6 +112,7 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_mrr,
  opc_op1,
  opc_arith,
+ opc_float,
  opc_op2,
  opc_mpx,
  opc_op4,
@@ -516,6 +518,32 @@ static const my66000_opc_info_t opc_arith[] =
  { NULL,   0,        MY66000_END, NULL, 0, 0}
 };
 
+/* Likewise for here.  */
+static const my66000_opc_info_t opc_float[] =
+{
+ {"fadd",  MAJOR(10) | MINOR(49) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 0
+ {"faddf", MAJOR(10) | MINOR(49) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"fmul",  MAJOR(10) | MINOR(50) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 2
+ {"fmulf", MAJOR(10) | MINOR(50) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"fdiv",  MAJOR(10) | MINOR(51) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 4
+ {"fdivf", MAJOR(10) | MINOR(51) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"fcmp",  MAJOR(10) | MINOR(52) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 6
+ {"fcmpf", MAJOR(10) | MINOR(52) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"fmax",  MAJOR(10) | MINOR(54) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 8
+ {"fmaxf", MAJOR(10) | MINOR(54) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"fmin",  MAJOR(10) | MINOR(55) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 10
+ {"fminf", MAJOR(10) | MINOR(55) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"csgn",  MAJOR(10) | MINOR(57) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 12
+ {"csgnf", MAJOR(10) | MINOR(57) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"eadd",  MAJOR(10) | MINOR(58) | SIGNED(0), MY66000_EADD,  NULL, 0, 0}, // + 14
+ {"eaddf", MAJOR(10) | MINOR(58) | SIGNED(1), MY66000_EADD,  NULL, 0, 0},
+ {"pow",   MAJOR(10) | MINOR(61) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 16
+ {"powf" , MAJOR(10) | MINOR(61) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"atan2", MAJOR(10) | MINOR(62) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 18
+ {"atan2f",MAJOR(10) | MINOR(62) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+  { NULL,   0,        MY66000_END, NULL, 0, 0}
+};
+
 static const my66000_opc_info_t opc_op2[] =
 {
  { NULL,  MAJOR(10) | MINOR ( 0), MY66000_BAD,   NULL, 0, 0},
@@ -551,36 +579,36 @@ static const my66000_opc_info_t opc_op2[] =
  { NULL,  MAJOR(10) | MINOR (30), MY66000_BAD,   NULL, 0, 0},
  { NULL,  MAJOR(10) | MINOR (31), MY66000_BAD,   NULL, 0, 0},
  { NULL,  MAJOR(10) | MINOR (32), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (33), MY66000_BAD,   opc_arith + 0, SIGNED_MASK, SIGNED_SHFT},
- { NULL,  MAJOR(10) | MINOR (34), MY66000_BAD,   opc_arith + 2, SIGNED_MASK, SIGNED_SHFT},
- { NULL,  MAJOR(10) | MINOR (35), MY66000_BAD,   opc_arith + 4, SIGNED_MASK, SIGNED_SHFT},
- { NULL,  MAJOR(10) | MINOR (36), MY66000_BAD,   opc_arith + 6, SIGNED_MASK, SIGNED_SHFT},
+ { NULL,  MAJOR(10) | MINOR (33), MY66000_BAD,   opc_arith + 0, SIGNED_MASK, SIGNED_SHFT}, /* ADD */
+ { NULL,  MAJOR(10) | MINOR (34), MY66000_BAD,   opc_arith + 2, SIGNED_MASK, SIGNED_SHFT}, /* MUL */
+ { NULL,  MAJOR(10) | MINOR (35), MY66000_BAD,   opc_arith + 4, SIGNED_MASK, SIGNED_SHFT}, /* DIV */
+ { NULL,  MAJOR(10) | MINOR (36), MY66000_BAD,   opc_arith + 6, SIGNED_MASK, SIGNED_SHFT}, /* CMP */
  { NULL,  MAJOR(10) | MINOR (37), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (38), MY66000_BAD,   opc_arith + 8, SIGNED_MASK, SIGNED_SHFT},
- { NULL,  MAJOR(10) | MINOR (39), MY66000_BAD,   opc_arith +10, SIGNED_MASK, SIGNED_SHFT},
+ { NULL,  MAJOR(10) | MINOR (38), MY66000_BAD,   opc_arith + 8, SIGNED_MASK, SIGNED_SHFT}, /* MAX */
+ { NULL,  MAJOR(10) | MINOR (39), MY66000_BAD,   opc_arith +10, SIGNED_MASK, SIGNED_SHFT}, /* MIN */
  { "or",  MAJOR(10) | MINOR (40), MY66000_ARITH, NULL, 0, 0},
  { "xor", MAJOR(10) | MINOR (41), MY66000_ARITH, NULL, 0, 0},
  { "and", MAJOR(10) | MINOR (42), MY66000_ARITH, NULL, 0, 0},
  { NULL,  MAJOR(10) | MINOR (43), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (44), MY66000_BAD,   opc_arith +12, SIGNED_MASK, SIGNED_SHFT},
- { NULL,  MAJOR(10) | MINOR (45), MY66000_BAD,   opc_arith +14, SIGNED_MASK, SIGNED_SHFT},
- { NULL,  MAJOR(10) | MINOR (46), MY66000_BAD,   NULL, 0, 0},  /* BITR */
+ { NULL,  MAJOR(10) | MINOR (44), MY66000_BAD,   opc_arith +12, SIGNED_MASK, SIGNED_SHFT}, /* SR */
+ { NULL,  MAJOR(10) | MINOR (45), MY66000_BAD,   opc_arith +14, SIGNED_MASK, SIGNED_SHFT}, /* SL */
+ { "bitr",MAJOR(10) | MINOR (46), MY66000_ARITH, NULL, 0, 0},
  { NULL,  MAJOR(10) | MINOR (47), MY66000_BAD,   NULL, 0, 0},
  { NULL,  MAJOR(10) | MINOR (48), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (49), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (50), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (51), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (52), MY66000_BAD,   NULL, 0, 0},
+ { NULL,  MAJOR(10) | MINOR (49), MY66000_BAD,   opc_float + 0, SIGNED_MASK, SIGNED_SHFT}, /* FADD */
+ { NULL,  MAJOR(10) | MINOR (50), MY66000_BAD,   opc_float + 2, SIGNED_MASK, SIGNED_SHFT}, /* FMUL */
+ { NULL,  MAJOR(10) | MINOR (51), MY66000_BAD,   opc_float + 4, SIGNED_MASK, SIGNED_SHFT}, /* FDIV */
+ { NULL,  MAJOR(10) | MINOR (52), MY66000_BAD,   opc_float + 6, SIGNED_MASK, SIGNED_SHFT}, /* FCMP */
  { NULL,  MAJOR(10) | MINOR (53), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (54), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (55), MY66000_BAD,   NULL, 0, 0},
+ { NULL,  MAJOR(10) | MINOR (54), MY66000_BAD,   opc_float + 8, SIGNED_MASK, SIGNED_SHFT}, /* FMAX */
+ { NULL,  MAJOR(10) | MINOR (55), MY66000_BAD,   opc_float +10, SIGNED_MASK, SIGNED_SHFT}, /* FMIN */
  { NULL,  MAJOR(10) | MINOR (56), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (57), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (58), MY66000_BAD,   NULL, 0, 0},
+ { NULL,  MAJOR(10) | MINOR (57), MY66000_BAD,   opc_float +12, SIGNED_MASK, SIGNED_SHFT}, /* CSGN */
+ { NULL,  MAJOR(10) | MINOR (58), MY66000_BAD,   opc_float +14, SIGNED_MASK, SIGNED_SHFT}, /* EADD */
  { NULL,  MAJOR(10) | MINOR (59), MY66000_BAD,   NULL, 0, 0},
  { NULL,  MAJOR(10) | MINOR (60), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (61), MY66000_BAD,   NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (62), MY66000_BAD,   NULL, 0, 0},
+ { NULL,  MAJOR(10) | MINOR (61), MY66000_BAD,   opc_float +16, SIGNED_MASK, SIGNED_SHFT}, /* POW */
+ { NULL,  MAJOR(10) | MINOR (62), MY66000_BAD,   opc_float +18, SIGNED_MASK, SIGNED_SHFT}, /* ATAN2 */
  { NULL,  MAJOR(10) | MINOR (63), MY66000_BAD,   NULL, 0, 0},
  { NULL,    0,          MY66000_END,  NULL, 0, 0}
 };
@@ -1102,6 +1130,9 @@ static const my66000_fmt_spec_t mem_fmt_list[] =
 
 /* This is table 15: 2-Operand Specification.  */
 
+/* FIXME: Add the register = zero specifier where constants
+   are, here and and in the table below.  */
+
 static const my66000_fmt_spec_t arith_fmt_list [] =
 {
 
@@ -1110,10 +1141,10 @@ static const my66000_fmt_spec_t arith_fmt_list [] =
  { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK, 0},
  { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK, 0},
 
- { "A,B,#F",   XOP2_BITS (0,1,0,0), XOP2_MASK, 0},
- { "A,#G,C",   XOP2_BITS (0,1,0,1), XOP2_MASK, 0},
- { "A,B,#-F",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
- { "A,#-G,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
+ { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK, 0},
+ { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK, 0},
+ { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
+ { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
 
  { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0},
  { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0},
@@ -1124,6 +1155,60 @@ static const my66000_fmt_spec_t arith_fmt_list [] =
  { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0},
  { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0},
  { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0},
+ { NULL,      0, 0, 0},
+};
+
+/* Much like the above, but for floating point.  */
+
+static const my66000_fmt_spec_t float_fmt_list [] =
+{
+
+ { "A,B,C",    XOP2_BITS (0,0,0,0), XOP2_MASK, 0},
+ { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK, 0},
+ { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK, 0},
+ { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK, 0},
+
+ { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK, 0},
+ { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK, 0},
+ { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
+ { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
+
+ { "A,B,#O",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0},
+ { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0},
+ { "A,-B,#O",  XOP2_BITS (1,0,1,0), XOP2_MASK, 0},
+ { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK, 0},
+
+ { "A,B,#R",   XOP2_BITS (1,1,0,0), XOP2_MASK, 0},
+ { "A,#R,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0},
+ { "A,-B,#R",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0},
+ { "A,#R,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0},
+ { NULL,      0, 0, 0},
+};
+
+/* EADD is special because it has one integer operand.  */
+
+static const my66000_fmt_spec_t eadd_fmt_list [] =
+{
+
+ { "A,B,C",    XOP2_BITS (0,0,0,0), XOP2_MASK, 0},
+ { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK, 0},
+ { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK, 0},
+ { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK, 0},
+
+ { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK, 0},
+ { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK, 0},
+ { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
+ { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
+
+ { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0},
+ { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0},
+ { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK, 0},
+ { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK, 0},
+
+ { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK, 0},
+ { "A,#R,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0},
+ { "A,-B,#Ü",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0},
+ { "A,#R,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0},
  { NULL,      0, 0, 0},
 };
 
@@ -1454,6 +1539,8 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { si_fmt_list,       MY66000_SI,     0},
    { si_ldd_fmt_list,   MY66000_SI_STD, 0},
    { mm_fmt_list,       MY66000_MM,     0},
+   { float_fmt_list,    MY66000_FLOAT,  0},
+   { eadd_fmt_list,     MY66000_EADD,   0},
    { NULL,	        MY66000_END,    0},
   };
 
