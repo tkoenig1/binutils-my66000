@@ -71,6 +71,7 @@ typedef enum my66000_encoding
  MY66000_MM,       /* Load/store multiple.  */
  MY66000_FLOAT,    /* FADD and friends.  */
  MY66000_EADD,     /* EADD, all by itself.  */
+ MY66000_CALX,     /* CALX and CALA  */
  MY66000_LOOP,     /* Loop instruction.  */
  MY66000_EXIT,
 } my66000_encoding;

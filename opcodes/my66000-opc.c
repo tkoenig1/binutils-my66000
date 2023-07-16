@@ -458,11 +458,11 @@ static const my66000_opc_info_t opc_op1[] =
  { NULL,   MAJOR(9) | MINOR (32), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (33), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (34), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (35), MY66000_BAD, NULL, 0, 0},
+ { "calx", MAJOR(9) | MINOR (35), MY66000_CALX, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (36), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (37), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (38), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (39), MY66000_BAD, NULL, 0, 0},
+ { "cala", MAJOR(9) | MINOR (39), MY66000_CALX, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (40), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (41), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (42), MY66000_BAD, NULL, 0, 0},
@@ -491,7 +491,7 @@ static const my66000_opc_info_t opc_op1[] =
 };
 
 
-/* For this table, we make an exception - it is indexed with
+/* For the table, we make an exception - it is indexed with
    only the S bit, so we use offsets into the middle of the
    table.  */
 
@@ -1146,15 +1146,15 @@ static const my66000_fmt_spec_t arith_fmt_list [] =
  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
  { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
 
- { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0},
- { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0},
- { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK, 0},
- { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK, 0},
+ { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK, 0},
+ { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK, 0},
 
- { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK, 0},
- { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0},
- { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0},
- { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0},
+ { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK, 0},
+ { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK | SRC1_MASK, 0},
  { NULL,      0, 0, 0},
 };
 
@@ -1173,15 +1173,15 @@ static const my66000_fmt_spec_t float_fmt_list [] =
  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
  { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
 
- { "A,B,#O",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0},
- { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0},
- { "A,-B,#O",  XOP2_BITS (1,0,1,0), XOP2_MASK, 0},
- { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK, 0},
+ { "A,B,#O",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK, 0},
+ { "A,-B,#O",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK, 0},
 
- { "A,B,#R",   XOP2_BITS (1,1,0,0), XOP2_MASK, 0},
- { "A,#R,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0},
- { "A,-B,#R",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0},
- { "A,#R,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0},
+ { "A,B,#R",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#R,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK, 0},
+ { "A,-B,#R",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#R,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK | SRC1_MASK, 0},
  { NULL,      0, 0, 0},
 };
 
@@ -1200,15 +1200,15 @@ static const my66000_fmt_spec_t eadd_fmt_list [] =
  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
  { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
 
- { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK, 0},
- { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK, 0},
- { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK, 0},
- { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK, 0},
+ { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK, 0},
+ { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK, 0},
 
- { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK, 0},
- { "A,#R,C",   XOP2_BITS (1,1,0,1), XOP2_MASK, 0},
- { "A,-B,#Ü",  XOP2_BITS (1,1,1,0), XOP2_MASK, 0},
- { "A,#R,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK, 0},
+ { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#R,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK, 0},
+ { "A,-B,#Ü",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK, 0},
+ { "A,#R,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK | SRC1_MASK, 0},
  { NULL,      0, 0, 0},
 };
 
@@ -1271,6 +1271,22 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
  { NULL, 0, 0, 0},
 };
 
+/* CALX and CALLA.  */
+
+static const my66000_fmt_spec_t calx_fmt_list [] =
+{
+ { "[K]",        XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+ { "[K,D,0]",    XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "[K,D<<k]",   XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
+ { "[K,D<<k,0]", XOP1_BITS(0,0), DST_MASK | MRR_FMT_MASK, 0},
+ { "[K,M]",      XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 1},
+ { "[K,Q]",      XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK, 0},
+ { "[K,D,M]",    XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 1},
+ { "[K,D,Q]",    XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK | XOP1_SCALE_MASK, 0},
+ { "[K,D<<k,M]", XOP1_BITS(1,0), DST_MASK | MRR_FMT_MASK, 1},
+ { "[K,D<<k,Q]", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
+ { NULL, 0, 0, 0},
+};
 
 static const my66000_fmt_spec_t si_fmt_list [] =
 {
@@ -1306,7 +1322,6 @@ static const my66000_fmt_spec_t si_ldd_fmt_list [] =
  { "#U,[K,D<<k,Q]", XOP1_BITS(1,1), DST_MASK | MRR_FMT_MASK, 0},
  { NULL,       0, 0, 0},
 };
-
 
 static const my66000_fmt_spec_t si5_fmt_list [] =
 {
@@ -1541,6 +1556,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { mm_fmt_list,       MY66000_MM,     0},
    { float_fmt_list,    MY66000_FLOAT,  0},
    { eadd_fmt_list,     MY66000_EADD,   0},
+   { calx_fmt_list,     MY66000_CALX,   0},
    { NULL,	        MY66000_END,    0},
   };
 
@@ -1582,10 +1598,10 @@ my66000_set_imm_size (uint32_t iword, uint32_t size)
   switch (size)
     {
     case 4:
-      ret |= XOP1_d_MASK;
+      ret |= XOP1_D_MASK;
       break;
     case 8:
-      ret |= XOP1_d_MASK | XOP1_D_MASK;
+      ret |= XOP1_D_MASK | XOP1_d_MASK;
       break;
     default:
       fprintf (stderr, "Internal error: set_size with illegal size %u\n",

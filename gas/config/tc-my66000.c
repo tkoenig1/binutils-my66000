@@ -95,6 +95,7 @@ opc_pos (char *p)
   n->pos = p - frag_now->fr_literal;
   n->next = opc_pos_list;
   opc_pos_list = n;
+  //  fprintf (stderr,"opc_pos: n = %p frag = %p pos = %ld\n", n, n->frag, n->pos);
   return (char *) n;
 }
 
@@ -105,6 +106,7 @@ static addressT
 get_opc_addr (char *p)
 {
   opcode_pos_t *fp = (opcode_pos_t *) p;
+  //  fprintf (stderr,"get_opc_addr: fp = %p frag = %p\n", fp, fp->frag);
   return fp->frag->fr_address + fp->pos;
 }
 
@@ -816,10 +818,9 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
   return (v1 << 6) + v2;
 }
 
-#define RELAX_IMM4	1
-#define RELAX_IMM8	2
-#define RELAX_TT	3
-
+#define RELAX_IMM4_PCREL	1
+#define RELAX_IMM8_PCREL	2
+#define RELAX_TT		3
 
 /* Attempt a match of the arglist pointed to by str against fmt.  If
    errmsg is set, the match was a failure; otherwise issue issue the
@@ -1102,6 +1103,12 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
   iword |= spec->patt;
 
+  if (((spec->patt ^ iword) & spec->mask) != 0)
+    {
+      as_fatal ("Internal error: fmt='%s' iword = %8.8x patt = %8.8x mask = %8.8x",
+		spec->fmt, iword, spec->patt, spec->mask);
+    }
+  //  fprintf (stderr, "matched : '%s' iword = %8.8x \n", spec->fmt, iword);
   /* Dept. of dirty tricks:  We force all jtt instructions to jttb so
      relaxation can figure out the correct size later.  */
 
@@ -1147,7 +1154,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  frag_var (rs_machine_dependent, /* type */
 		    8, /* max_chars */
 		    4,  /* var, the number that is variable. */
-		    RELAX_IMM4, /* subtype  */
+		    RELAX_IMM4_PCREL, /* subtype  */
 		    imm.X_add_symbol, /* symbol */
 		    imm.X_add_number,    /* offset */
 		    opc_pos(p_op));   /* Position of opcode.  */
@@ -1364,11 +1371,15 @@ md_pcrel_from_section (fixS *fixP, segT sec)
       return 0;
     }
 
-  if (fixP->fx_frag->fr_subtype == RELAX_TT)
-    return get_opc_addr (fixP->fx_frag->fr_opcode);
-  else
-    return fixP->fx_where + fixP->fx_frag->fr_address;
-
+  switch (fixP->fx_frag->fr_subtype)
+    {
+    case RELAX_IMM4_PCREL:
+    case RELAX_IMM8_PCREL:
+    case RELAX_TT:
+      return get_opc_addr (fixP->fx_frag->fr_opcode);
+    default:
+      return fixP->fx_where + fixP->fx_frag->fr_address;
+    }
 }
 
 /* Calculate a PC-relative offset.  These are always relative to the
@@ -1489,9 +1500,9 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
       uint32_t *ip;
       ip = get_opc_insn (fragP->fr_opcode);
       if (ret == 4)
-	fragP->fr_subtype = RELAX_IMM4;
+	fragP->fr_subtype = RELAX_IMM4_PCREL;
       else
-	fragP->fr_subtype = RELAX_IMM8;
+	fragP->fr_subtype = RELAX_IMM8_PCREL;
 
       *ip = my66000_set_mem_size (*ip, ret);
     }
@@ -1549,8 +1560,8 @@ md_estimate_size_before_relax (fragS *fragP, segT segment)
 {
   switch (fragP->fr_subtype)
     {
-    case RELAX_IMM4:
-    case RELAX_IMM8:
+    case RELAX_IMM4_PCREL:
+    case RELAX_IMM8_PCREL:
       fragP->fr_var = relaxed_imm_length (fragP, segment, false);
       break;
     case RELAX_TT:
@@ -1568,8 +1579,8 @@ my66000_relax_frag (segT seg, fragS *fragP,
 
   switch (fragP->fr_subtype)
     {
-    case RELAX_IMM4:
-    case RELAX_IMM8:
+    case RELAX_IMM4_PCREL:
+    case RELAX_IMM8_PCREL:
       fragP->fr_var = relaxed_imm_length (fragP, seg, true);
       break;
     case RELAX_TT:
@@ -1598,7 +1609,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
   ex.X_add_symbol = fragP->fr_symbol;
   ex.X_add_number = fragP->fr_offset;
 
-  if (fragP->fr_subtype == RELAX_IMM4 || fragP->fr_subtype == RELAX_IMM8)
+  if (fragP->fr_subtype == RELAX_IMM4_PCREL || fragP->fr_subtype == RELAX_IMM8_PCREL)
     {
       if (fragP->fr_var == 4)
 	{
@@ -1610,7 +1621,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 	  fix_new_exp (fragP, fragP->fr_fix, 8, &ex, true, BFD_RELOC_64_PCREL);
 	  iword = my66000_set_imm_size (iword, 8);
 	}
-	md_number_to_chars (fragP->fr_opcode, iword, 4);
+      *ip = iword;
     }
 
   else if (fragP->fr_subtype == RELAX_TT)
