@@ -1710,3 +1710,38 @@ my66000_get_imm_sz (uint32_t iword)
   assert (my66000_is_imm_st(iword));
   return (iword >> MINOR_OFFS) & 3;
 }
+
+/* Checks if an instruction is something that can be relaxed to or from
+   CALL.  */
+
+bool
+my66000_is_call (uint32_t iword)
+{
+  uint32_t major = (iword & MAJOR_MASK) >> MY66000_MAJOR_SHIFT;
+  uint32_t minor = (iword & MINOR_MASK) >> MINOR_OFFS;
+  return major == 31 || (major == 9 && minor == 39);
+}
+
+/* Return the iword for a CALL offset or CALA [ip,offset].  */
+
+uint32_t
+my66000_get_call (int size)
+{
+  uint32_t ret;
+
+  switch(size)
+    {
+    case 0:
+      ret = MAJOR(31);
+      break;
+    case 4:
+      ret = MAJOR(9) | MINOR(39) | XOP1_D(1) | XOP1_d(0);
+      break;
+    case 8:
+      ret = MAJOR(9) | MINOR(39) | XOP1_D(1) | XOP1_D(0);
+      break;
+    default:
+      abort();
+    }
+  return ret;
+}

@@ -821,6 +821,9 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
 #define RELAX_IMM4_PCREL	1
 #define RELAX_IMM8_PCREL	2
 #define RELAX_TT		3
+#define RELAX_CALL		4
+#define RELAX_CALL_IMM4		5
+#define RELAX_CALL_IMM8		6
 
 /* Attempt a match of the arglist pointed to by str against fmt.  If
    errmsg is set, the match was a failure; otherwise issue issue the
@@ -987,9 +990,11 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	    bits = match_26bit_or_label (&sp, errmsg, &ex);
 	    if (*errmsg)
 	      break;
+
 	    if (ex.X_op == O_symbol)
 	      {
 		p = frag_more (length);
+#if 0
 		fix_new_exp (frag_now,
 			     p - frag_now->fr_literal,  /* where */
 			     4,  /* size.  */
@@ -997,6 +1002,15 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 			     1,  /* pcrel.  */
 			     BFD_RELOC_26_PCREL_S2
 			     );
+#else
+		frag_var (rs_machine_dependent,
+			  12,
+			  8,
+			  RELAX_CALL,
+			  ex.X_add_symbol,
+			  ex.X_add_number,
+			  opc_pos (p));
+#endif
 	      }
 	  }
 	  break;
@@ -1131,7 +1145,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
     return;
 
   p_op = p;
-  //  fprintf (stderr, "match_arglist: iword = %8.8x\n", iword);
 
   //  fprintf (stderr, "iword = %x p = %p\n", iword, p);
   /* Handle the immediates.  */
@@ -1140,17 +1153,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
       if (imm.X_op == O_symbol)
 	{
 	  gas_assert (imm_size == 4);
-
-	  //	  fprintf (stderr,"imm_pcrel = %d reloc_type = %d p_op = %p\n", imm_pcrel, reloc_type, p_op);
-#if 0
-	  fix_new_exp (frag_now,
-		       p - frag_now->fr_literal,
-		       imm_size,
-		       &imm,
-		       imm_pcrel,
-		       reloc_type
-		       );
-#else
 	  frag_var (rs_machine_dependent, /* type */
 		    8, /* max_chars */
 		    4,  /* var, the number that is variable. */
@@ -1158,7 +1160,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 		    imm.X_add_symbol, /* symbol */
 		    imm.X_add_number,    /* offset */
 		    opc_pos(p_op));   /* Position of opcode.  */
-#endif
 	}
       else if (imm.X_op == O_constant)
 	{
@@ -1376,6 +1377,9 @@ md_pcrel_from_section (fixS *fixP, segT sec)
     case RELAX_IMM4_PCREL:
     case RELAX_IMM8_PCREL:
     case RELAX_TT:
+    case RELAX_CALL:
+    case RELAX_CALL_IMM4:
+    case RELAX_CALL_IMM8:
       return get_opc_addr (fixP->fx_frag->fr_opcode);
     default:
       return fixP->fx_where + fixP->fx_frag->fr_address;
@@ -1479,16 +1483,30 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 /* Calculate the length of an IP-relative offset that can be
    either 4 or 8 bytes.  If we don't know, return 8.  */
 
+#define B26_MIN (-(1<<27))
+#define B26_MAX ((1<<27)-4)
+
 static int
 relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
 {
   int ret;
+  relax_substateT substate = fragP->fr_subtype;
+  bool is_call;
+
+  is_call = substate == RELAX_CALL || substate == RELAX_CALL_IMM4
+    || substate == RELAX_CALL_IMM8;
 
   if (known_frag_symbol (fragP, segment))
     {
       offsetT val = calc_relative_offset (fragP);
-      if (val > INT32_MIN && val < INT32_MAX)
-	ret = 4;
+      if (is_call && val >= B26_MIN && val <= B26_MAX)
+	{
+	  ret = 0;
+	}
+      else if (val >= INT32_MIN && val <= INT32_MAX)
+	{
+	  ret = 4;
+	}
       else
 	ret = 8;
     }
@@ -1499,12 +1517,36 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
     {
       uint32_t *ip;
       ip = get_opc_insn (fragP->fr_opcode);
-      if (ret == 4)
-	fragP->fr_subtype = RELAX_IMM4_PCREL;
-      else
-	fragP->fr_subtype = RELAX_IMM8_PCREL;
+      if (is_call)
+	{
+	  if (ret == 0)
+	    {
+	      fragP->fr_subtype = RELAX_CALL;
+	      fix_new (fragP,
+		       fragP->fr_fix - 4,  /* This actually points to the opcode.  */
+		       4, /* size */
+		       fragP->fr_symbol,
+		       fragP->fr_offset,
+		       1,
+		       BFD_RELOC_26_PCREL_S2);
+	    }
+	  else if (ret == 4)
+	    {
+	      fragP->fr_subtype = RELAX_CALL_IMM4;
+	    }
+	  else
+	    fragP->fr_subtype = RELAX_CALL_IMM8;
 
-      *ip = my66000_set_mem_size (*ip, ret);
+	  *ip = my66000_get_call (ret);
+	}
+      else
+	{
+	  if (ret == 4)
+	    fragP->fr_subtype = RELAX_IMM4_PCREL;
+	  else
+	    fragP->fr_subtype = RELAX_IMM8_PCREL;
+	  *ip = my66000_set_mem_size (*ip, ret);
+	}
     }
   return ret;
 }
@@ -1581,13 +1623,16 @@ my66000_relax_frag (segT seg, fragS *fragP,
     {
     case RELAX_IMM4_PCREL:
     case RELAX_IMM8_PCREL:
+    case RELAX_CALL:
+    case RELAX_CALL_IMM4:
+    case RELAX_CALL_IMM8:
       fragP->fr_var = relaxed_imm_length (fragP, seg, true);
       break;
     case RELAX_TT:
       fragP->fr_var = relaxed_tt_length (fragP, seg, true);
       break;
     default:
-      as_fatal ("Subtype %d not handled", fragP->fr_subtype);
+      as_fatal ("relax_frag: subtype %d not handled", fragP->fr_subtype);
     }
 
   return fragP->fr_var - old_var;
@@ -1609,7 +1654,10 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
   ex.X_add_symbol = fragP->fr_symbol;
   ex.X_add_number = fragP->fr_offset;
 
-  if (fragP->fr_subtype == RELAX_IMM4_PCREL || fragP->fr_subtype == RELAX_IMM8_PCREL)
+  if (fragP->fr_subtype == RELAX_IMM4_PCREL
+      || fragP->fr_subtype == RELAX_IMM8_PCREL
+      || fragP->fr_subtype == RELAX_CALL_IMM4
+      || fragP->fr_subtype == RELAX_CALL_IMM8)
     {
       if (fragP->fr_var == 4)
 	{

@@ -214,4 +214,7 @@ extern uint32_t my66000_get_imm_sz (uint32_t);
 extern bool my66000_is_mem (uint32_t);
 extern uint32_t my66000_set_mem_size (uint32_t, uint32_t);
 
+extern bool my66000_is_call (uint32_t);
+extern uint32_t my66000_get_call (int);
+
 #endif
