@@ -43,6 +43,12 @@
 #define XOP4_MINOR(c) ((c) << XOP4_OFFS)
 #define XOP4_MASK XOP4_MINOR(7)
 
+#define XOP5_OFFS 0
+#define XOP5_MINOR(c) ((c) << XOP5_OFFS)
+#define XOP5_MASK XOP5_MINOR(31)
+#define XOP5_ABS_MASK 1
+#define XOP5_NOTF_MASK 30
+
 #define BB1_OFFS 21
 #define BB1_MINOR(c) ((c) << BB1_OFFS)
 #define BB1_MASK 31 << BB1_OFFS
@@ -73,6 +79,7 @@
 #define OP5_MASK OP5_MINOR(31)
 
 const my66000_opc_info_t my66000_opc_info_special[];
+static const my66000_opc_info_t opc_abs[];
 const my66000_opc_info_t my66000_opc_info[];
 static const my66000_opc_info_t opc_om6[];
 static const my66000_opc_info_t opc_om7[];
@@ -96,6 +103,7 @@ static const my66000_opc_info_t opc_pcnd[];
 static const my66000_opc_info_t opc_hr[];
 static const my66000_opc_info_t opc_hr_ip[];
 static const my66000_opc_info_t opc_jmporcall[];
+static const my66000_opc_info_t opc_single[];
 
 /* List of all the tables containing opcodes, for initializing the
    hashtabs for gas.  Keep up to date if you add anything below,
@@ -106,6 +114,7 @@ static const my66000_opc_info_t opc_jmporcall[];
 const my66000_opc_info_t *my66000_opc_info_list[] =
 {
  my66000_opc_info_special,
+ opc_abs,
  my66000_opc_info,
  opc_om6,
  opc_om7,
@@ -129,6 +138,7 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_hr,
  opc_hr_ip,
  opc_jmporcall,
+ opc_single,
  NULL,
 };
 
@@ -346,6 +356,10 @@ static const my66000_opc_info_t opc_om7[] =
 
 #define XOP2_MASK (XOP2_I(1) | XOP2_S1(1) | XOP2_S2(1) | XOP2_d(1))
 
+#define XOP1_S1_SHFT 14
+#define XOP1_S1(c) ((c) << XOP1_S1_SHFT)
+#define XOP1_S1_MASK XOP1_S1(1)
+
 /* Write the above more compactly.  */
 
 #define XOP2_BITS(I,d,S1,S2) (XOP2_I(I) | XOP2_d(d) | XOP2_S1(S1) | XOP2_S2(S2))
@@ -363,7 +377,7 @@ static const my66000_opc_info_t opc_om7[] =
    be too many tables otherwise.  This would be easier if the L bit
    was adjacent to the opcode.
 
-   Unlikeother my66000_opc_info_t tables, we can order this one
+   Unlike some other my66000_opc_info_t tables, we can order this one
    arbitrarily.  We (ab)use this by not filling it completely, and by
    rearraning the order when it suits us.  */
 
@@ -673,6 +687,35 @@ static const my66000_opc_info_t opc_hr[] =
  { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
 
+/* All the ABS versions.  */
+
+/* Only two minor minor opocdes are valid - 0 and 1.  We do the rest
+     via the mask of the format.  The alternative would be a table
+     with 64 entries, two of which would be valid.  */
+
+static const my66000_opc_info_t opc_abs[] =
+{
+  {NULL, MAJOR(13) | MINOR(5) | SIGNED(0), MY66000_BAD, opc_abs + 2, XOP5_ABS_MASK, XOP5_OFFS}, // + 0
+  {NULL, MAJOR(13) | MINOR(5) | SIGNED(1), MY66000_BAD, opc_abs + 4, XOP5_ABS_MASK, XOP5_OFFS}, // + 1
+
+  /* S = 0.  */
+  {"abs",   MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_MINOR(0), MY66000_ABS, NULL, 0, 0}, // + 2
+  {"fabs",  MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_MINOR(1), MY66000_ABS, NULL, 0, 0},
+  /* S = 1.  */
+  {"mov",   MAJOR(13) | MINOR(5) | SIGNED(1) | XOP5_MINOR(0), MY66000_ABS, NULL, 0, 0}, // + 4
+  {"fabsf", MAJOR(13) | MINOR(5) | SIGNED(1) | XOP5_MINOR(1), MY66000_ABS, NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+};
+
+static const my66000_opc_info_t opc_single[] =
+{
+  {"expon",  MAJOR(13) | MINOR(6) | SIGNED(0), MY66000_EXPON, NULL, 0, 0},  // + 0
+  {"exponf", MAJOR(13) | MINOR(6) | SIGNED(1), MY66000_EXPON, NULL, 0, 0},
+  {"fract",  MAJOR(13) | MINOR(7) | SIGNED(0), MY66000_EXPON, NULL, 0, 0}, // + 2
+  {"fractf", MAJOR(13) | MINOR(7) | SIGNED(1), MY66000_EXPON, NULL, 0, 0},
+ { NULL,   0,              MY66000_END,   NULL, 0, 0},
+};
+
 static const my66000_opc_info_t opc_op5[] =
 {
  { NULL, MAJOR(13) | MINOR( 0), MY66000_BAD, opc_hr, HR_REGTYPE_MASK, HR_REGTYPE_OFFS},
@@ -680,8 +723,9 @@ static const my66000_opc_info_t opc_op5[] =
  { NULL, MAJOR(13) | MINOR( 2), MY66000_BAD, NULL, 0, 0},
  { NULL, MAJOR(13) | MINOR( 3), MY66000_BAD, NULL, 0, 0},
  { NULL, MAJOR(13) | MINOR( 4), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR( 5), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR( 6), MY66000_BAD, NULL, 0, 0},
+ { NULL, MAJOR(13) | MINOR( 5), MY66000_BAD, opc_abs + 0, SIGNED_MASK, SIGNED_SHFT},
+ { NULL, MAJOR(13) | MINOR( 6), MY66000_BAD, opc_single + 0, SIGNED_MASK, SIGNED_SHFT},  /* EXPON */
+ { NULL, MAJOR(13) | MINOR( 6), MY66000_BAD, opc_single + 2, SIGNED_MASK, SIGNED_SHFT},  /* FRACT */
  { NULL, MAJOR(13) | MINOR( 7), MY66000_BAD, NULL, 0, 0},
  { NULL, MAJOR(13) | MINOR( 8), MY66000_BAD, NULL, 0, 0},
  { NULL, MAJOR(13) | MINOR( 9), MY66000_BAD, NULL, 0, 0},
@@ -1510,6 +1554,20 @@ static const my66000_fmt_spec_t mm_fmt_list [] =
  { NULL, 0, 0, 0},
 };
 
+static const my66000_fmt_spec_t expon_fmt_list [] =
+{
+  { "A,B",  XOP1_S1(0), XOP2_I_MASK | XOP2_S2_MASK | XOP1_S1_MASK | SRC2_MASK, 0},
+  { "+A,B", XOP1_S1(0), XOP2_I_MASK | XOP2_S2_MASK | XOP1_S1_MASK | SRC2_MASK, 0},
+  { "-A,B", XOP1_S1(1), XOP2_I_MASK | XOP2_S2_MASK | XOP1_S1_MASK | SRC2_MASK, 0},
+ { NULL, 0, 0, 0},
+};
+
+static const my66000_fmt_spec_t abs_fmt_list[] =
+{
+  {"A,B", 0, XOP5_NOTF_MASK, 0},
+  { NULL, 0, 0, 0},
+};
+
 /* Where to look up the operand list for a certain instruction
    format.  Warning: Keep this table in the same order as enum
    my66000_encoding in include/opcode/my66000.h, this will be checked
@@ -1557,6 +1615,8 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { float_fmt_list,    MY66000_FLOAT,  0},
    { eadd_fmt_list,     MY66000_EADD,   0},
    { calx_fmt_list,     MY66000_CALX,   0},
+   { expon_fmt_list,    MY66000_EXPON,  0},
+   { abs_fmt_list,      MY66000_ABS,    0},
    { NULL,	        MY66000_END,    0},
   };
 

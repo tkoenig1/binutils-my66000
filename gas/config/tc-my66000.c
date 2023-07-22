@@ -160,7 +160,7 @@ md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
 
 /* Duplicate names for instructions occur at most N_MAP times.  */
 
-#define N_MAP 5
+#define N_MAP 6
 
 static htab_t s_opc_map[N_MAP];
 
@@ -179,6 +179,7 @@ build_opc_hashes (const my66000_opc_info_t * table)
 	{
 	  /* Loop over the N_MAP available hashmaps and look for a place
 	     to store the name.  */
+
 	  for (j = 0; j < N_MAP; j++)
 	    {
 	      slot = str_hash_insert (s_opc_map[j], table[i].name,
