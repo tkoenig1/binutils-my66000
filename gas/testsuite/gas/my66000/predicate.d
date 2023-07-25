@@ -1,0 +1,22 @@
+#name: Predicate instructions
+#objdump: -d
+
+.*:     file format .*
+
+
+Disassembly of section .text:
+
+0+ <foo>:
+   0:	18230203 	pneq	r3,2,3
+   4:	28220423 	add	r1,r2,r3
+   8:	c4440003 	add	r2,r4,#3
+   c:	1fe30201 	pb1	63,r3,2,1
+  10:	28620421 	add	r3,r2,r1
+  14:	28220423 	add	r1,r2,r3
+  18:	28a30424 	add	r5,r3,r4
+  1c:	18031202 	peq0	r3,2,2
+  20:	c4650002 	add	r3,r5,#2
+  24:	18251100 	pne0	r5,1,0
+  28:	1af11203 	pfun	r17,2,3
+  2c:	28220423 	add	r1,r2,r3
+  30:	28240422 	add	r1,r4,r2

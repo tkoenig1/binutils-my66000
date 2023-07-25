@@ -360,6 +360,8 @@ static const my66000_opc_info_t opc_om7[] =
 
 #define XOP5_FMT_MASK (7<<13)
 
+#define XOP5_I_MASK XOP2_I_MASK
+
 /* The S bit, at position 12, is already used in the opcode tables
    above.  */
 
@@ -369,9 +371,9 @@ static const my66000_opc_info_t opc_om7[] =
 
 #define XOP2_MASK (XOP2_I(1) | XOP2_S1(1) | XOP2_S2(1) | XOP2_d(1))
 
-#define XOP1_S1_SHFT 14
-#define XOP1_S1(c) ((c) << XOP1_S1_SHFT)
-#define XOP1_S1_MASK XOP1_S1(1)
+#define XOP5_S1_SHFT 14
+#define XOP5_S1(c) ((c) << XOP5_S1_SHFT)
+#define XOP5_S1_MASK XOP5_S1(1)
 
 /* Write the above more compactly.  */
 
@@ -726,6 +728,9 @@ static const my66000_opc_info_t opc_single[] =
   {"exponf", MAJOR(13) | MINOR(6) | SIGNED(1), MY66000_EXPON, NULL, 0, 0},
   {"fract",  MAJOR(13) | MINOR(7) | SIGNED(0), MY66000_EXPON, NULL, 0, 0}, // + 2
   {"fractf", MAJOR(13) | MINOR(7) | SIGNED(1), MY66000_EXPON, NULL, 0, 0},
+  /*  These are called FF1 in the ISA document, stick with the compiler here.  */
+  {"cttz",   MAJOR(13) | MINOR(9) | SIGNED(0), MY66000_POP,   NULL, 0, 0},
+  {"ctlz",   MAJOR(13) | MINOR(9) | SIGNED(1), MY66000_POP,   NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
 
@@ -812,38 +817,38 @@ static const my66000_opc_info_t opc_transf[] =
 
 static const my66000_opc_info_t opc_op5[] =
 {
- { NULL, MAJOR(13) | MINOR( 0), MY66000_BAD, opc_hr, HR_REGTYPE_MASK, HR_REGTYPE_OFFS},
- { NULL, MAJOR(13) | MINOR( 1), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR( 2), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR( 3), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR( 4), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR( 5), MY66000_BAD, opc_abs + 0, SIGNED_MASK, SIGNED_SHFT},
- { NULL, MAJOR(13) | MINOR( 6), MY66000_BAD, opc_single + 0, SIGNED_MASK, SIGNED_SHFT},  /* EXPON */
- { NULL, MAJOR(13) | MINOR( 6), MY66000_BAD, opc_single + 2, SIGNED_MASK, SIGNED_SHFT},  /* FRACT */
- { NULL, MAJOR(13) | MINOR( 7), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR( 8), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR( 9), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(10), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(11), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(12), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(13), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(14), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(15), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(16), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(17), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(28), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(20), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(21), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(22), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(23), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(24), MY66000_BAD, opc_trans, SIGNED_MASK, SIGNED_SHFT},
- { NULL, MAJOR(13) | MINOR(25), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(26), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(27), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(28), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(29), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(30), MY66000_BAD, NULL, 0, 0},
- { NULL, MAJOR(13) | MINOR(31), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR( 0), MY66000_BAD, opc_hr, HR_REGTYPE_MASK, HR_REGTYPE_OFFS},
+ { NULL,  MAJOR(13) | MINOR( 1), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR( 2), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR( 3), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR( 4), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR( 5), MY66000_BAD, opc_abs + 0, SIGNED_MASK, SIGNED_SHFT},
+ { NULL,  MAJOR(13) | MINOR( 6), MY66000_BAD, opc_single + 0, SIGNED_MASK, SIGNED_SHFT},  /* EXPON */
+ { NULL,  MAJOR(13) | MINOR( 7), MY66000_BAD, opc_single + 2, SIGNED_MASK, SIGNED_SHFT},  /* FRACT */
+ { "pop", MAJOR(13) | MINOR( 8), MY66000_POP, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR( 9), MY66000_BAD, opc_single + 4, SIGNED_MASK, SIGNED_SHFT},  /* FF1 */
+ { NULL,  MAJOR(13) | MINOR(10), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(11), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(12), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(13), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(14), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(15), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(16), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(17), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(18), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(19), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(20), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(21), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(22), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(23), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(24), MY66000_BAD, opc_trans, SIGNED_MASK, SIGNED_SHFT},
+ { NULL,  MAJOR(13) | MINOR(25), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(26), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(27), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(28), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(29), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(30), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(31), MY66000_BAD, NULL, 0, 0},
  { NULL,   0,                  MY66000_END,   NULL, 0, 0}
 };
 
@@ -1650,10 +1655,17 @@ static const my66000_fmt_spec_t mm_fmt_list [] =
 
 static const my66000_fmt_spec_t expon_fmt_list [] =
 {
-  { "A,B",  XOP1_S1(0), XOP2_I_MASK | XOP2_S2_MASK | XOP1_S1_MASK | SRC2_MASK, 0},
-  { "+A,B", XOP1_S1(0), XOP2_I_MASK | XOP2_S2_MASK | XOP1_S1_MASK | SRC2_MASK, 0},
-  { "-A,B", XOP1_S1(1), XOP2_I_MASK | XOP2_S2_MASK | XOP1_S1_MASK | SRC2_MASK, 0},
+  { "A,B",  XOP5_S1(0), XOP5_I_MASK | XOP5_SD_MASK | XOP5_S1_MASK | SRC2_MASK, 0},
+  { "+A,B", XOP5_S1(0), XOP5_I_MASK | XOP5_SD_MASK | XOP5_S1_MASK | SRC2_MASK, 0},
+  { "-A,B", XOP5_S1(1), XOP5_I_MASK | XOP5_SD_MASK | XOP5_S1_MASK | SRC2_MASK, 0},
  { NULL, 0, 0, 0},
+};
+
+static const my66000_fmt_spec_t pop_fmt_list [] =
+{
+  {"A,B",  XOP5_S1(0), XOP5_I_MASK | XOP5_SD_MASK | XOP5_S1_MASK | SRC2_MASK, 0},
+  {"A,-B", XOP5_S1(1), XOP5_I_MASK | XOP5_SD_MASK | XOP5_S1_MASK | SRC2_MASK, 0},
+  { NULL, 0, 0, 0},
 };
 
 static const my66000_fmt_spec_t abs_fmt_list[] =
@@ -1728,6 +1740,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { expon_fmt_list,    MY66000_EXPON,  0},
    { abs_fmt_list,      MY66000_ABS,    0},
    { trans_fmt_list,    MY66000_TRANS,  0},
+   { pop_fmt_list,      MY66000_POP,    0},
    { NULL,	        MY66000_END,    0},
   };
 
