@@ -1028,6 +1028,16 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = 0;
 	  break;
 
+	case MY66000_OPS_VEC32:
+	  val_imm = match_vec (&sp, errmsg, rname_map);
+	  if (*errmsg)
+	    break;
+	  imm_size = 4;
+	  bits = 0;
+	  imm.X_op = O_constant;
+	  imm.X_add_number = val_imm;
+	  break;
+
 	case MY66000_OPS_I32_HEX:
 	  val_imm = match_32_bit_vanilla (&sp, errmsg, &imm);
 	  if (*errmsg)
@@ -1063,7 +1073,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  imm_size = 8;
 	  bits = 0;
 	  break;
-
 
 	  /* A 32-bit constant.  This can occur in stb, sth and stb,
 	     unused parts are masked away.  */

@@ -209,11 +209,16 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	      {
 		print_ins (val_32);
 	      }
+	    else if (op_info->oper == MY66000_OPS_VEC32)
+	      {
+		print_vec (val_32, false);
+	      }
 	    else
 	      {
 		out_fmt = op_info->oper == MY66000_OPS_I32_HEX ? "0x%8.8x" : "%d";
 		fpr (stream, out_fmt, val_32);
 	      }
+
 	    continue;
 	  case 8:
 	    buf = op_info->seq == 1 ? buf1 : buf2;

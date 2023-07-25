@@ -360,6 +360,7 @@ static const my66000_opc_info_t opc_om7[] =
 
 #define XOP5_FMT_MASK (7<<13)
 
+#define XOP5_I(c) XOP2_I(c)
 #define XOP5_I_MASK XOP2_I_MASK
 
 /* The S bit, at position 12, is already used in the opcode tables
@@ -846,7 +847,7 @@ static const my66000_opc_info_t opc_op5[] =
  { NULL,  MAJOR(13) | MINOR(26), MY66000_BAD, NULL, 0, 0},
  { NULL,  MAJOR(13) | MINOR(27), MY66000_BAD, NULL, 0, 0},
  { NULL,  MAJOR(13) | MINOR(28), MY66000_BAD, NULL, 0, 0},
- { NULL,  MAJOR(13) | MINOR(29), MY66000_BAD, NULL, 0, 0},
+ { "vec", MAJOR(13) | MINOR(29), MY66000_VEC32, NULL, 0, 0},
  { NULL,  MAJOR(13) | MINOR(30), MY66000_BAD, NULL, 0, 0},
  { NULL,  MAJOR(13) | MINOR(31), MY66000_BAD, NULL, 0, 0},
  { NULL,   0,                  MY66000_END,   NULL, 0, 0}
@@ -1240,6 +1241,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_UIMM16,  OPERAND_ENTRY (16, 0), "16-bit unsigned immediate",'i' },
  {MY66000_OPS_SI5,     OPERAND_ENTRY ( 5,21), "5-bit immediate store",    'j' },
  {MY66000_OPS_MSCALE,  OPERAND_ENTRY ( 2,13), "Scale for indexed ld/st",  'k' },
+ {MY66000_OPS_VEC32,   0, 0, 4, 1,            "32-bit vector bitfield",   'l' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1674,19 +1676,23 @@ static const my66000_fmt_spec_t abs_fmt_list[] =
   { NULL, 0, 0, 0},
 };
 
-/* The masks for XOP2 are the same as for XOP5.  */
-
 static const my66000_fmt_spec_t trans_fmt_list[] =
 {
-  {"A,B",   XOP2_I(0) | XOP2_S1(0) | XOP5_SD(0), XOP5_FMT_MASK, 0},
-  {"+A,B",  XOP2_I(0) | XOP2_S1(0) | XOP5_SD(0), XOP5_FMT_MASK, 0},
-  {"A,+B",  XOP2_I(0) | XOP2_S1(0) | XOP5_SD(0), XOP5_FMT_MASK, 0},
-  {"+A,+B", XOP2_I(0) | XOP2_S1(0) | XOP5_SD(0), XOP5_FMT_MASK, 0},
-  {"-A,B",  XOP2_I(0) | XOP2_S1(0) | XOP5_SD(1), XOP5_FMT_MASK, 0},
-  {"-A,+B", XOP2_I(0) | XOP2_S1(0) | XOP5_SD(1), XOP5_FMT_MASK, 0},
-  {"A,-B",  XOP2_I(0) | XOP2_S1(1) | XOP5_SD(0), XOP5_FMT_MASK, 0},
-  {"+A,-B", XOP2_I(0) | XOP2_S1(1) | XOP5_SD(0), XOP5_FMT_MASK, 0},
-  {"-A,-B", XOP2_I(0) | XOP2_S1(1) | XOP5_SD(1), XOP5_FMT_MASK, 0},
+  {"A,B",   XOP5_I(0) | XOP5_S1(0) | XOP5_SD(0), XOP5_FMT_MASK, 0},
+  {"+A,B",  XOP5_I(0) | XOP5_S1(0) | XOP5_SD(0), XOP5_FMT_MASK, 0},
+  {"A,+B",  XOP5_I(0) | XOP5_S1(0) | XOP5_SD(0), XOP5_FMT_MASK, 0},
+  {"+A,+B", XOP5_I(0) | XOP5_S1(0) | XOP5_SD(0), XOP5_FMT_MASK, 0},
+  {"-A,B",  XOP5_I(0) | XOP5_S1(0) | XOP5_SD(1), XOP5_FMT_MASK, 0},
+  {"-A,+B", XOP5_I(0) | XOP5_S1(0) | XOP5_SD(1), XOP5_FMT_MASK, 0},
+  {"A,-B",  XOP5_I(0) | XOP5_S1(1) | XOP5_SD(0), XOP5_FMT_MASK, 0},
+  {"+A,-B", XOP5_I(0) | XOP5_S1(1) | XOP5_SD(0), XOP5_FMT_MASK, 0},
+  {"-A,-B", XOP5_I(0) | XOP5_S1(1) | XOP5_SD(1), XOP5_FMT_MASK, 0},
+  { NULL, 0, 0, 0},
+};
+
+static const my66000_fmt_spec_t vec32_fmt_list[] =
+{
+  {"A,{l}",  XOP5_I(1), SRC1_MASK | SRC2_MASK, XOP5_FMT_MASK | SRC1_MASK | SRC2_MASK},
   { NULL, 0, 0, 0},
 };
 
@@ -1741,6 +1747,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { abs_fmt_list,      MY66000_ABS,    0},
    { trans_fmt_list,    MY66000_TRANS,  0},
    { pop_fmt_list,      MY66000_POP,    0},
+   { vec32_fmt_list,    MY66000_VEC32,  0},
    { NULL,	        MY66000_END,    0},
   };
 
