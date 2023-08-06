@@ -400,6 +400,10 @@ print_insn_args (const char *oparg, insn_t l, bfd_vma pc, disassemble_info *info
 	      print (info->stream, dis_style_immediate, "%d",
 		     (int)EXTRACT_RVV_OFFSET (l));
 	      break;
+	    case 'l':
+	      print (info->stream, dis_style_immediate, "%d",
+		     (int)EXTRACT_RVV_VI_UIMM6 (l));
+	      break;
 	    case 'm':
 	      if (!EXTRACT_OPERAND (VMASK, l))
 		{
@@ -595,6 +599,35 @@ print_insn_args (const char *oparg, insn_t l, bfd_vma pc, disassemble_info *info
 		    goto undefined_modifier;
 		  }
 		  break;
+	      case 'f':
+		switch (*++oparg)
+		  {
+		  case 'v':
+		    if (riscv_fli_symval[rs1])
+		      print (info->stream, dis_style_text, "%s",
+			     riscv_fli_symval[rs1]);
+		    else
+		      print (info->stream, dis_style_immediate, "%a",
+			     riscv_fli_numval[rs1]);
+		    break;
+		  default:
+		    goto undefined_modifier;
+		  }
+		break;
+	      case 'c': /* Zcb extension 16 bits length instruction fields. */
+		switch (*++oparg)
+		  {
+		  case 'b':
+		    print (info->stream, dis_style_immediate, "%d",
+		      (int)EXTRACT_ZCB_BYTE_UIMM (l));
+		    break;
+		  case 'h':
+		    print (info->stream, dis_style_immediate, "%d",
+		      (int)EXTRACT_ZCB_HALFWORD_UIMM (l));
+		    break;
+		  default: break;
+		  }
+		break;
 	      default:
 		goto undefined_modifier;
 	      }
@@ -643,6 +676,7 @@ print_insn_args (const char *oparg, insn_t l, bfd_vma pc, disassemble_info *info
 	      }
 	  }
 	  break;
+
 	default:
 	undefined_modifier:
 	  /* xgettext:c-format */
@@ -905,7 +939,7 @@ riscv_search_mapping_symbol (bfd_vma memaddr,
     }
 
   /* We can not find the suitable mapping symbol above.  Therefore, we
-     look forwards and try to find it again, but don't go pass the start
+     look forwards and try to find it again, but don't go past the start
      of the section.  Otherwise a data section without mapping symbols
      can pick up a text mapping symbol of a preceeding section.  */
   if (!found)

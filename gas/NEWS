@@ -1,5 +1,17 @@
 -*- text -*-
 
+* Add support for Intel PBNDKB instructions.
+
+* Add support for Intel SM4 instructions.
+
+* Add support for Intel SM3 instructions.
+
+* Add support for Intel SHA512 instructions.
+
+* Add support for Intel AVX-VNNI-INT16 instructions.
+
+Changes in 2.41:
+
 * Add support for Intel FRED instructions.
 
 * Add support for Intel LKGS instructions.
@@ -9,6 +21,18 @@
 * Add SME2 support to the AArch64 port.
 
 * A new .insn directive is recognized by x86 gas.
+
+* Add support for LoongArch LSX instructions.
+
+* Add support for LoongArch LASX instructions.
+
+* Add support for LoongArch LVZ instructions.
+
+* Add support for LoongArch LBT instructions.
+
+* Initial LoongArch support for linker relaxation has been added.
+
+* Deprecate the LoongArch register aliases $v0, $v1, $x, $fv0 and $fv1.
 
 Changes in 2.40:
 

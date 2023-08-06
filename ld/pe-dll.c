@@ -1231,7 +1231,18 @@ fill_edata (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
   memset (edata_d, 0, edata_sz);
 
   if (pe_data (abfd)->timestamp == -1)
-    H_PUT_32 (abfd, time (0), edata_d + 4);
+    {
+      time_t now;
+      char *source_date_epoch;
+
+      source_date_epoch = getenv ("SOURCE_DATE_EPOCH");
+      if (source_date_epoch)
+	now = (time_t) strtoll (source_date_epoch, NULL, 10);
+      else
+	now = time (NULL);
+
+      H_PUT_32 (abfd, now, edata_d + 4);
+    }
   else
     H_PUT_32 (abfd, pe_data (abfd)->timestamp, edata_d + 4);
 
@@ -2911,7 +2922,7 @@ pe_create_import_fixup (arelent *rel, asection *s, bfd_vma addend, char *name,
     }
 
   else if (addend != 0)
-    einfo (_("%X%P: %C: variable '%pT' can't be auto-imported; please read the documentation for ld's --enable-auto-import for details\n"),
+    einfo (_("%X%P: %H: variable '%pT' can't be auto-imported; please read the documentation for ld's --enable-auto-import for details\n"),
 	   s->owner, s, rel->address, (*rel->sym_ptr_ptr)->name);
 }
 
@@ -3329,21 +3340,19 @@ pe_process_import_defs (bfd *output_bfd, struct bfd_link_info *linfo)
 					       false, false, false);
 		  if (blhe)
 		    is_undef = (blhe->type == bfd_link_hash_undefined);
+
+		  if (is_cdecl && (!blhe || !is_undef))
+		    {
+		      blhe = pe_find_cdecl_alias_match (linfo, name + 6);
+		      include_jmp_stub = true;
+		      if (blhe)
+			is_undef = (blhe->type == bfd_link_hash_undefined);
+		    }
 		}
 	      else
 		{
 		  include_jmp_stub = true;
 		  is_undef = (blhe->type == bfd_link_hash_undefined);
-		}
-
-	      if (is_cdecl
-		  && (!blhe || (blhe && blhe->type != bfd_link_hash_undefined)))
-		{
-		  sprintf (name, "%s%s",U (""), imp[i].internal_name);
-		  blhe = pe_find_cdecl_alias_match (linfo, name);
-		  include_jmp_stub = true;
-		  if (blhe)
-		    is_undef = (blhe->type == bfd_link_hash_undefined);
 		}
 
 	      free (name);

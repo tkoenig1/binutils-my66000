@@ -1293,6 +1293,11 @@ get_detach_signal (struct lwp_info *lp)
 static void
 detach_one_lwp (struct lwp_info *lp, int *signo_p)
 {
+  LINUX_NAT_SCOPED_DEBUG_ENTER_EXIT;
+
+  linux_nat_debug_printf ("lwp %s (stopped = %d)",
+			  lp->ptid.to_string ().c_str (), lp->stopped);
+
   int lwpid = lp->ptid.lwp ();
   int signo;
 
@@ -1363,6 +1368,10 @@ detach_one_lwp (struct lwp_info *lp, int *signo_p)
   else
     signo = *signo_p;
 
+  linux_nat_debug_printf ("preparing to resume lwp %s (stopped = %d)",
+			  lp->ptid.to_string ().c_str (),
+			  lp->stopped);
+
   /* Preparing to resume may try to write registers, and fail if the
      lwp is zombie.  If that happens, ignore the error.  We'll handle
      it below, when detach fails with ESRCH.  */
@@ -1395,6 +1404,8 @@ detach_callback (struct lwp_info *lp)
 void
 linux_nat_target::detach (inferior *inf, int from_tty)
 {
+  LINUX_NAT_SCOPED_DEBUG_ENTER_EXIT;
+
   struct lwp_info *main_lwp;
   int pid = inf->pid;
 
@@ -1539,7 +1550,7 @@ resume_lwp (struct lwp_info *lp, int step, enum gdb_signal signo)
 
       if (inf->vfork_child != NULL)
 	{
-	  linux_nat_debug_printf ("Not resuming %s (vfork parent)",
+	  linux_nat_debug_printf ("Not resuming sibling %s (vfork parent)",
 				  lp->ptid.to_string ().c_str ());
 	}
       else if (!lwp_status_pending_p (lp))
@@ -3122,12 +3133,12 @@ static ptid_t
 linux_nat_wait_1 (ptid_t ptid, struct target_waitstatus *ourstatus,
 		  target_wait_flags target_options)
 {
+  LINUX_NAT_SCOPED_DEBUG_ENTER_EXIT;
+
   sigset_t prev_mask;
   enum resume_kind last_resume_kind;
   struct lwp_info *lp;
   int status;
-
-  linux_nat_debug_printf ("enter");
 
   /* The first time we get here after starting a new inferior, we may
      not have added it to the LWP list yet - this is the earliest
@@ -3228,7 +3239,7 @@ linux_nat_wait_1 (ptid_t ptid, struct target_waitstatus *ourstatus,
 
       if (target_options & TARGET_WNOHANG)
 	{
-	  linux_nat_debug_printf ("exit (ignore)");
+	  linux_nat_debug_printf ("no interesting events found");
 
 	  ourstatus->set_ignore ();
 	  restore_child_signals_mask (&prev_mask);
@@ -3314,7 +3325,7 @@ linux_nat_wait_1 (ptid_t ptid, struct target_waitstatus *ourstatus,
   else
     *ourstatus = host_status_to_waitstatus (status);
 
-  linux_nat_debug_printf ("exit");
+  linux_nat_debug_printf ("event found");
 
   restore_child_signals_mask (&prev_mask);
 
@@ -3346,6 +3357,8 @@ linux_nat_wait_1 (ptid_t ptid, struct target_waitstatus *ourstatus,
 static int
 resume_stopped_resumed_lwps (struct lwp_info *lp, const ptid_t wait_ptid)
 {
+  inferior *inf = find_inferior_ptid (linux_target, lp->ptid);
+
   if (!lp->stopped)
     {
       linux_nat_debug_printf ("NOT resuming LWP %s, not stopped",
@@ -3359,6 +3372,11 @@ resume_stopped_resumed_lwps (struct lwp_info *lp, const ptid_t wait_ptid)
   else if (lwp_status_pending_p (lp))
     {
       linux_nat_debug_printf ("NOT resuming LWP %s, has pending status",
+			      lp->ptid.to_string ().c_str ());
+    }
+  else if (inf->vfork_child != nullptr)
+    {
+      linux_nat_debug_printf ("NOT resuming LWP %s (vfork parent)",
 			      lp->ptid.to_string ().c_str ());
     }
   else
@@ -3403,6 +3421,8 @@ ptid_t
 linux_nat_target::wait (ptid_t ptid, struct target_waitstatus *ourstatus,
 			target_wait_flags target_options)
 {
+  LINUX_NAT_SCOPED_DEBUG_ENTER_EXIT;
+
   ptid_t event_ptid;
 
   linux_nat_debug_printf ("[%s], [%s]", ptid.to_string ().c_str (),
@@ -3582,6 +3602,8 @@ linux_nat_target::kill ()
 void
 linux_nat_target::mourn_inferior ()
 {
+  LINUX_NAT_SCOPED_DEBUG_ENTER_EXIT;
+
   int pid = inferior_ptid.pid ();
 
   purge_lwp_list (pid);
@@ -3909,18 +3931,26 @@ linux_proc_xfer_memory_partial_fd (int fd, int pid,
 
   gdb_assert (fd != -1);
 
-  /* Use pread64/pwrite64 if available, since they save a syscall and can
-     handle 64-bit offsets even on 32-bit platforms (for instance, SPARC
-     debugging a SPARC64 application).  */
+  /* Use pread64/pwrite64 if available, since they save a syscall and
+     can handle 64-bit offsets even on 32-bit platforms (for instance,
+     SPARC debugging a SPARC64 application).  But only use them if the
+     offset isn't so high that when cast to off_t it'd be negative, as
+     seen on SPARC64.  pread64/pwrite64 outright reject such offsets.
+     lseek does not.  */
 #ifdef HAVE_PREAD64
-  ret = (readbuf ? pread64 (fd, readbuf, len, offset)
-	 : pwrite64 (fd, writebuf, len, offset));
-#else
-  ret = lseek (fd, offset, SEEK_SET);
-  if (ret != -1)
-    ret = (readbuf ? read (fd, readbuf, len)
-	   : write (fd, writebuf, len));
+  if ((off_t) offset >= 0)
+    ret = (readbuf != nullptr
+	   ? pread64 (fd, readbuf, len, offset)
+	   : pwrite64 (fd, writebuf, len, offset));
+  else
 #endif
+    {
+      ret = lseek (fd, offset, SEEK_SET);
+      if (ret != -1)
+	ret = (readbuf != nullptr
+	       ? read (fd, readbuf, len)
+	       : write (fd, writebuf, len));
+    }
 
   if (ret == -1)
     {

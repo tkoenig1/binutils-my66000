@@ -2481,8 +2481,11 @@ _bfd_mips_elf_gprel16_with_gp (bfd *abfd, asymbol *symbol,
   else
     relocation = symbol->value;
 
-  relocation += symbol->section->output_section->vma;
-  relocation += symbol->section->output_offset;
+  if (symbol->section->output_section != NULL)
+    {
+      relocation += symbol->section->output_section->vma;
+      relocation += symbol->section->output_offset;
+    }
 
   /* Set val to the offset into the section or symbol.  */
   val = reloc_entry->addend;
@@ -2673,7 +2676,8 @@ _bfd_mips_elf_generic_reloc (bfd *abfd ATTRIBUTE_UNUSED, arelent *reloc_entry,
 
   /* Build up the field adjustment in VAL.  */
   val = 0;
-  if (!relocatable || (symbol->flags & BSF_SECTION_SYM) != 0)
+  if ((!relocatable || (symbol->flags & BSF_SECTION_SYM) != 0)
+      && symbol->section->output_section != NULL)
     {
       /* Either we're calculating the final field value or we have a
 	 relocation against a section symbol.  Add in the section's
@@ -7172,10 +7176,11 @@ _bfd_mips_elf_symbol_processing (bfd *abfd, asymbol *asym)
 
     case SHN_COMMON:
       /* Common symbols less than the GP size are automatically
-	 treated as SHN_MIPS_SCOMMON symbols on IRIX5.  */
+	 treated as SHN_MIPS_SCOMMON symbols, with some exceptions.  */
       if (asym->value > elf_gp_size (abfd)
 	  || ELF_ST_TYPE (elfsym->internal_elf_sym.st_info) == STT_TLS
-	  || IRIX_COMPAT (abfd) == ict_irix6)
+	  || IRIX_COMPAT (abfd) == ict_irix6
+	  || strcmp (asym->name, "__gnu_lto_slim") == 0)
 	break;
       /* Fall through.  */
     case SHN_MIPS_SCOMMON:
@@ -7858,10 +7863,11 @@ _bfd_mips_elf_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
     {
     case SHN_COMMON:
       /* Common symbols less than the GP size are automatically
-	 treated as SHN_MIPS_SCOMMON symbols.  */
+	 treated as SHN_MIPS_SCOMMON symbols, with some exceptions.  */
       if (sym->st_size > elf_gp_size (abfd)
 	  || ELF_ST_TYPE (sym->st_info) == STT_TLS
-	  || IRIX_COMPAT (abfd) == ict_irix6)
+	  || IRIX_COMPAT (abfd) == ict_irix6
+	  || strcmp (*namep, "__gnu_lto_slim") == 0)
 	break;
       /* Fall through.  */
     case SHN_MIPS_SCOMMON:

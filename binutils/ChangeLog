@@ -1,3 +1,55 @@
+2023-07-30  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* readelf.c (get_machine_flags): Recognize and pretty print BPF
+	machine flags.
+
+2023-07-24  Johannes Schauer Marin Rodrigues  <josch@debian.org>
+
+	* doc/binutils.texi (objcopy): Document change in behaviour of
+	objcopy's --preserve-dates command line option.
+
+2023-07-09  Fangrui Song  <maskray@google.com>
+
+	PR 30592
+	* NEWS: Mention the new feature for objcopy.
+	* doc/binutils.texi: Mention "large".
+	* objcopy.c (parse_flags): Parse "large".
+	(check_new_section_flags): Error if "large" is used with a
+	non-x86-64 ELF target.
+	* testsuite/binutils-all/x86-64/large-sections.d: New.
+	* testsuite/binutils-all/x86-64/large-sections.s: New.
+	* testsuite/binutils-all/x86-64/large-sections-i386.d: New.
+	* testsuite/binutils-all/x86-64/large-sections-2.d: New.
+	* testsuite/binutils-all/x86-64/large-sections-2-x32.d: New.
+
+2023-07-03  Nick Clifton  <nickc@redhat.com>
+
+	* README-how-to-make-a-release: Change some version numbers.
+	* configure: Regenerate.
+	* po/binutils.pot: Regenerate.
+
+2023-07-03  Nick Clifton  <nickc@redhat.com>
+
+	2.41 Branch Point.
+
+2023-06-30  Nick Clifton  <nickc@redhat.com>
+
+	PR 30598
+	* strings.c (set_string_min): New function.
+	(main): Use it.
+	(print_unicode_stream): Calculate buffer size using a size_t.
+
+2023-06-30  Nick Clifton  <nickc@redhat.com>
+
+	PR 30595
+	* strings.c (main): Check for an excessively large minimum string
+	length.
+
+2023-06-21  Nick Clifton  <nickc@redhat.com>
+
+	* testsuite/lib/binutils-common.exp (prune_warnings_extra): Prune
+	warnings about -z execstack creating an executable stack.
+
 2023-05-30  Nick Clifton  <nickc@redhat.com>
 
 	* od-pe.c (targ_info): New array.

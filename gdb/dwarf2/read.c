@@ -9184,7 +9184,6 @@ try_open_dwop_file (dwarf2_per_objfile *per_objfile,
 					 gnutarget, desc));
   if (sym_bfd == NULL)
     return NULL;
-  bfd_set_cacheable (sym_bfd.get (), 1);
 
   if (!bfd_check_format (sym_bfd.get (), bfd_object))
     return NULL;
@@ -14867,6 +14866,8 @@ get_mpz (struct dwarf2_cu *cu, gdb_mpz *value, struct attribute *attr)
 		   ? BFD_ENDIAN_BIG : BFD_ENDIAN_LITTLE,
 		   true);
     }
+  else if (attr->form_is_unsigned ())
+    *value = gdb_mpz (attr->as_unsigned ());
   else
     *value = gdb_mpz (attr->constant_value (1));
 }
@@ -15420,20 +15421,25 @@ read_base_type (struct die_info *die, struct dwarf2_cu *cu)
   if (TYPE_SPECIFIC_FIELD (type) == TYPE_SPECIFIC_INT)
     {
       attr = dwarf2_attr (die, DW_AT_bit_size, cu);
-      if (attr != nullptr && attr->as_unsigned () <= 8 * type->length ())
+      if (attr != nullptr && attr->form_is_constant ())
 	{
-	  unsigned real_bit_size = attr->as_unsigned ();
-	  attr = dwarf2_attr (die, DW_AT_data_bit_offset, cu);
-	  /* Only use the attributes if they make sense together.  */
-	  if (attr == nullptr
-	      || (attr->as_unsigned () + real_bit_size
-		  <= 8 * type->length ()))
+	  unsigned real_bit_size = attr->constant_value (0);
+	  if (real_bit_size >= 0 && real_bit_size <= 8 * type->length ())
 	    {
-	      TYPE_MAIN_TYPE (type)->type_specific.int_stuff.bit_size
-		= real_bit_size;
-	      if (attr != nullptr)
-		TYPE_MAIN_TYPE (type)->type_specific.int_stuff.bit_offset
-		  = attr->as_unsigned ();
+	      attr = dwarf2_attr (die, DW_AT_data_bit_offset, cu);
+	      /* Only use the attributes if they make sense together.  */
+	      if (attr == nullptr
+		  || (attr->form_is_constant ()
+		      && attr->constant_value (0) >= 0
+		      && (attr->constant_value (0) + real_bit_size
+			  <= 8 * type->length ())))
+		{
+		  TYPE_MAIN_TYPE (type)->type_specific.int_stuff.bit_size
+		    = real_bit_size;
+		  if (attr != nullptr)
+		    TYPE_MAIN_TYPE (type)->type_specific.int_stuff.bit_offset
+		      = attr->constant_value (0);
+		}
 	    }
 	}
     }
@@ -16706,6 +16712,46 @@ struct cooked_index_functions : public dwarf2_base_index_functions
   {
     if (dwarf2_has_info (objfile, nullptr))
       dwarf2_build_psymtabs (objfile);
+  }
+
+  enum language lookup_global_symbol_language (struct objfile *objfile,
+					       const char *name,
+					       domain_enum domain,
+					       bool *symbol_found_p) override
+  {
+    *symbol_found_p = false;
+
+    if (!(domain == VAR_DOMAIN && streq (name, "main")))
+      return language_unknown;
+
+    dwarf2_per_objfile *per_objfile = get_dwarf2_per_objfile (objfile);
+    struct dwarf2_per_bfd *per_bfd = per_objfile->per_bfd;
+    if (per_bfd->index_table == nullptr)
+      return language_unknown;
+
+    /* Expansion of large CUs can be slow.  By returning the language of main
+       here for C and C++, we avoid CU expansion during set_initial_language.
+       But by doing a symbol lookup in the cooked index, we are forced to wait
+       for finalization to complete.  See PR symtab/30174 for ideas how to
+       bypass that as well.  */
+    cooked_index *table
+      = (gdb::checked_static_cast<cooked_index *>
+	 (per_bfd->index_table.get ()));
+
+    for (const cooked_index_entry *entry : table->find (name, false))
+      {
+	if (entry->tag != DW_TAG_subprogram)
+	  continue;
+
+	enum language lang = entry->per_cu->lang ();
+	if (!(lang == language_c || lang == language_cplus))
+	  continue;
+
+	*symbol_found_p = true;
+	return lang;
+      }
+
+    return language_unknown;
   }
 };
 
@@ -19316,11 +19362,14 @@ new_symbol (struct die_info *die, struct type *type, struct dwarf2_cu *cu,
 	  sym->set_domain (VAR_DOMAIN);
 	  list_to_add = cu->list_in_scope;
 	  break;
+	case DW_TAG_unspecified_type:
+	  if (cu->lang () == language_ada)
+	    break;
+	  /* FALLTHROUGH */
 	case DW_TAG_array_type:
 	case DW_TAG_base_type:
 	case DW_TAG_subrange_type:
 	case DW_TAG_generic_subrange:
-	case DW_TAG_unspecified_type:
 	  sym->set_aclass_index (LOC_TYPEDEF);
 	  sym->set_domain (VAR_DOMAIN);
 	  list_to_add = cu->list_in_scope;

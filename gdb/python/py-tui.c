@@ -339,7 +339,8 @@ intrusive_list<gdbpy_tui_window_maker>
 gdbpy_tui_window_maker::~gdbpy_tui_window_maker ()
 {
   /* Remove this gdbpy_tui_window_maker from the global list.  */
-  m_window_maker_list.erase (m_window_maker_list.iterator_to (*this));
+  if (is_linked ())
+    m_window_maker_list.erase (m_window_maker_list.iterator_to (*this));
 
   if (m_constr != nullptr)
     {
@@ -509,7 +510,7 @@ gdbpy_tui_title (PyObject *self, void *closure)
 {
   gdbpy_tui_window *win = (gdbpy_tui_window *) self;
   REQUIRE_WINDOW (win);
-  return host_string_to_python_string (win->window->title.c_str ()).release ();
+  return host_string_to_python_string (win->window->title ().c_str ()).release ();
 }
 
 /* Set the title of the TUI window.  */
@@ -531,7 +532,7 @@ gdbpy_tui_set_title (PyObject *self, PyObject *newvalue, void *closure)
   if (value == nullptr)
     return -1;
 
-  win->window->title = value.get ();
+  win->window->set_title (value.get ());
   return 0;
 }
 

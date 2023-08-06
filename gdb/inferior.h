@@ -200,8 +200,6 @@ extern void child_terminal_save_inferior (struct target_ops *self);
 
 extern void child_terminal_init (struct target_ops *self);
 
-extern void child_terminal_init_with_pgrp (int pgrp);
-
 extern void child_pass_ctrlc (struct target_ops *self);
 
 extern void child_interrupt (struct target_ops *self);
@@ -759,6 +757,35 @@ public:
 
 private:
   inferior *m_saved_inf;
+};
+
+/* When reading memory from an inferior, the global inferior_ptid must
+   also be set.  This class arranges to save and restore the necessary
+   state for reading or writing memory, but without invalidating the
+   frame cache.  */
+
+class scoped_restore_current_inferior_for_memory
+{
+public:
+
+  /* Save the current globals and switch to the given inferior and the
+     inferior's program space.  inferior_ptid is set to point to the
+     inferior's process id (and not to any particular thread).  */
+  explicit scoped_restore_current_inferior_for_memory (inferior *inf)
+    : m_save_ptid (&inferior_ptid)
+  {
+    set_current_inferior (inf);
+    set_current_program_space (inf->pspace);
+    inferior_ptid = ptid_t (inf->pid);
+  }
+
+  DISABLE_COPY_AND_ASSIGN (scoped_restore_current_inferior_for_memory);
+
+private:
+
+  scoped_restore_current_inferior m_save_inferior;
+  scoped_restore_current_program_space m_save_progspace;
+  scoped_restore_tmpl<ptid_t> m_save_ptid;
 };
 
 

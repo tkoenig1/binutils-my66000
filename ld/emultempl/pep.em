@@ -1269,7 +1269,7 @@ read_addend (arelent *rel, asection *s)
       break;
     }
   if (!ok)
-    einfo (_("%P: %C: cannot get section contents - auto-import exception\n"),
+    einfo (_("%P: %H: cannot get section contents - auto-import exception\n"),
 	   s->owner, s, rel->address);
   return addend;
 }
@@ -2295,8 +2295,8 @@ gld${EMULATION_NAME}_open_dynamic_archive
 			    search->name and the start of the format string.  */
 			 + 2);
 
-  sprintf (full_string, "%s/", search->name);
-  base_string = full_string + strlen (full_string);
+  base_string = stpcpy (full_string, search->name);
+  *base_string++ = '/';
 
   for (i = 0; libname_fmt[i].format; i++)
     {

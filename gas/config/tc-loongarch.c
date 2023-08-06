@@ -31,7 +31,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
-#include "libbfd.h"
 
 /* All information about an instruction during assemble.  */
 struct loongarch_cl_insn
@@ -166,6 +165,10 @@ md_parse_option (int c, const char *arg)
 	{
 	  LARCH_opts.ase_ilp32 = 1;
 	  LARCH_opts.ase_lp64 = 1;
+	  LARCH_opts.ase_lsx = 1;
+	  LARCH_opts.ase_lasx = 1;
+	  LARCH_opts.ase_lvz = 1;
+	  LARCH_opts.ase_lbt = 1;
 	  LARCH_opts.ase_abi = lp64[suf[4]];
 	}
       else if (strncasecmp (arg, "ilp32", 5) == 0 && ilp32[suf[5]] != 0)
@@ -221,8 +224,14 @@ md_parse_option (int c, const char *arg)
   return ret;
 }
 
+static const char *const *r_abi_names = NULL;
+static const char *const *f_abi_names = NULL;
 static struct htab *r_htab = NULL;
+static struct htab *r_deprecated_htab = NULL;
 static struct htab *f_htab = NULL;
+static struct htab *f_deprecated_htab = NULL;
+static struct htab *fc_htab = NULL;
+static struct htab *fcn_htab = NULL;
 static struct htab *c_htab = NULL;
 static struct htab *cr_htab = NULL;
 static struct htab *v_htab = NULL;
@@ -239,6 +248,10 @@ loongarch_after_parse_args ()
 	  LARCH_opts.ase_abi = EF_LOONGARCH_ABI_DOUBLE_FLOAT;
 	  LARCH_opts.ase_ilp32 = 1;
 	  LARCH_opts.ase_lp64 = 1;
+	  LARCH_opts.ase_lsx = 1;
+	  LARCH_opts.ase_lasx = 1;
+	  LARCH_opts.ase_lvz = 1;
+	  LARCH_opts.ase_lbt = 1;
 	}
       else if (strcmp (default_arch, "loongarch32") == 0)
 	{
@@ -266,7 +279,11 @@ loongarch_after_parse_args ()
   /* Init ilp32/lp64 registers names.  */
   if (!r_htab)
     r_htab = str_htab_create (), str_hash_insert (r_htab, "", 0, 0);
+  if (!r_deprecated_htab)
+    r_deprecated_htab = str_htab_create (),
+			str_hash_insert (r_deprecated_htab, "", 0, 0);
 
+  r_abi_names = loongarch_r_normal_name;
   for (i = 0; i < ARRAY_SIZE (loongarch_r_normal_name); i++)
     str_hash_insert (r_htab, loongarch_r_normal_name[i], (void *) (i + 1), 0);
 
@@ -281,9 +298,27 @@ loongarch_after_parse_args ()
     {
       if (!f_htab)
 	f_htab = str_htab_create (), str_hash_insert (f_htab, "", 0, 0);
+      if (!f_deprecated_htab)
+	f_deprecated_htab = str_htab_create (),
+			    str_hash_insert (f_deprecated_htab, "", 0, 0);
 
+      f_abi_names = loongarch_f_normal_name;
       for (i = 0; i < ARRAY_SIZE (loongarch_f_normal_name); i++)
 	str_hash_insert (f_htab, loongarch_f_normal_name[i], (void *) (i + 1),
+			 0);
+
+      if (!fc_htab)
+	fc_htab = str_htab_create (), str_hash_insert (fc_htab, "", 0, 0);
+
+      for (i = 0; i < ARRAY_SIZE (loongarch_fc_normal_name); i++)
+	str_hash_insert (fc_htab, loongarch_fc_normal_name[i], (void *) (i + 1),
+			 0);
+
+      if (!fcn_htab)
+	fcn_htab = str_htab_create (), str_hash_insert (fcn_htab, "", 0, 0);
+
+      for (i = 0; i < ARRAY_SIZE (loongarch_fc_numeric_name); i++)
+	str_hash_insert (fcn_htab, loongarch_fc_numeric_name[i], (void *) (i + 1),
 			 0);
 
       if (!c_htab)
@@ -318,22 +353,24 @@ loongarch_after_parse_args ()
   /* Init lp64 registers alias.  */
   if (LARCH_opts.ase_lp64)
     {
+      r_abi_names = loongarch_r_lp64_name;
       for (i = 0; i < ARRAY_SIZE (loongarch_r_lp64_name); i++)
 	str_hash_insert (r_htab, loongarch_r_lp64_name[i], (void *) (i + 1),
 			 0);
-      for (i = 0; i < ARRAY_SIZE (loongarch_r_lp64_name1); i++)
-	str_hash_insert (r_htab, loongarch_r_lp64_name1[i], (void *) (i + 1),
-			 0);
+      for (i = 0; i < ARRAY_SIZE (loongarch_r_lp64_name_deprecated); i++)
+	str_hash_insert (r_deprecated_htab, loongarch_r_lp64_name_deprecated[i],
+			 (void *) (i + 1), 0);
     }
 
   /* Init float-lp64 registers alias */
   if ((LARCH_opts.ase_sf || LARCH_opts.ase_df) && LARCH_opts.ase_lp64)
     {
+      f_abi_names = loongarch_f_lp64_name;
       for (i = 0; i < ARRAY_SIZE (loongarch_f_lp64_name); i++)
 	str_hash_insert (f_htab, loongarch_f_lp64_name[i],
 			 (void *) (i + 1), 0);
-      for (i = 0; i < ARRAY_SIZE (loongarch_f_lp64_name1); i++)
-	str_hash_insert (f_htab, loongarch_f_lp64_name1[i],
+      for (i = 0; i < ARRAY_SIZE (loongarch_f_lp64_name_deprecated); i++)
+	str_hash_insert (f_deprecated_htab, loongarch_f_lp64_name_deprecated[i],
 			 (void *) (i + 1), 0);
     }
 }
@@ -634,7 +671,7 @@ loongarch_args_parser_can_match_arg_helper (char esc_ch1, char esc_ch2,
 		      esc_ch1, esc_ch2, bit_field, arg);
 
 	  if (ip->reloc_info[0].type >= BFD_RELOC_LARCH_B16
-	      && ip->reloc_info[0].type < BFD_RELOC_LARCH_SUB_ULEB128)
+	      && ip->reloc_info[0].type < BFD_RELOC_LARCH_64_PCREL)
 	    {
 	      /* As we compact stack-relocs, it is no need for pop operation.
 		 But break out until here in order to check the imm field.
@@ -664,11 +701,40 @@ loongarch_args_parser_can_match_arg_helper (char esc_ch1, char esc_ch2,
       imm = (intptr_t) str_hash_find (r_htab, arg);
       ip->match_now = 0 < imm;
       ret = imm - 1;
-      break;
-    case 'f':
-      imm = (intptr_t) str_hash_find (f_htab, arg);
+      if (ip->match_now)
+	break;
+      /* Handle potential usage of deprecated register aliases.  */
+      imm = (intptr_t) str_hash_find (r_deprecated_htab, arg);
       ip->match_now = 0 < imm;
       ret = imm - 1;
+      if (ip->match_now && !ip->macro_id)
+	as_warn (_("register alias %s is deprecated, use %s instead"),
+		 arg, r_abi_names[ret]);
+      break;
+    case 'f':
+      switch (esc_ch2)
+	{
+	case 'c':
+	  imm = (intptr_t) str_hash_find (fc_htab, arg);
+	  if (0 >= imm)
+	    {
+	      imm = (intptr_t) str_hash_find (fcn_htab, arg);
+	    }
+	  break;
+	default:
+	  imm = (intptr_t) str_hash_find (f_htab, arg);
+	}
+      ip->match_now = 0 < imm;
+      ret = imm - 1;
+      if (ip->match_now && !ip->macro_id)
+	break;
+      /* Handle potential usage of deprecated register aliases.  */
+      imm = (intptr_t) str_hash_find (f_deprecated_htab, arg);
+      ip->match_now = 0 < imm;
+      ret = imm - 1;
+      if (ip->match_now)
+	as_warn (_("register alias %s is deprecated, use %s instead"),
+		 arg, f_abi_names[ret]);
       break;
     case 'c':
       switch (esc_ch2)
@@ -771,7 +837,8 @@ get_loongarch_opcode (struct loongarch_cl_insn *insn)
 	  for (it = ase->opcodes; it->name; it++)
 	    {
 	      if ((!it->include || (it->include && *it->include))
-		  && (!it->exclude || (it->exclude && !(*it->exclude))))
+		  && (!it->exclude || (it->exclude && !(*it->exclude)))
+		  && !(it->pinfo & INSN_DIS_ALIAS))
 		str_hash_insert (ase->name_hash_entry, it->name,
 				 (void *) it, 0);
 	    }
@@ -1203,8 +1270,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
        function. If only fx_addsy not null, we generate
        BFD_RELOC_LARCH_ADD24/16/8 only, then generate R_LARCH_24/16/8.
        To avoid R_LARCH_ADDxx add extra value, we write 0 first
-       (use md_number_to_chars (buf, 0, fixP->fx_size)).
-    */
+       (use md_number_to_chars (buf, 0, fixP->fx_size)).  */
     case BFD_RELOC_64:
     case BFD_RELOC_32:
       if (fixP->fx_r_type == BFD_RELOC_32

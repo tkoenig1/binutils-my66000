@@ -1013,7 +1013,7 @@ elf_x86_relative_reloc_record_add
    struct elf_x86_relative_reloc_data *relative_reloc,
    Elf_Internal_Rela *rel, asection *sec,
    asection *sym_sec, struct elf_link_hash_entry *h,
-   Elf_Internal_Sym *sym, bfd_vma offset)
+   Elf_Internal_Sym *sym, bfd_vma offset, bool *keep_symbuf_p)
 {
   bfd_size_type newidx;
 
@@ -1057,6 +1057,8 @@ elf_x86_relative_reloc_record_add
     {
       relative_reloc->data[newidx].sym = sym;
       relative_reloc->data[newidx].u.sym_sec = sym_sec;
+      /* We must keep the symbol buffer since SYM will be used later.  */
+      *keep_symbuf_p = true;
     }
   relative_reloc->data[newidx].offset = offset;
   relative_reloc->data[newidx].address = 0;
@@ -1086,6 +1088,8 @@ _bfd_x86_elf_link_relax_section (bfd *abfd ATTRIBUTE_UNUSED,
   bfd_vma *local_got_offsets;
   bool is_x86_64;
   bool unaligned_section;
+  bool return_status = false;
+  bool keep_symbuf = false;
 
   if (bfd_link_relocatable (info))
     return true;
@@ -1120,9 +1124,9 @@ _bfd_x86_elf_link_relax_section (bfd *abfd ATTRIBUTE_UNUSED,
 
   /* Load the relocations for this section.  */
   internal_relocs =
-    _bfd_elf_link_read_relocs (abfd, input_section, NULL,
-			       (Elf_Internal_Rela *) NULL,
-			       info->keep_memory);
+    _bfd_elf_link_info_read_relocs (abfd, info, input_section, NULL,
+				    (Elf_Internal_Rela *) NULL,
+				    info->keep_memory);
   if (internal_relocs == NULL)
     return false;
 
@@ -1163,11 +1167,13 @@ _bfd_x86_elf_link_relax_section (bfd *abfd ATTRIBUTE_UNUSED,
 	    {
 	      isymbuf = (Elf_Internal_Sym *) symtab_hdr->contents;
 	      if (isymbuf == NULL)
-		isymbuf = bfd_elf_get_elf_syms (abfd, symtab_hdr,
-						symtab_hdr->sh_info, 0,
-						NULL, NULL, NULL);
-	      if (isymbuf == NULL)
-		goto error_return;
+		{
+		  isymbuf = bfd_elf_get_elf_syms (abfd, symtab_hdr,
+						  symtab_hdr->sh_info,
+						  0, NULL, NULL, NULL);
+		  if (isymbuf == NULL)
+		    goto error_return;
+		}
 	    }
 
 	  isym = isymbuf + r_symndx;
@@ -1267,7 +1273,8 @@ _bfd_x86_elf_link_relax_section (bfd *abfd ATTRIBUTE_UNUSED,
 	  if (!elf_x86_relative_reloc_record_add (info,
 						  &htab->relative_reloc,
 						  irel, htab->elf.sgot,
-						  sec, h, isym, offset))
+						  sec, h, isym, offset,
+						  &keep_symbuf))
 	    goto error_return;
 
 	  continue;
@@ -1336,21 +1343,28 @@ _bfd_x86_elf_link_relax_section (bfd *abfd ATTRIBUTE_UNUSED,
 		 ((unaligned_section || unaligned_offset)
 		  ? &htab->unaligned_relative_reloc
 		  : &htab->relative_reloc),
-		 irel, input_section, sec, h, isym, offset))
+		 irel, input_section, sec, h, isym, offset,
+		 &keep_symbuf))
 	    goto error_return;
 	}
     }
 
   input_section->relative_reloc_packed = 1;
 
-  return true;
+  return_status = true;
 
 error_return:
   if ((unsigned char *) isymbuf != symtab_hdr->contents)
-    free (isymbuf);
+    {
+      /* Cache the symbol buffer if it must be kept.  */
+      if (keep_symbuf)
+	symtab_hdr->contents = (unsigned char *) isymbuf;
+      else
+	free (isymbuf);
+    }
   if (elf_section_data (input_section)->relocs != internal_relocs)
     free (internal_relocs);
-  return false;
+  return return_status;
 }
 
 /* Add an entry to the 64-bit DT_RELR bitmap.  */
@@ -1818,7 +1832,7 @@ _bfd_x86_elf_create_sframe_plt (bfd *output_bfd,
   bool plt0_generated_p;
   unsigned int plt0_entry_size;
   unsigned char func_info;
-  unsigned int fre_type;
+  uint32_t fre_type;
   /* The dynamic plt section for which .sframe stack trace information is being
      created.  */
   asection *dpltsec;
@@ -1869,7 +1883,7 @@ _bfd_x86_elf_create_sframe_plt (bfd *output_bfd,
       break;
     }
 
-  *ectx = sframe_encode (SFRAME_VERSION_1,
+  *ectx = sframe_encode (SFRAME_VERSION_2,
 			 0,
 			 SFRAME_ABI_AMD64_ENDIAN_LITTLE,
 			 SFRAME_CFA_FIXED_FP_INVALID,
@@ -1886,11 +1900,12 @@ _bfd_x86_elf_create_sframe_plt (bfd *output_bfd,
     {
       /* Add SFrame FDE for plt0, the function start address is updated later
 	 at _bfd_elf_merge_section_sframe time.  */
-      sframe_encoder_add_funcdesc (*ectx,
-				   0, /* func start addr.  */
-				   plt0_entry_size,
-				   func_info,
-				   0 /* Num FREs.  */);
+      sframe_encoder_add_funcdesc_v2 (*ectx,
+				      0, /* func start addr.  */
+				      plt0_entry_size,
+				      func_info,
+				      16,
+				      0 /* Num FREs.  */);
       sframe_frame_row_entry plt0_fre;
       unsigned int num_plt0_fres = htab->sframe_plt->plt0_num_fres;
       for (unsigned int j = 0; j < num_plt0_fres; j++)
@@ -1914,11 +1929,12 @@ _bfd_x86_elf_create_sframe_plt (bfd *output_bfd,
 	 function start address = plt0_entry_size.  As usual, this will be
 	 updated later at _bfd_elf_merge_section_sframe, by when the
 	 sections are relocated.  */
-      sframe_encoder_add_funcdesc (*ectx,
-				   plt0_entry_size, /* func start addr.  */
-				   dpltsec->size - plt0_entry_size,
-				   func_info,
-				   0 /* Num FREs.  */);
+      sframe_encoder_add_funcdesc_v2 (*ectx,
+				      plt0_entry_size, /* func start addr.  */
+				      dpltsec->size - plt0_entry_size,
+				      func_info,
+				      16,
+				      0 /* Num FREs.  */);
 
       sframe_frame_row_entry pltn_fre;
       /* Now add the FREs for pltn.  Simply adding the two FREs suffices due

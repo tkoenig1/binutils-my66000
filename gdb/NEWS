@@ -78,6 +78,26 @@
   functionality is also available for dprintf when dprintf-style is
   'gdb'.
 
+* When the printf command requires a string to be fetched from the
+  inferior, GDB now uses the existing 'max-value-size' setting to the
+  limit the memory allocated within GDB.  The default 'max-value-size'
+  is 64k.  To print longer strings you should increase
+  'max-value-size'.
+
+* The Ada 2022 Enum_Rep and Enum_Val attributes are now supported.
+
+* The Ada 2022 target name symbol ('@') is now supported by the Ada
+  expression parser.
+
+* The 'list' command now accepts '.' as an argument, which tells GDB to
+  print the location where the inferior is stopped.  If the inferior hasn't
+  started yet, the command will print around the main function.
+
+* Using the 'list' command with no arguments in a situation where the
+  command would attempt to list past the end of the file now warns the
+  user that the end of file has been reached, refers the user to the
+  newly added '.' argument
+
 * New commands
 
 maintenance print record-instruction [ N ]
@@ -208,6 +228,12 @@ info main
   ** New function gdb.execute_mi(COMMAND, [ARG]...), that invokes a
      GDB/MI command and returns the output as a Python dictionary.
 
+  ** New function gdb.block_signals().  This returns a context manager
+     that blocks any signals that GDB needs to handle itself.
+
+  ** New class gdb.Thread.  This is a subclass of threading.Thread
+     that calls gdb.block_signals in its "start" method.
+
   ** gdb.parse_and_eval now has a new "global_context" parameter.
      This can be used to request that the parse only examine global
      symbols.
@@ -223,6 +249,9 @@ info main
      environment before it is started.
 
   ** gdb.Value now has the 'assign' method.
+
+  ** gdb.Progspace now has the new method "objfile_for_address".  This
+     returns the gdb.Objfile, if any, that covers a given address.
 
 *** Changes in GDB 13
 

@@ -1,3 +1,32 @@
+2023-07-24  Johannes Schauer Marin Rodrigues  <josch@debian.org>
+
+	* pe-dll.c (fill_edata): If inserting a timestamp, use the value
+	held in the SOURCE_DATE_EPOCH environment variable, if it is
+	defined.
+	* ld.texi (--insert-timestamp): Document change in behaviour.
+
+2023-07-03  Nick Clifton  <nickc@redhat.com>
+
+	* configure: Regenerate.
+
+2023-07-03  Nick Clifton  <nickc@redhat.com>
+
+	2.41 Branch Point.
+
+2023-06-28  Nikita Popov  <npopov@redhat.com>
+	    Nick Clifton  <nickc@redhat.com>
+
+	PR 30568
+	* ldfile.c (ldfile_try_open_bfd): Do not track lto generated
+	temporary files.
+
+2023-06-21  Nick Clifton  <nickc@redhat.com>
+
+	PR 29072
+	* testsuite/ld-elf/elf.exp (target_defaults_to_execstack): Always
+	return false for linkers configured with the --enable-default-execstack=no
+	option.
+
 2023-06-14  Nick Clifton  <nickc@redhat.com>
 
 	PR 30374

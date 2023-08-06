@@ -1648,9 +1648,7 @@ type_name_or_error (struct type *type)
 	 objfile ? objfile_name (objfile) : "<arch>");
 }
 
-/* Lookup a typedef or primitive type named NAME, visible in lexical
-   block BLOCK.  If NOERR is nonzero, return zero if NAME is not
-   suitably defined.  */
+/* See gdbtypes.h.  */
 
 struct type *
 lookup_typename (const struct language_defn *language,
@@ -1662,7 +1660,12 @@ lookup_typename (const struct language_defn *language,
   sym = lookup_symbol_in_language (name, block, VAR_DOMAIN,
 				   language->la_language, NULL).symbol;
   if (sym != NULL && sym->aclass () == LOC_TYPEDEF)
-    return sym->type ();
+    {
+      struct type *type = sym->type ();
+      /* Ensure the length of TYPE is valid.  */
+      check_typedef (type);
+      return type;
+    }
 
   if (noerr)
     return NULL;
@@ -5388,44 +5391,44 @@ recursive_dump_type (struct type *type, int spaces)
 
   switch (TYPE_SPECIFIC_FIELD (type))
     {
-      case TYPE_SPECIFIC_CPLUS_STUFF:
-	gdb_printf ("%*scplus_stuff %s\n", spaces, "",
-		    host_address_to_string (TYPE_CPLUS_SPECIFIC (type)));
-	print_cplus_stuff (type, spaces);
-	break;
+    case TYPE_SPECIFIC_CPLUS_STUFF:
+      gdb_printf ("%*scplus_stuff %s\n", spaces, "",
+		  host_address_to_string (TYPE_CPLUS_SPECIFIC (type)));
+      print_cplus_stuff (type, spaces);
+      break;
 
-      case TYPE_SPECIFIC_GNAT_STUFF:
-	gdb_printf ("%*sgnat_stuff %s\n", spaces, "",
-		    host_address_to_string (TYPE_GNAT_SPECIFIC (type)));
-	print_gnat_stuff (type, spaces);
-	break;
+    case TYPE_SPECIFIC_GNAT_STUFF:
+      gdb_printf ("%*sgnat_stuff %s\n", spaces, "",
+		  host_address_to_string (TYPE_GNAT_SPECIFIC (type)));
+      print_gnat_stuff (type, spaces);
+      break;
 
-      case TYPE_SPECIFIC_FLOATFORMAT:
-	gdb_printf ("%*sfloatformat ", spaces, "");
-	if (TYPE_FLOATFORMAT (type) == NULL
-	    || TYPE_FLOATFORMAT (type)->name == NULL)
-	  gdb_puts ("(null)");
-	else
-	  gdb_puts (TYPE_FLOATFORMAT (type)->name);
-	gdb_puts ("\n");
-	break;
+    case TYPE_SPECIFIC_FLOATFORMAT:
+      gdb_printf ("%*sfloatformat ", spaces, "");
+      if (TYPE_FLOATFORMAT (type) == NULL
+	  || TYPE_FLOATFORMAT (type)->name == NULL)
+	gdb_puts ("(null)");
+      else
+	gdb_puts (TYPE_FLOATFORMAT (type)->name);
+      gdb_puts ("\n");
+      break;
 
-      case TYPE_SPECIFIC_FUNC:
-	gdb_printf ("%*scalling_convention %d\n", spaces, "",
-		    TYPE_CALLING_CONVENTION (type));
-	/* tail_call_list is not printed.  */
-	break;
+    case TYPE_SPECIFIC_FUNC:
+      gdb_printf ("%*scalling_convention %d\n", spaces, "",
+		  TYPE_CALLING_CONVENTION (type));
+      /* tail_call_list is not printed.  */
+      break;
 
-      case TYPE_SPECIFIC_SELF_TYPE:
-	gdb_printf ("%*sself_type %s\n", spaces, "",
-		    host_address_to_string (TYPE_SELF_TYPE (type)));
-	break;
+    case TYPE_SPECIFIC_SELF_TYPE:
+      gdb_printf ("%*sself_type %s\n", spaces, "",
+		  host_address_to_string (TYPE_SELF_TYPE (type)));
+      break;
 
-      case TYPE_SPECIFIC_FIXED_POINT:
-	gdb_printf ("%*sfixed_point_info ", spaces, "");
-	print_fixed_point_type_info (type, spaces);
-	gdb_puts ("\n");
-	break;
+    case TYPE_SPECIFIC_FIXED_POINT:
+      gdb_printf ("%*sfixed_point_info ", spaces, "");
+      print_fixed_point_type_info (type, spaces);
+      gdb_puts ("\n");
+      break;
 
     case TYPE_SPECIFIC_INT:
       if (type->bit_size_differs_p ())

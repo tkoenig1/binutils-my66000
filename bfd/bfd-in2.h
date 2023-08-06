@@ -625,6 +625,9 @@ typedef struct bfd_section
      TMS320C54X only.  */
 #define SEC_TIC54X_BLOCK           0x10000000
 
+  /* This section has the SHF_X86_64_LARGE flag.  This is ELF x86-64 only.  */
+#define SEC_ELF_LARGE              0x10000000
+
   /* Conditionally link this section; do not link if there are no
      references found to any symbol in the section.  This is for TI
      TMS320C54X only.  */
@@ -2051,11 +2054,15 @@ struct bfd
   /* Compress sections in this BFD with SHF_COMPRESSED zstd.  */
 #define BFD_COMPRESS_ZSTD      0x400000
 
+  /* Don't generate ELF section header.  */
+#define BFD_NO_SECTION_HEADER  0x800000
+
   /* Flags bits which are for BFD use only.  */
 #define BFD_FLAGS_FOR_BFD_USE_MASK \
   (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_LINKER_CREATED \
    | BFD_PLUGIN | BFD_TRADITIONAL_FORMAT | BFD_DETERMINISTIC_OUTPUT \
-   | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON)
+   | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON \
+   | BFD_NO_SECTION_HEADER)
 
   /* The format which belongs to the BFD. (object, core, etc.)  */
   ENUM_BITFIELD (bfd_format) format : 3;
@@ -7147,6 +7154,8 @@ assembler and not (currently) written to any object files.  */
 /* Linux eBPF relocations.  */
   BFD_RELOC_BPF_64,
   BFD_RELOC_BPF_DISP32,
+  BFD_RELOC_BPF_DISPCALL32,
+  BFD_RELOC_BPF_DISP16,
 
 /* Adapteva EPIPHANY - 8 bit signed pc-relative displacement  */
   BFD_RELOC_EPIPHANY_SIMM8,
@@ -7349,6 +7358,7 @@ assembler and not (currently) written to any object files.  */
   BFD_RELOC_LARCH_SUB6,
   BFD_RELOC_LARCH_ADD_ULEB128,
   BFD_RELOC_LARCH_SUB_ULEB128,
+  BFD_RELOC_LARCH_64_PCREL,
   BFD_RELOC_UNUSED };
 typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
 

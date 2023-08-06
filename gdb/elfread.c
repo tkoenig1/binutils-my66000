@@ -216,7 +216,8 @@ record_minimal_symbol (minimal_symbol_reader &reader,
      ELF is malformed then this might not be the case.  In that case don't
      create an msymbol that references an uninitialised section object.  */
   int section_index = 0;
-  if ((bfd_section_flags (bfd_section) & SEC_ALLOC) == SEC_ALLOC)
+  if ((bfd_section_flags (bfd_section) & SEC_ALLOC) == SEC_ALLOC
+      || bfd_section == bfd_abs_section_ptr)
     section_index = gdb_bfd_section_index (objfile->obfd.get (), bfd_section);
 
   struct minimal_symbol *result
@@ -1224,14 +1225,13 @@ elf_symfile_read_dwarf2 (struct objfile *objfile,
 	   && objfile->separate_debug_objfile == NULL
 	   && objfile->separate_debug_objfile_backlink == NULL)
     {
-      std::vector<std::string> warnings_vector;
+      deferred_warnings warnings;
 
       std::string debugfile
-	= find_separate_debug_file_by_buildid (objfile, &warnings_vector);
+	= find_separate_debug_file_by_buildid (objfile, &warnings);
 
       if (debugfile.empty ())
-	debugfile = find_separate_debug_file_by_debuglink (objfile,
-							   &warnings_vector);
+	debugfile = find_separate_debug_file_by_debuglink (objfile, &warnings);
 
       if (!debugfile.empty ())
 	{
@@ -1274,11 +1274,10 @@ elf_symfile_read_dwarf2 (struct objfile *objfile,
 		}
 	    }
 	}
-      /* If all the methods to collect the debuginfo failed, print
-	 the warnings, if there're any. */
-      if (debugfile.empty () && !has_dwarf2 && !warnings_vector.empty ())
-	for (const std::string &w : warnings_vector)
-	  warning ("%s", w.c_str ());
+      /* If all the methods to collect the debuginfo failed, print the
+	 warnings, this is a no-op if there are no warnings.  */
+      if (debugfile.empty () && !has_dwarf2)
+	warnings.emit ();
     }
 
   return has_dwarf2;

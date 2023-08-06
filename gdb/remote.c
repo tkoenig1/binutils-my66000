@@ -354,10 +354,7 @@ struct readahead_cache
   ULONGEST offset = 0;
 
   /* The buffer holding the cache contents.  */
-  gdb_byte *buf = nullptr;
-  /* The buffer's size.  We try to read as much as fits into a packet
-     at a time.  */
-  size_t bufsize = 0;
+  gdb::byte_vector buf;
 
   /* Cache hit and miss counters.  */
   ULONGEST hit_count = 0;
@@ -7567,8 +7564,8 @@ remote_target::discard_pending_stop_replies (struct inferior *inf)
   for (auto it = iter; it != rs->stop_reply_queue.end (); ++it)
     remote_debug_printf
       ("discarding queued stop reply: ptid: %s, ws: %s\n",
-       reply->ptid.to_string().c_str(),
-       reply->ws.to_string ().c_str ());
+       (*it)->ptid.to_string().c_str(),
+       (*it)->ws.to_string ().c_str ());
   rs->stop_reply_queue.erase (iter, rs->stop_reply_queue.end ());
 }
 
@@ -9651,7 +9648,7 @@ remote_target::readchar (int timeout)
       /* no return */
     case SERIAL_ERROR:
       unpush_and_perror (this, _("Remote communication error.  "
-				 "Target disconnected."));
+				 "Target disconnected"));
       /* no return */
     case SERIAL_TIMEOUT:
       break;
@@ -9680,7 +9677,7 @@ remote_target::remote_serial_write (const char *str, int len)
   if (serial_write (rs->remote_desc, str, len))
     {
       unpush_and_perror (this, _("Remote communication error.  "
-				 "Target disconnected."));
+				 "Target disconnected"));
     }
 
   if (rs->got_ctrlc_during_io)
@@ -10693,9 +10690,9 @@ remote_add_target_side_condition (struct gdbarch *gdbarch,
   /* Send conditions to the target.  */
   for (agent_expr *aexpr : bp_tgt->conditions)
     {
-      xsnprintf (buf, buf_end - buf, "X%x,", aexpr->len);
+      xsnprintf (buf, buf_end - buf, "X%x,", (int) aexpr->buf.size ());
       buf += strlen (buf);
-      for (int i = 0; i < aexpr->len; ++i)
+      for (int i = 0; i < aexpr->buf.size (); ++i)
 	buf = pack_hex_byte (buf, aexpr->buf[i]);
       *buf = '\0';
     }
@@ -10718,9 +10715,9 @@ remote_add_target_side_commands (struct gdbarch *gdbarch,
      cmds parameter.  */
   for (agent_expr *aexpr : bp_tgt->tcommands)
     {
-      sprintf (buf, "X%x,", aexpr->len);
+      sprintf (buf, "X%x,", (int) aexpr->buf.size ());
       buf += strlen (buf);
-      for (int i = 0; i < aexpr->len; ++i)
+      for (int i = 0; i < aexpr->buf.size (); ++i)
 	buf = pack_hex_byte (buf, aexpr->buf[i]);
       *buf = '\0';
     }
@@ -12605,14 +12602,14 @@ readahead_cache::pread (int fd, gdb_byte *read_buf, size_t len,
 {
   if (this->fd == fd
       && this->offset <= offset
-      && offset < this->offset + this->bufsize)
+      && offset < this->offset + this->buf.size ())
     {
-      ULONGEST max = this->offset + this->bufsize;
+      ULONGEST max = this->offset + this->buf.size ();
 
       if (offset + len > max)
 	len = max - offset;
 
-      memcpy (read_buf, this->buf + offset - this->offset, len);
+      memcpy (read_buf, &this->buf[offset - this->offset], len);
       return len;
     }
 
@@ -12646,10 +12643,10 @@ remote_target::remote_hostio_pread (int fd, gdb_byte *read_buf, int len,
 
   cache->fd = fd;
   cache->offset = offset;
-  cache->bufsize = get_remote_packet_size ();
-  cache->buf = (gdb_byte *) xrealloc (cache->buf, cache->bufsize);
+  cache->buf.resize (get_remote_packet_size ());
 
-  ret = remote_hostio_pread_vFile (cache->fd, cache->buf, cache->bufsize,
+  ret = remote_hostio_pread_vFile (cache->fd, &cache->buf[0],
+				   cache->buf.size (),
 				   cache->offset, remote_errno);
   if (ret <= 0)
     {
@@ -12657,7 +12654,7 @@ remote_target::remote_hostio_pread (int fd, gdb_byte *read_buf, int len,
       return ret;
     }
 
-  cache->bufsize = ret;
+  cache->buf.resize (ret);
   return cache->pread (fd, read_buf, len, offset);
 }
 
@@ -13386,7 +13383,7 @@ remote_target::download_tracepoint (struct bp_location *loc)
 	  size_left = buf.size () - strlen (buf.data ());
 
 	  ret = snprintf (buf.data () + strlen (buf.data ()),
-			  size_left, ":X%x,", aexpr->len);
+			  size_left, ":X%x,", (int) aexpr->buf.size ());
 
 	  if (ret < 0 || ret >= size_left)
 	    error ("%s", err_msg);
@@ -13395,12 +13392,12 @@ remote_target::download_tracepoint (struct bp_location *loc)
 
 	  /* Two bytes to encode each aexpr byte, plus the terminating
 	     null byte.  */
-	  if (aexpr->len * 2 + 1 > size_left)
+	  if (aexpr->buf.size () * 2 + 1 > size_left)
 	    error ("%s", err_msg);
 
 	  pkt = buf.data () + strlen (buf.data ());
 
-	  for (int ndx = 0; ndx < aexpr->len; ++ndx)
+	  for (int ndx = 0; ndx < aexpr->buf.size (); ++ndx)
 	    pkt = pack_hex_byte (pkt, aexpr->buf[ndx]);
 	  *pkt = '\0';
 	}

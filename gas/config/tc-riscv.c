@@ -337,7 +337,8 @@ riscv_set_arch (const char *s)
   riscv_reset_subsets_list_arch_str ();
 
   riscv_set_rvc (false);
-  if (riscv_subset_supports (&riscv_rps_as, "c"))
+  if (riscv_subset_supports (&riscv_rps_as, "c")
+      || riscv_subset_supports (&riscv_rps_as, "zca"))
     riscv_set_rvc (true);
 
   if (riscv_subset_supports (&riscv_rps_as, "ztso"))
@@ -1221,6 +1222,21 @@ arg_lookup (char **s, const char *const *array, size_t size, unsigned *regnop)
   return false;
 }
 
+static bool
+flt_lookup (float f, const float *array, size_t size, unsigned *regnop)
+{
+  size_t i;
+
+  for (i = 0; i < size; i++)
+    if (array[i] == f)
+      {
+	*regnop = i;
+	return true;
+      }
+
+  return false;
+}
+
 #define USE_BITS(mask,shift) (used_bits |= ((insn_t)(mask) << (shift)))
 #define USE_IMM(n, s) \
   (used_bits |= ((insn_t)((1ull<<n)-1) << (s)))
@@ -1326,6 +1342,7 @@ validate_riscv_insn (const struct riscv_opcode *opc, int length)
 	    case 'i':
 	    case 'j':
 	    case 'k': USE_BITS (OP_MASK_VIMM, OP_SH_VIMM); break;
+	    case 'l': used_bits |= ENCODE_RVV_VI_UIMM6 (-1U); break;
 	    case 'm': USE_BITS (OP_MASK_VMASK, OP_SH_VMASK); break;
 	    case 'M': break; /* Macro operand, must be a mask register.  */
 	    case 'T': break; /* Macro operand, must be a vector register.  */
@@ -1397,6 +1414,26 @@ validate_riscv_insn (const struct riscv_opcode *opc, int length)
 	      switch (*++oparg)
 		{
 		case 'f': used_bits |= ENCODE_STYPE_IMM (-1U); break;
+		default:
+		  goto unknown_validate_operand;
+		}
+	      break;
+	    case 'f':
+	      switch (*++oparg)
+		{
+		case 'v': USE_BITS (OP_MASK_RS1, OP_SH_RS1); break;
+		default:
+		  goto unknown_validate_operand;
+		}
+	      break;
+	    case 'c':
+	      switch (*++oparg)
+		{
+		/* byte immediate operators, load/store byte insns.  */
+		case 'h': used_bits |= ENCODE_ZCB_HALFWORD_UIMM (-1U); break;
+		/* halfword immediate operators, load/store halfword insns.  */
+		case 'b': used_bits |= ENCODE_ZCB_BYTE_UIMM (-1U); break;
+		case 'f': break;
 		default:
 		  goto unknown_validate_operand;
 		}
@@ -3046,6 +3083,18 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		  asarg = expr_parse_end;
 		  continue;
 
+		case 'l': /* 6-bit vector arith unsigned immediate */
+		  my_getExpression (imm_expr, asarg);
+		  check_absolute_expr (ip, imm_expr, FALSE);
+		  if (imm_expr->X_add_number < 0
+		      || imm_expr->X_add_number >= 64)
+		    as_bad (_("bad value for vector immediate field, "
+			      "value must be 0...63"));
+		  ip->insn_opcode |= ENCODE_RVV_VI_UIMM6 (imm_expr->X_add_number);
+		  imm_expr->X_op = O_absent;
+		  asarg = expr_parse_end;
+		  continue;
+
 		case 'm': /* optional vector mask */
 		  if (*asarg == '\0')
 		    {
@@ -3489,6 +3538,76 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		      imm_expr->X_op = O_absent;
 		      asarg = expr_parse_end;
 		      continue;
+		    default:
+		      goto unknown_riscv_ip_operand;
+		    }
+		  break;
+		case 'f':
+		  switch (*++oparg)
+		    {
+		    case 'v':
+		      /* FLI.[HSDQ] value field for 'Zfa' extension.  */
+		      if (!arg_lookup (&asarg, riscv_fli_symval,
+				       ARRAY_SIZE (riscv_fli_symval), &regno))
+			{
+			  /* 0.0 is not a valid entry in riscv_fli_numval.  */
+			  errno = 0;
+			  float f = strtof (asarg, &asarg);
+			  if (errno != 0 || f == 0.0
+			      || !flt_lookup (f, riscv_fli_numval,
+					     ARRAY_SIZE(riscv_fli_numval),
+					     &regno))
+			    {
+			      as_bad (_("bad fli constant operand, "
+					"supported constants must be in "
+					"decimal or hexadecimal floating-point "
+					"literal form"));
+			      break;
+			    }
+			}
+		      INSERT_OPERAND (RS1, *ip, regno);
+		      continue;
+		    default:
+		      goto unknown_riscv_ip_operand;
+		    }
+		  break;
+
+		case 'c':
+		  switch (*++oparg)
+		    {
+		    case 'h': /* Immediate field for c.lh/c.lhu/c.sh.  */
+		      /* Handle cases, such as c.sh rs2', (rs1').  */
+		      if (riscv_handle_implicit_zero_offset (imm_expr, asarg))
+			continue;
+		      if (my_getSmallExpression (imm_expr, imm_reloc, asarg, p)
+			  || imm_expr->X_op != O_constant
+			  || !VALID_ZCB_HALFWORD_UIMM ((valueT) imm_expr->X_add_number))
+			break;
+		      ip->insn_opcode |= ENCODE_ZCB_HALFWORD_UIMM (imm_expr->X_add_number);
+		      goto rvc_imm_done;
+
+		    case 'b': /* Immediate field for c.lbu/c.sb.  */
+		      /* Handle cases, such as c.lbu rd', (rs1').  */
+		      if (riscv_handle_implicit_zero_offset (imm_expr, asarg))
+			continue;
+		      if (my_getSmallExpression (imm_expr, imm_reloc, asarg, p)
+			  || imm_expr->X_op != O_constant
+			  || !VALID_ZCB_BYTE_UIMM ((valueT) imm_expr->X_add_number))
+			break;
+		      ip->insn_opcode |= ENCODE_ZCB_BYTE_UIMM (imm_expr->X_add_number);
+		      goto rvc_imm_done;
+
+		    case 'f': /* Operand for matching immediate 255.  */
+		      if (my_getSmallExpression (imm_expr, imm_reloc, asarg, p)
+			  || imm_expr->X_op != O_constant
+			  || imm_expr->X_add_number != 255)
+			break;
+		      /* This operand is used for matching immediate 255, and
+			 we do not write anything to encoding by this operand.  */
+		      asarg = expr_parse_end;
+		      imm_expr->X_op = O_absent;
+		      continue;
+
 		    default:
 		      goto unknown_riscv_ip_operand;
 		    }
@@ -4257,7 +4376,8 @@ s_riscv_option (int x ATTRIBUTE_UNUSED)
       riscv_reset_subsets_list_arch_str ();
 
       riscv_set_rvc (false);
-      if (riscv_subset_supports (&riscv_rps_as, "c"))
+      if (riscv_subset_supports (&riscv_rps_as, "c")
+	  || riscv_subset_supports (&riscv_rps_as, "zca"))
 	riscv_set_rvc (true);
 
       if (riscv_subset_supports (&riscv_rps_as, "ztso"))
