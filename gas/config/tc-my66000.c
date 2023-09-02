@@ -198,6 +198,7 @@ build_opc_hashes (const my66000_opc_info_t * table)
 static htab_t rname_map, rbase_map, rind_map;
 static htab_t hr_ro_map, hr_rw_map;
 static htab_t vec_map;
+static htab_t loop_u_map, loop_s_map;
 
 #define MAX_REG_STR_LEN 10
 
@@ -252,6 +253,15 @@ md_begin (void)
   vec_map = str_htab_create();
   for (int i = 0; i < MY66000_VEC_BITS; i++)
     str_hash_insert (vec_map, my66000_vec_reg[i],(void *) &my66000_numtab[i], 0);
+
+  loop_u_map = str_htab_create();
+  loop_s_map = str_htab_create();
+  /* LOOP condition codes.  */
+  for (int i = 0; i < MY66000_LOOP_CND; i++)
+    {
+      str_hash_insert (loop_u_map, my66000_loop_u[i], (void *) &my66000_numtab[i], 0);
+      str_hash_insert (loop_s_map, my66000_loop_s[i], (void *) &my66000_numtab[i], 0);
+    }
 
   /* Internal test for consistency.  We use the enum to index into
      the opcode fmt table, this needs to be right.  This could be be
@@ -629,7 +639,7 @@ match_register (char **ptr, char **errmsg, htab_t map)
   if (rp == NULL)
     {
       //      fprintf (stderr,"failed\n");
-      snprintf (errbuf, sizeof(errbuf), "%s: %s", (_("bad register name")), buf);
+      snprintf (errbuf, sizeof(errbuf), "%s: %s", (_("Unexpected string")), buf);
       *errmsg = errbuf;
       reg = 0;  /* Error will be reported via errmsg anyway.  */
     }
@@ -911,6 +921,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 	case MY66000_OPS_I1:
 	case MY66000_OPS_I2:
+	case MY66000_OPS_I3:
 	  bits = match_5bitu (&sp, errmsg);
 	  break;
 
@@ -952,6 +963,14 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_PRELSE:
 	  bits = match_max8 (&sp, errmsg);
 	  prelse = bits;
+	  break;
+
+	case MY66000_OPS_LOOP_U:
+	  bits = match_register (&sp, errmsg, loop_u_map);
+	  break;
+
+	case MY66000_OPS_LOOP_S:
+	  bits = match_register (&sp, errmsg, loop_s_map);
 	  break;
 
 	case MY66000_OPS_VEC:

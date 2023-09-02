@@ -78,7 +78,8 @@ typedef enum my66000_encoding
  MY66000_POP,      /* POP and FF1.  */
  MY66000_VEC32,    /* Vec with 32-bit immediate.  */
  MY66000_CVT,      /* CVT and RND.  */
- MY66000_LOOP,     /* Loop instruction.  */
+ MY66000_LOOPU,    /* Loop instruction, unsigned.  */
+ MY66000_LOOPS,    /* Loop instruction, signed.  */
  MY66000_EXIT,
 } my66000_encoding;
 
@@ -111,6 +112,12 @@ extern const char *my66000_hr_ro[16];
 #define MY66000_VEC_BITS 21
 
 extern const char *my66000_vec_reg[MY66000_VEC_BITS];
+
+#define MY66000_LOOP_CND 8
+
+extern const char *my66000_loop_u[MY66000_LOOP_CND];
+extern const char *my66000_loop_s[MY66000_LOOP_CND];
+
 
 typedef struct
 {
@@ -166,6 +173,9 @@ typedef enum my66000_operands
  MY66000_OPS_SI5,      /* A 5-bit immediate store constant.  */
  MY66000_OPS_MSCALE,   /* Scale for load and store.  */
  MY66000_OPS_VEC32,    /* A 32-bit immediate for big VEC.  */
+ MY66000_OPS_LOOP_U,   /* LOOP condition, unsigned.  */
+ MY66000_OPS_LOOP_S,   /* LOOP condition, signed.  */
+ MY66000_OPS_I3,       /* 5-bit immediate SRC3.  */
  MY66000_OPS_END
 } my66000_operands;
 
@@ -216,6 +226,7 @@ extern uint32_t my66000_get_tt_size (uint32_t);
 extern uint32_t my66000_set_tt_size (uint32_t,  uint32_t);
 
 extern bool my66000_is_imm_st (uint32_t);
+extern bool my66000_is_loop (uint32_t);
 extern uint32_t my66000_get_imm_sz (uint32_t);
 
 extern bool my66000_is_mem (uint32_t);

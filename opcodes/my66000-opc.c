@@ -78,6 +78,10 @@
 #define OP5_MINOR(x) ((x) << OPF_OFFS)
 #define OP5_MASK OP5_MINOR(31)
 
+#define LOOP_OFFS 10
+#define LOOP_MINOR(x) ((x) << LOOP_OFFS)
+#define LOOP_MASK LOOP_MINOR(3)
+
 const my66000_opc_info_t my66000_opc_info_special[];
 static const my66000_opc_info_t opc_abs[];
 const my66000_opc_info_t my66000_opc_info[];
@@ -108,6 +112,9 @@ static const my66000_opc_info_t opc_trans[];
 static const my66000_opc_info_t opc_transd[];
 static const my66000_opc_info_t opc_transf[];
 static const my66000_opc_info_t opc_cvt[];
+static const my66000_opc_info_t opc_loop[];
+static const my66000_opc_info_t opc_loopu[];
+static const my66000_opc_info_t opc_loops[];
 
 /* List of all the tables containing opcodes, for initializing the
    hashtabs for gas.  Keep up to date if you add anything below,
@@ -147,6 +154,9 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_transd,
  opc_transf,
  opc_cvt,
+ /* opc_loop we don't need, no instructions in there.  */
+ opc_loopu,
+ opc_loops,
  NULL,
 };
 
@@ -163,6 +173,10 @@ const my66000_opc_info_t my66000_opc_info_special[] =
  { "nop", MAJOR(56), MY66000_EMPTY, NULL, 0, 0},
  { NULL,  0,         MY66000_END,   NULL, 0, 0},
 };
+
+#define SIGNED_SHFT 12
+#define SIGNED(c) ((c) << SIGNED_SHFT)
+#define SIGNED_MASK SIGNED (1)
 
 /* The major table - the only one we export as a global symbol.  */
 
@@ -197,7 +211,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MAJOR(26), MY66000_BAD,   opc_bcnd, CND_MASK, CND_OFFS},
  { NULL,   MAJOR(27), MY66000_BAD,   opc_tt,   TT_MASK,   TT_OFFS},
  { NULL,   MAJOR(28), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(29), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(29), MY66000_BAD,   opc_loop, SIGNED_MASK, SIGNED_SHFT},
  { "br",   MAJOR(30), MY66000_BR,    NULL, 0, 0},
  { "call", MAJOR(31), MY66000_BR,    NULL, 0, 0},
  { "ldub", MAJOR(32), MY66000_MEM,   NULL, 0, 0},
@@ -276,10 +290,6 @@ static const my66000_opc_info_t opc_om7[] =
  { NULL,   MAJOR(7) | SHFT_MINOR(15), MY66000_BAD,   NULL, 0, 0},
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
-
-#define SIGNED_SHFT 12
-#define SIGNED(c) ((c) << SIGNED_SHFT)
-#define SIGNED_MASK SIGNED (1)
 
 /* Definition for the various modifier bits in the XOP1 group,
    including scale.  */
@@ -686,7 +696,7 @@ static const my66000_opc_info_t opc_op4[] =
  { "fmacs",  MAJOR (12) | XOP4_MINOR(4), MY66000_FMAC, NULL, 0, 0},
  { NULL,     MAJOR (12) | XOP4_MINOR(5), MY66000_BAD,  NULL, 0, 0},  /* empty */
  { NULL,     MAJOR (12) | XOP4_MINOR(6), MY66000_BAD,  NULL, 0, 0},  /* empty */
- { NULL,     MAJOR (12) | XOP4_MINOR(7), MY66000_FMAC, NULL, 0, 0},  /* Loop */
+ { NULL,     MAJOR (12) | XOP4_MINOR(7), MY66000_FMAC, NULL, 0, 0},  /* empty */
  { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
 
@@ -1133,6 +1143,31 @@ static const my66000_opc_info_t opc_mod[] =
 
 };
 
+static const my66000_opc_info_t opc_loop[] =
+{
+  { NULL,   0, MAJOR(29) | SIGNED(0), opc_loopu, LOOP_MASK, LOOP_OFFS },
+  { NULL,   0, MAJOR(29) | SIGNED(1), opc_loops, LOOP_MASK, LOOP_OFFS },
+  { NULL,   0,                                       MY66000_END ,  NULL, 0, 0},
+};
+
+static const my66000_opc_info_t opc_loopu[] =
+{
+  { NULL,     0,                                     MY66000_BAD,   NULL, 0, 0},
+  { "loop1",  MAJOR(29) | LOOP_MINOR(1) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
+  { "loop2",  MAJOR(29) | LOOP_MINOR(2) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
+  { "loop3",  MAJOR(29) | LOOP_MINOR(3) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
+  { NULL,   0,                                       MY66000_END ,  NULL, 0, 0},
+};
+
+static const my66000_opc_info_t opc_loops[] =
+{
+  { NULL,     0,                                     MY66000_BAD,   NULL, 0, 0},
+  { "loop1",  MAJOR(29) | LOOP_MINOR(1) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
+  { "loop2",  MAJOR(29) | LOOP_MINOR(2) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
+  { "loop3",  MAJOR(29) | LOOP_MINOR(3) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
+  { NULL,   0,                                       MY66000_END ,  NULL, 0, 0},
+};
+
 const char *my66000_rname[32] =
   {
     "r0",  "r1",  "r2",	 "r3",	"r4",  "r5",  "r6",  "r7",
@@ -1198,7 +1233,16 @@ const char *my66000_vec_reg[MY66000_VEC_BITS] =
  "r30"
 };
 
-/* Registers which are legal in a VEC instruction, bitmap style.  */
+const char *my66000_loop_u[MY66000_LOOP_CND] =
+{
+  "eq", "ne", "hs", "lo", "hi", "ls", "a", "n"
+};
+
+const char *my66000_loop_s[MY66000_LOOP_CND] =
+{
+  "eq", "ne", "ge", "lt", "gt", "le", "a", "n"
+};
+
 
 #define OPERAND_MASK(width,shift) ((1u << (width)) - 1) << (shift)
 #define OPERAND_ENTRY(width,shift) OPERAND_MASK(width,shift), shift, 0, 0
@@ -1263,6 +1307,9 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_SI5,     OPERAND_ENTRY ( 5,21), "5-bit immediate store",    'j' },
  {MY66000_OPS_MSCALE,  OPERAND_ENTRY ( 2,13), "Scale for indexed ld/st",  'k' },
  {MY66000_OPS_VEC32,   0, 0, 4, 1,            "32-bit vector bitfield",   'l' },
+ {MY66000_OPS_LOOP_U,  OPERAND_ENTRY ( 3,21), "LOOP condition, unsigned", 'm' },
+ {MY66000_OPS_LOOP_S,  OPERAND_ENTRY ( 3,21), "LOOP condition, signed",   'n' },
+ {MY66000_OPS_I3,      OPERAND_ENTRY ( 5, 5), "5-bit immediate SRC3",     'o' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1273,6 +1320,8 @@ const my66000_operand_info_t my66000_operand_table[] =
 
 #define SRC1_MASK OPERAND_MASK(5,16)
 #define SRC2_MASK OPERAND_MASK(5, 0)
+#define SRC3_MASK OPERAND_MASK(5, 5)
+
 #define SRC2_NUM(a) (a)
 
 static const my66000_fmt_spec_t opimm_fmt_list[] =
@@ -1751,6 +1800,34 @@ static const my66000_fmt_spec_t vec32_fmt_list[] =
   { NULL, 0, 0, 0},
 };
 
+/* LOOP uses the same bits as XOP4.  */
+
+static const my66000_fmt_spec_t loopu_fmt_list[] =
+{
+  { "m,B,N,C",   XOP4_BITS (0, 0, 0), XOP4_FMT_MASK, 0 },
+  { "m,B,N,#G",  XOP4_BITS (0, 0, 1), XOP4_FMT_MASK, 0 },
+  { "m,B,#o,C",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK, 0 },
+  { "m,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK, 0 },
+  { "m,B,N,#L",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | SRC2_MASK, 0},
+  { "m,B,#L,C",  XOP4_BITS (1, 0, 1), XOP4_FMT_MASK | SRC3_MASK, 0},
+  { "m,B,#T,#L", XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | SRC2_MASK | SRC3_MASK, 0},
+  { "m,B,#1,#P", XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | SRC2_MASK, 0},
+  { NULL, 0, 0, 0},
+};
+
+static const my66000_fmt_spec_t loops_fmt_list[] =
+{
+  { "n,B,N,C",  XOP4_BITS (0, 0, 0), XOP4_FMT_MASK, 0 },
+  { "n,B,N,#G", XOP4_BITS (0, 0, 1), XOP4_FMT_MASK, 0 },
+  { "n,B,#o,C",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK, 0 },
+  { "n,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK, 0 },
+  { "n,B,N,#L",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | SRC2_MASK, 0},
+  { "n,B,#L,C",  XOP4_BITS (1, 0, 1), XOP4_FMT_MASK | SRC3_MASK, 0},
+  { "n,B,#T,#L", XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | SRC2_MASK | SRC3_MASK, 0},
+  { "n,B,#1,#P", XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | SRC2_MASK, 0},
+  { NULL, 0, 0, 0},
+};
+
 /* Where to look up the operand list for a certain instruction
    format.  Warning: Keep this table in the same order as enum
    my66000_encoding in include/opcode/my66000.h, this will be checked
@@ -1804,6 +1881,8 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { pop_fmt_list,      MY66000_POP,    0},
    { vec32_fmt_list,    MY66000_VEC32,  0},
    { cvt_fmt_list,      MY66000_CVT,    0},
+   { loopu_fmt_list,    MY66000_LOOPU,  0},
+   { loops_fmt_list,    MY66000_LOOPS,  0},
    { NULL,	        MY66000_END,    0},
   };
 
@@ -1948,13 +2027,20 @@ my66000_is_imm_st (uint32_t iword)
   return major == 9 &&  minor >= 24 && minor <= 27;
 }
 
+bool
+my66000_is_loop (uint32_t iword)
+{
+  uint32_t major = (iword & MAJOR_MASK) >> MY66000_MAJOR_SHIFT;
+  return major == 29;
+}
+
 /* Return the size field hidden in the opcode for the store immedaite
    instruction.  */
 
 uint32_t
 my66000_get_imm_sz (uint32_t iword)
 {
-  assert (my66000_is_imm_st(iword));
+  assert (my66000_is_imm_st (iword) || my66000_is_loop (iword));
   return (iword >> MINOR_OFFS) & 3;
 }
 

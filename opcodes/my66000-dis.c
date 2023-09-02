@@ -259,6 +259,14 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    fpr (stream, "%s", my66000_hr_rw[val]);
 	    break;
 
+	  case MY66000_OPS_LOOP_U:
+	    fpr (stream, "%s", my66000_loop_u[val]);
+	    break;
+
+	  case MY66000_OPS_LOOP_S:
+	    fpr (stream, "%s", my66000_loop_s[val]);
+	    break;
+
 	  case MY66000_OPS_SI5:
 	    v = sign_extend (val, 5);
 	    fpr (stream, "%d", v);
@@ -284,6 +292,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 
 	  case MY66000_OPS_I1:
 	  case MY66000_OPS_I2:
+	  case MY66000_OPS_I3:
 	  case MY66000_OPS_UIMM16:
 	    fpr (stream, "%u", val);
 	    break;
@@ -322,8 +331,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    break;
 
 	  default:
-	    opcodes_error_handler ("Internal error: Unhandled format '%c' for %s",
-				   *f, name);
+	    opcodes_error_handler ("Internal error: Unhandled format '%c' (%s) for %s",
+				   *f, op_info->desc, name);
 	    exit (EXIT_FAILURE);
 	  }
       }
