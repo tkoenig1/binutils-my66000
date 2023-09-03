@@ -693,7 +693,7 @@ static const my66000_opc_info_t opc_op4[] =
  { NULL,     MAJOR (12) | XOP4_MINOR(1), MY66000_BAD,  opc_mpx, XOP4_FMT_MASK, XOP4_FMT_SHFT },  /* MPX */
  { "ins",    MAJOR (12) | XOP4_MINOR(2), MY66000_INS,  NULL, 0, 0},  /* INS */
  { NULL,     MAJOR (12) | XOP4_MINOR(3), MY66000_BAD,  NULL, 0, 0},  /* empty */
- { "fmacs",  MAJOR (12) | XOP4_MINOR(4), MY66000_FMAC, NULL, 0, 0},
+ { "fmacf",  MAJOR (12) | XOP4_MINOR(4), MY66000_FMAC, NULL, 0, 0},
  { NULL,     MAJOR (12) | XOP4_MINOR(5), MY66000_BAD,  NULL, 0, 0},  /* empty */
  { NULL,     MAJOR (12) | XOP4_MINOR(6), MY66000_BAD,  NULL, 0, 0},  /* empty */
  { NULL,     MAJOR (12) | XOP4_MINOR(7), MY66000_FMAC, NULL, 0, 0},  /* empty */

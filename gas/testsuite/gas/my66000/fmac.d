@@ -21,11 +21,11 @@ Disassembly of section .text:
   2c:	3022c003 	fmac	r1,r2,r3,#0x98765432deadbeef
   30:	deadbeef 
   34:	98765432 
-  38:	30221083 	fmacs	r1,r2,r3,r4
-  3c:	30223083 	fmacs	r1,r2,r3,-r4
-  40:	30225083 	fmacs	r1,r2,-r3,r4
-  44:	30227083 	fmacs	r1,r2,-r3,-r4
-  48:	30229003 	fmacs	r1,r2,r3,#0x12345678
+  38:	30221083 	fmacf	r1,r2,r3,r4
+  3c:	30223083 	fmacf	r1,r2,r3,-r4
+  40:	30225083 	fmacf	r1,r2,-r3,r4
+  44:	30227083 	fmacf	r1,r2,-r3,-r4
+  48:	30229003 	fmacf	r1,r2,r3,#0x12345678
   4c:	12345678 
-  50:	3022b080 	fmacs	r1,r2,#0xdeadbeef,r4
+  50:	3022b080 	fmacf	r1,r2,#0xdeadbeef,r4
   54:	deadbeef 
