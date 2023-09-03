@@ -61,7 +61,12 @@ print_modifier_list (uint32_t io8)
 static void
 print_ins (uint32_t ins)
 {
-  fpr (stream, "%d:%d", (ins >> 6) & 0x3f, ins & 0x3f);
+  int32_t v1, v2;
+  v1 = (ins >> 6) & 0x3f;
+  v1 = v1 == 0 ? 64 : v1;
+  v2 = ins & 0x3f;
+  v2 = v2 == 0 ? 64 : v2;
+  fpr (stream, "%d:%d", v1, v2);
 }
 
 /* Sign-extend an n-bit value, for offsets.  */

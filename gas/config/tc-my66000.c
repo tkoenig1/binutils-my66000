@@ -293,8 +293,12 @@ match_character (char c, char **ptr, char **errmsg)
 
   if (*s != c)
     {
-      snprintf (errbuf, sizeof(errbuf),
+      if (*s == '\0')
+	snprintf (errbuf, sizeof(errbuf),(_("Unexpected end of line")));
+      else
+	snprintf (errbuf, sizeof(errbuf),
 		(_("unexpected character '%c', expecting '%c'")), *s, c);
+
       *errmsg = errbuf;
     }
   else
@@ -441,12 +445,16 @@ match_max8 (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, 0, 8);
 }
 
-/* Match a six-bit positive constant.  */
+/* Match a six-bit positive constant.  Special case: Encode 64 as 0.   */
 
 static uint8_t
 match_6bit (char **ptr, char **errmsg)
 {
-  return match_integer (ptr, errmsg, 0, 63);
+  uint8_t res;
+  res = match_integer (ptr, errmsg, 0, 64);
+  if (res == 64)
+    res = 0;
+  return res;
 }
 
 /* Match a six-bit positive constant that is also a power of two.  */
