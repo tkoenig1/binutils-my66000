@@ -588,20 +588,20 @@ static const my66000_opc_info_t opc_float[] =
 /* ... and here.  */
 static const my66000_opc_info_t opc_cvt[] =
 {
-  { "cvtus", MAJOR(10) | MINOR( 1) | SIGNED(0), MY66000_CVT, NULL, 0, 0},
-  { "cvtsu", MAJOR(10) | MINOR( 1) | SIGNED(1), MY66000_CVT, NULL, 0, 0}, // + 0
-  { "cvtsd", MAJOR(10) | MINOR( 2) | SIGNED(0), MY66000_CVT, NULL, 0, 0}, // + 2
-  { "cvtsf", MAJOR(10) | MINOR( 2) | SIGNED(1), MY66000_CVT, NULL, 0, 0},
-  { "cvtud", MAJOR(10) | MINOR( 3) | SIGNED(0), MY66000_CVT, NULL, 0, 0}, // + 4
-  { "cvtuf", MAJOR(10) | MINOR( 3) | SIGNED(1), MY66000_CVT, NULL, 0, 0},
-  { "cvtdu", MAJOR(10) | MINOR(17) | SIGNED(0), MY66000_CVT, NULL, 0, 0}, // + 6
-  { "cvtds", MAJOR(10) | MINOR(17) | SIGNED(1), MY66000_CVT, NULL, 0, 0},
-  { "cvtfu", MAJOR(10) | MINOR(18) | SIGNED(0), MY66000_CVT, NULL, 0, 0}, // + 8
-  { "cvtfs", MAJOR(10) | MINOR(18) | SIGNED(1), MY66000_CVT, NULL, 0, 0},
-  { "cvtdf", MAJOR(10) | MINOR(19) | SIGNED(0), MY66000_CVT, NULL, 0, 0}, // +10
-  { "cvtfd", MAJOR(10) | MINOR(19) | SIGNED(1), MY66000_CVT, NULL, 0, 0},
-  { "rnd",   MAJOR(10) | MINOR(20) | SIGNED(0), MY66000_CVT, NULL, 0, 0}, // +12
-  { "rndf",  MAJOR(10) | MINOR(20) | SIGNED(1), MY66000_CVT, NULL, 0, 0},
+  { "cvtus", MAJOR(10) | MINOR( 1) | SIGNED(0), MY66000_CVTU, NULL, 0, 0},
+  { "cvtsu", MAJOR(10) | MINOR( 1) | SIGNED(1), MY66000_CVTS, NULL, 0, 0}, // + 0
+  { "cvtsd", MAJOR(10) | MINOR( 2) | SIGNED(0), MY66000_CVTS, NULL, 0, 0}, // + 2
+  { "cvtsf", MAJOR(10) | MINOR( 2) | SIGNED(1), MY66000_CVTS, NULL, 0, 0},
+  { "cvtud", MAJOR(10) | MINOR( 3) | SIGNED(0), MY66000_CVTU, NULL, 0, 0}, // + 4
+  { "cvtuf", MAJOR(10) | MINOR( 3) | SIGNED(1), MY66000_CVTU, NULL, 0, 0},
+  { "cvtdu", MAJOR(10) | MINOR(17) | SIGNED(0), MY66000_CVTU, NULL, 0, 0}, // + 6
+  { "cvtds", MAJOR(10) | MINOR(17) | SIGNED(1), MY66000_CVTU, NULL, 0, 0},
+  { "cvtfu", MAJOR(10) | MINOR(18) | SIGNED(0), MY66000_CVTU, NULL, 0, 0}, // + 8
+  { "cvtfs", MAJOR(10) | MINOR(18) | SIGNED(1), MY66000_CVTU, NULL, 0, 0},
+  { "cvtdf", MAJOR(10) | MINOR(19) | SIGNED(0), MY66000_CVTU, NULL, 0, 0}, // +10
+  { "cvtfd", MAJOR(10) | MINOR(19) | SIGNED(1), MY66000_CVTU, NULL, 0, 0},
+  { "rnd",   MAJOR(10) | MINOR(20) | SIGNED(0), MY66000_CVTU, NULL, 0, 0}, // +12
+  { "rndf",  MAJOR(10) | MINOR(20) | SIGNED(1), MY66000_CVTU, NULL, 0, 0},
   { NULL,   0,        MY66000_END, NULL, 0, 0}
 };
 
@@ -1288,7 +1288,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_OFFSET,  OPERAND_ENTRY ( 6, 0), "6-bit offset",		  'W' },
  {MY66000_OPS_W_BITR,  OPERAND_ENTRY ( 6, 6), "6-bit power of two",       'X' },
  {MY66000_OPS_FL_ENTER, OPERAND_ENTRY (2, 0), "Enter flags",		  'Y' },
- {MY66000_OPS_FLT32,   0, 0, 4, 1,            "32-bit float",             'Z' },
+ {MY66000_OPS_FLT32,   0, 0, 4, 1,            "32-bit float (unused)",    'Z' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '[' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '\\' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   ']' },
@@ -1399,39 +1399,70 @@ static const my66000_fmt_spec_t float_fmt_list [] =
 };
 
 /* Conversion. Here, we have the speciality that omitting the second
-   source argument is encoded as "#8" as SRC2.  Also, most of these
-   encodings make little sense, but we leave them in anyway because
-   the processor accepts them, so why not?  */
+   source argument is encoded as "#8" as SRC2.
 
-static const my66000_fmt_spec_t cvt_fmt_list [] =
+   FIXME: This encoding is NOT CANONCIAL and subject to revision,
+   since the encoding has not yet been sanctioned.  */
+
+/* The default encoding for CVT which means "just use the current
+   default setting" is 8.  */
+
+#define CVT_DEFAULT SRC2_NUM(8)
+
+static const my66000_fmt_spec_t cvts_fmt_list [] =
 {
-  { "A,B,C",    XOP2_BITS (0,0,0,0), XOP2_MASK, 0},
-  { "A,B,-C",   XOP2_BITS (0,0,0,1), XOP2_MASK, 0},
-  { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK, 0},
-  { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK, 0},
+  {"A,B,C",      XOP2_BITS (0,0,0,0), XOP2_MASK, 0},
+  {"A,B",        XOP2_BITS (0,0,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,B,#G",     XOP2_BITS (0,0,0,1),               XOP2_MASK,             0},
+  {"A,-B,C",     XOP2_BITS (0,0,1,0),               XOP2_MASK,             0},
+  {"A,-B",       XOP2_BITS (0,0,1,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,-B,#G",    XOP2_BITS (0,0,1,1),               XOP2_MASK,             0},
 
-  /* Special CVT block here.  */
+  {"A,#F,C",     XOP2_BITS (0,1,0,0),               XOP2_MASK,             0},
+  {"A,#F",       XOP2_BITS (0,1,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,#F,#G",    XOP2_BITS (0,1,0,1),               XOP2_MASK,             0},
+  {"A,#-F,C",    XOP2_BITS (0,1,1,0),               XOP2_MASK,             0},
+  {"A,#-F",      XOP2_BITS (0,1,1,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,#-F,#G",   XOP2_BITS (0,1,1,1),               XOP2_MASK,             0},
 
-  {"A,B",       XOP2_BITS (0,1,0,0) | SRC2_NUM(8), XOP2_MASK | SRC2_MASK, 0},
-  {"A,-B",      XOP2_BITS (0,1,0,1) | SRC2_NUM(8), XOP2_MASK | SRC2_MASK, 0},
-  { "A,#F",     XOP2_BITS (0,1,0,1) | SRC2_NUM(8), XOP2_MASK | SRC2_MASK, 0},
-  { "A,#-F",    XOP2_BITS (0,1,1,1) | SRC2_NUM(8), XOP2_MASK | SRC2_MASK, 0},
+  {"A,#L,C",     XOP2_BITS (1,0,0,0),               XOP2_MASK,             0},
+  {"A,#L",       XOP2_BITS (1,0,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,#L,#G",    XOP2_BITS (1,0,0,1),               XOP2_MASK,             0},
 
-  { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK, 0},
-  { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK, 0},
-  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK, 0},
-  { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK, 0},
+  {"A,#P,C",     XOP2_BITS (1,1,0,0),               XOP2_MASK,             0},
+  {"A,#P",       XOP2_BITS (1,1,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,#P,#G",    XOP2_BITS (1,1,0,1),               XOP2_MASK,             0},
 
-  { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK, 0},
-  { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK, 0},
-  { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK, 0},
-  { "A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK, 0},
-
-  { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK, 0},
-  { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK, 0},
-  { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK, 0},
-  { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK | SRC1_MASK, 0},
   { NULL,      0, 0, 0},
+
+};
+
+static const my66000_fmt_spec_t cvtu_fmt_list [] =
+{
+  {"A,B,C",      XOP2_BITS (0,0,0,0), XOP2_MASK, 0},
+  {"A,B",        XOP2_BITS (0,0,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,B,#G",     XOP2_BITS (0,0,0,1),               XOP2_MASK,             0},
+  {"A,-B,C",     XOP2_BITS (0,0,1,0),               XOP2_MASK,             0},
+  {"A,-B",       XOP2_BITS (0,0,1,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,-B,#G",    XOP2_BITS (0,0,1,1),               XOP2_MASK,             0},
+
+  {"A,#F,C",     XOP2_BITS (0,1,0,0),               XOP2_MASK,             0},
+  {"A,#F",       XOP2_BITS (0,1,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,#F,#G",    XOP2_BITS (0,1,0,1),               XOP2_MASK,             0},
+  {"A,#-F,C",    XOP2_BITS (0,1,1,0),               XOP2_MASK,             0},
+  {"A,#-F",      XOP2_BITS (0,1,1,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,#-F,#G",   XOP2_BITS (0,1,1,1),               XOP2_MASK,             0},
+
+  {"A,#O,C",     XOP2_BITS (1,0,0,0),               XOP2_MASK,             0},
+  {"A,#O",       XOP2_BITS (1,0,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,#O,#G",    XOP2_BITS (1,0,0,1),               XOP2_MASK,             0},
+
+  {"A,#P,C",     XOP2_BITS (1,1,0,0),               XOP2_MASK,             0},
+  {"A,#P",       XOP2_BITS (1,1,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK, 0},
+  {"A,#P,#G",    XOP2_BITS (1,1,0,1),               XOP2_MASK,             0},
+
+  { NULL,      0, 0, 0},
+
 };
 
 /* EADD is special because it has one integer operand.  */
@@ -1880,7 +1911,8 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { trans_fmt_list,    MY66000_TRANS,  0},
    { pop_fmt_list,      MY66000_POP,    0},
    { vec32_fmt_list,    MY66000_VEC32,  0},
-   { cvt_fmt_list,      MY66000_CVT,    0},
+   { cvtu_fmt_list,     MY66000_CVTU,   0},
+   { cvts_fmt_list,     MY66000_CVTS,   0},
    { loopu_fmt_list,    MY66000_LOOPU,  0},
    { loops_fmt_list,    MY66000_LOOPS,  0},
    { NULL,	        MY66000_END,    0},
