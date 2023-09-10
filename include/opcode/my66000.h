@@ -81,6 +81,7 @@ typedef enum my66000_encoding
  MY66000_CVTS,     /* CVT and RND, signed immediates.  */
  MY66000_LOOPU,    /* Loop instruction, unsigned.  */
  MY66000_LOOPS,    /* Loop instruction, signed.  */
+ MY66000_SVC,      /* SVC and SVR instructions.  */
  MY66000_EXIT,
 } my66000_encoding;
 

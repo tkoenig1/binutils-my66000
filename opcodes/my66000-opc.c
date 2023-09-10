@@ -918,10 +918,9 @@ static const my66000_opc_info_t opc_bcnd[] =
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { "ret", MAJOR(26) | CND_MINOR (31),  MY66000_EMPTY, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
+ { "svr",  MAJOR(26) | CND_MINOR (29), MY66000_SVC, NULL, 0, 0},
+ { "svc",  MAJOR(26) | CND_MINOR (30), MY66000_SVC, NULL, 0, 0},
+ { "ret",  MAJOR(26) | CND_MINOR (31), MY66000_EMPTY, NULL, 0, 0},
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
@@ -1859,6 +1858,12 @@ static const my66000_fmt_spec_t loops_fmt_list[] =
   { NULL, 0, 0, 0},
 };
 
+static const my66000_fmt_spec_t svc_fmt_list[] =
+{
+  { "#i", 0, SRC1_MASK, 0 },
+  { NULL, 0, 0, 0},
+};
+
 /* Where to look up the operand list for a certain instruction
    format.  Warning: Keep this table in the same order as enum
    my66000_encoding in include/opcode/my66000.h, this will be checked
@@ -1915,6 +1920,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { cvts_fmt_list,     MY66000_CVTS,   0},
    { loopu_fmt_list,    MY66000_LOOPU,  0},
    { loops_fmt_list,    MY66000_LOOPS,  0},
+   { svc_fmt_list,      MY66000_SVC,    0},
    { NULL,	        MY66000_END,    0},
   };
 
