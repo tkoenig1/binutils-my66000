@@ -64,7 +64,7 @@ typedef enum my66000_encoding
  MY66000_CALLI,    /* CALLI instruction, special case of HR.  */
  MY66000_INS,      /* INS instruction.  */
  MY66000_VEC,      /* Vector instruction, with immediate.  */
- MY66000_TT,
+ MY66000_TT,       /* Table transfer.  */
  MY66000_SI5,      /* Store immediate with five-bit operands.  */
  MY66000_SI,	   /* Store immediate.  */
  MY66000_SI_STD,   /* Store immediate doubleword.  */
@@ -82,7 +82,6 @@ typedef enum my66000_encoding
  MY66000_LOOPU,    /* Loop instruction, unsigned.  */
  MY66000_LOOPS,    /* Loop instruction, signed.  */
  MY66000_SVC,      /* SVC and SVR instructions.  */
- MY66000_EXIT,
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -202,15 +201,12 @@ typedef struct my66000_fmt_spec_t
   char *fmt;		/* Format.  */
   uint32_t patt;	/* Bit pattern that has to match... */
   uint32_t mask;	/* ...under this mask.  */
-  _Bool relax_next;	/* Offset to the next format taking part in
-			   relaxation, if any.  */
 } my66000_fmt_spec_t;
 
 typedef struct my66000_opcode_fmt_t
 {
   const my66000_fmt_spec_t *spec;
   my66000_encoding enc;
-  uint32_t frag_mask;
 } my66000_opcode_fmt_t;
 
 extern const my66000_opcode_fmt_t my66000_opcode_fmt[];
