@@ -14761,6 +14761,8 @@ is_32bit_abs_reloc (Filedata * filedata, unsigned int reloc_type)
       return reloc_type == 1; /* R_MSP430_32 or R_MSP320_ABS32.  */
     case EM_MT:
       return reloc_type == 2; /* R_MT_32.  */
+    case EM_MY66000:
+      return reloc_type == 8; /* R_MY66000_32.  */
     case EM_NDS32:
       return reloc_type == 20; /* R_NDS32_32_RELA.  */
     case EM_ALTERA_NIOS2:
@@ -14947,6 +14949,8 @@ is_64bit_abs_reloc (Filedata * filedata, unsigned int reloc_type)
 	      || reloc_type == 0x27 /* R_IA64_DIR64LSB.  */);
     case EM_LOONGARCH:
       return reloc_type == 2;      /* R_LARCH_64 */
+    case EM_MY66000:
+      return reloc_type == 9;      /* R_MY66000_64.  */
     case EM_PARISC:
       return reloc_type == 80; /* R_PARISC_DIR64.  */
     case EM_PPC64:
