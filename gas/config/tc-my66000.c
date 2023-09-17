@@ -1001,6 +1001,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	    if (ex.X_op == O_symbol)
 	      {
 		p = frag_more (length);
+
 		fix_new_exp (frag_now,
 			     p - frag_now->fr_literal,  /* where */
 			     2,  /* size.  */
@@ -1021,16 +1022,8 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	    if (ex.X_op == O_symbol)
 	      {
+		dwarf2_emit_insn (0);
 		p = frag_more (length);
-#if 0
-		fix_new_exp (frag_now,
-			     p - frag_now->fr_literal,  /* where */
-			     4,  /* size.  */
-			     &ex, /* expression.  */
-			     1,  /* pcrel.  */
-			     BFD_RELOC_26_PCREL_S2
-			     );
-#else
 		frag_var (rs_machine_dependent,
 			  12,
 			  8,
@@ -1038,7 +1031,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 			  ex.X_add_symbol,
 			  ex.X_add_number,
 			  opc_pos (p));
-#endif
 	      }
 	  }
 	  break;
@@ -1167,7 +1159,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
     iword = my66000_set_tt_size (iword, 1);
 
   if (!p)
-    p = frag_more (length);
+    {
+      dwarf2_emit_insn (0);
+      p = frag_more (length);
+    }
 
   //  printf ("p = %p\n", p);
   md_number_to_chars (p, iword, 4);
@@ -1256,6 +1251,7 @@ encode_instr (const my66000_opc_info_t *opc, char *str, char **errmsg)
 
   if (spec == NULL || spec->fmt == NULL || spec->fmt[0] == '\0')
     {
+      dwarf2_emit_insn (0);
       p = frag_more (4);
       //      fprintf (stderr,"no spec : %p\n", p);
       memcpy (p, &iword, 4);
