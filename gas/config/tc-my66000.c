@@ -64,7 +64,8 @@ const pseudo_typeS md_pseudo_table[] =
  { "jt32", handle_jt, 4 },
  { "jt64", handle_jt, 8 },
 
- /* .dword is just what other people call .quad.  */
+ { "half", cons, 2 },
+ { "word", cons, 4 },
  { "dword", cons, 8 },
  {0, 0, 0}
 };
