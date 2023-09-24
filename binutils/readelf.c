@@ -139,6 +139,7 @@
 #include "elf/moxie.h"
 #include "elf/mt.h"
 #include "elf/msp430.h"
+#include "elf/my66000.h"
 #include "elf/nds32.h"
 #include "elf/nfp.h"
 #include "elf/nios2.h"
@@ -1707,6 +1708,10 @@ dump_relocations (Filedata *filedata,
 	  /* Fall through.  */
 	case EM_MSP430_OLD:
 	  rtype = elf_msp430_reloc_type (type);
+	  break;
+
+	case EM_MY66000:
+	  rtype = elf_my66000_reloc_type (type);
 	  break;
 
 	case EM_NDS32:
