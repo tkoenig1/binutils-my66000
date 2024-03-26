@@ -58,8 +58,9 @@ typedef enum my66000_encoding
  MY66000_PC,       /* Predicate on bit set, from comparison  */
  MY66000_PCND,     /* Predicate on condition.  */
  MY66000_BCND,     /* Branch on condition.  */
- MY66000_HR_RO,    /* Transfer of header registers, read-only.  */
- MY66000_HR_RW,    /* Transfer of header registers, read-write.  */
+ MY66000_HRR,      /* HR, read special register.  */
+ MY66000_HRW,      /* HR, write special register.  */
+ MY66000_HRX,      /* HR, exchange.  */
  MY66000_JMP,      /* JMP instruction, special case of HR.  */
  MY66000_CALLI,    /* CALLI instruction, special case of HR.  */
  MY66000_INS,      /* INS instruction.  */
@@ -72,9 +73,9 @@ typedef enum my66000_encoding
  MY66000_FLOAT,    /* FADD and friends.  */
  MY66000_EADD,     /* EADD, all by itself.  */
  MY66000_CALX,     /* CALX and CALA  */
- MY66000_EXPON,    /* EXPON and FRACT */
+ MY66000_OP5_D,    /* Double-precision single operand, expon and fract  */
  MY66000_ABS,      /* ABS and related.  */
- MY66000_TRANS,    /* Transcendental functions.  */
+ MY66000_OP5_F,    /* Single-precision single operand, expon and fract  */
  MY66000_POP,      /* POP and FF1.  */
  MY66000_VEC32,    /* Vec with 32-bit immediate.  */
  MY66000_CVTU,     /* CVT and RND, unsigned immediates.  */
@@ -82,6 +83,9 @@ typedef enum my66000_encoding
  MY66000_LOOPU,    /* Loop instruction, unsigned.  */
  MY66000_LOOPS,    /* Loop instruction, signed.  */
  MY66000_SVC,      /* SVC and SVR instructions.  */
+ MY66000_TRANS,    /* Transcendental instructions.  */
+ MY66000_FF1,      /* FF1 etc.  */
+ MY66000_NOP,      /* NOP instrucition - a special OR.  */
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -107,8 +111,7 @@ extern const char *my66000_rname[32];
 extern const char *my66000_rbase[32];
 extern const char *my66000_rind[32];
 extern const char my66000_numtab[32];
-extern const char *my66000_hr_rw[16];
-extern const char *my66000_hr_ro[16];
+extern const char *my66000_hr_fcn[32];
 
 #define MY66000_VEC_BITS 21
 
@@ -160,14 +163,14 @@ typedef enum my66000_operands
  MY66000_OPS_W_BITR,
  MY66000_OPS_IMM13,    /* 13-bit immediate for enter.  */
  MY66000_OPS_FL_ENTER, /* Flag value for enter.  */
- MY66000_OPS_FLT32,    /* 32-bit floating point.  */
+ MY66000_OPS_UNUSED1,  /* Unused.  */
  MY66000_OPS_INVALID,  /* Invalid, used for non-letters.  */
  MY66000_OPS_CARRY,    /* Instruction modification list.  */
  MY66000_OPS_TF,       /* True/false list for predicates.  */
  MY66000_OPS_PRTHEN,   /* "Then" part of predicate.  */
  MY66000_OPS_PRELSE,   /* "Else" part of predicate.  */
- MY66000_OPS_HRRO,     /* A read-only HR register.  */
- MY66000_OPS_HRRW,     /* A read-write HR register.  */
+ MY66000_OPS_HRFCN,    /* HR function.  */
+ MY66000_OPS_UNUSED2,  /* Also unused. */
  MY66000_OPS_INS,      /* A 32-bit INS specifier.  */
  MY66000_OPS_VEC,      /* A vector bitmap.  */
  MY66000_OPS_UIMM16,   /* A 16-bit unsigned immediate.  */

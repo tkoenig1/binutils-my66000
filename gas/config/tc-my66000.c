@@ -197,7 +197,7 @@ build_opc_hashes (const my66000_opc_info_t * table)
 }
 
 static htab_t rname_map, rbase_map, rind_map;
-static htab_t hr_ro_map, hr_rw_map;
+static htab_t hr_map;
 static htab_t vec_map;
 static htab_t loop_u_map, loop_s_map;
 
@@ -219,6 +219,8 @@ md_begin (void)
   rname_map = str_htab_create ();
   rbase_map = str_htab_create ();
   rind_map  = str_htab_create ();
+  /* We treat the functions for HR as sort of register names.  */
+  hr_map = str_htab_create();
   for (int i = 0; i < 32; i++)
     {
       str_hash_insert (rname_map, my66000_rname[i],
@@ -227,6 +229,9 @@ md_begin (void)
 		       (void *) &my66000_numtab[i], 0);
       str_hash_insert (rind_map, my66000_rind[i],
 		       (void *) &my66000_numtab[i], 0);
+      if (my66000_hr_fcn[i])
+	str_hash_insert (hr_map, my66000_hr_fcn[i],
+			 (void *) &my66000_numtab[i], 0);
     }
 
   for (my66000_reg_alias_t * p = my66000_reg_alias; p->name; p++)
@@ -235,20 +240,6 @@ md_begin (void)
       str_hash_insert (rbase_map, p->name, (void *) &p->num, 0);
     }
 
-  /* We treat the functions for HR as sort of register names.  */
-
-  hr_ro_map = str_htab_create();
-  hr_rw_map = str_htab_create();
-
-  for (int i = 0; i < 16; i++)
-    {
-      if (my66000_hr_ro[i])
-	str_hash_insert (hr_ro_map, my66000_hr_ro[i],
-			(void *) &my66000_numtab[i], 0);
-      if (my66000_hr_rw[i])
-	str_hash_insert (hr_rw_map, my66000_hr_rw[i],
-			 (void *) &my66000_numtab[i], 0);
-    }
 
   /* Seting up the table for the VEC instruction, bitmap style.  */
   vec_map = str_htab_create();
@@ -616,7 +607,7 @@ match_tf_list (char **ptr, char **errmsg)
       return 0;
     }
   *ptr = str;
-  return (num_true) << 8 | num_false;
+  return num_true | (num_false << 6);
 }
 
 /* Match a register name from map and return its number, or, on
@@ -911,11 +902,8 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_RBASE:
 	  bits = match_register (&sp, errmsg, rbase_map);
 	  break;
-	case MY66000_OPS_HRRO:
-	  bits = match_register (&sp, errmsg, hr_ro_map);
-	  break;
-	case MY66000_OPS_HRRW:
-	  bits = match_register (&sp, errmsg, hr_rw_map);
+	case MY66000_OPS_HRFCN:
+	  bits = match_register (&sp, errmsg, hr_map);
 	  break;
 	case MY66000_OPS_IMM16:
 	  bits = match_16bit (&sp, errmsg);
@@ -1149,7 +1137,12 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
   if (((spec->patt ^ iword) & spec->mask) != 0)
     {
-      as_fatal ("Internal error: fmt='%s' iword = %8.8x patt = %8.8x mask = %8.8x",
+      as_fatal ("Internal error: pattern collides with iword fmt='%s'\n"
+		"       3         2         1\n"
+		"      10987654321098765432109876543210\n"
+		"iword %32.32b\n"
+		"patt  %32.32b\n"
+		"mask  %32.32b\n",
 		spec->fmt, iword, spec->patt, spec->mask);
     }
   //  fprintf (stderr, "matched : '%s' iword = %8.8x \n", spec->fmt, iword);

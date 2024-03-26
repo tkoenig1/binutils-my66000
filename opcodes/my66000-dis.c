@@ -101,6 +101,22 @@ print_vec (uint32_t ins, bool use_vec)
     }
 }
 
+/* Print out a true/false list for predicates.  */
+
+static void
+print_tf (uint32_t v)
+{
+  int n_then = v & 63;
+  int n_else = v >> 6;
+
+  for (int i=0; i<n_then; i++)
+    fpr (stream, "%c", 'T');
+
+  for (int i=0; i<n_else; i++)
+    fpr (stream, "%c", 'F');
+
+}
+
 /* Get the first vaild format string for the iword, return it
    or NULL on failure.  */
 
@@ -256,12 +272,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    fpr (stream, "%s", my66000_rbase[val]);
 	    break;
 
-	  case MY66000_OPS_HRRO:
-	    fpr (stream, "%s", my66000_hr_ro[val]);
-	    break;
-
-	  case MY66000_OPS_HRRW:
-	    fpr (stream, "%s", my66000_hr_rw[val]);
+	  case MY66000_OPS_HRFCN:
+	    fpr (stream, "%s", my66000_hr_fcn[val]);
 	    break;
 
 	  case MY66000_OPS_LOOP_U:
@@ -287,12 +299,14 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	  case MY66000_OPS_WIDTH:
 	  case MY66000_OPS_OFFSET:
 	  case MY66000_OPS_FL_ENTER:
-	  case MY66000_OPS_PRTHEN:
-	  case MY66000_OPS_PRELSE:
 	  case MY66000_OPS_MSCALE:
 	    /* An integer constant.  */
 	    v = val;
 	    fpr (stream, "%d", v);
+	    break;
+
+	  case MY66000_OPS_TF:
+	    print_tf(val);
 	    break;
 
 	  case MY66000_OPS_I1:
@@ -460,16 +474,6 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
     }
   else
     jt_needed = jt_fill = 0;
-
-  /* Run through the special table before anything else.  */
-  for (p = my66000_opc_info_special; p->enc != MY66000_END; p++)
-    {
-      if (p->patt_opc == iword)
-	{
-	  fpr (stream, "%s", p->name);
-	  return 4;
-	}
-    }
 
   length = 4;
   shift = MY66000_MAJOR_SHIFT;
