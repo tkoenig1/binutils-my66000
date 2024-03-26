@@ -161,7 +161,7 @@ md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
 
 /* Duplicate names for instructions occur at most N_MAP times.  */
 
-#define N_MAP 6
+#define N_MAP 4
 
 static htab_t s_opc_map[N_MAP];
 
@@ -170,7 +170,7 @@ build_opc_hashes (const my66000_opc_info_t * table)
 {
   for (int i = 0; table[i].enc != MY66000_END; i++)
     {
-      void ** slot;
+      //      void ** slot;
       int j;
 
       if (table[i].enc == MY66000_BAD)
@@ -183,10 +183,16 @@ build_opc_hashes (const my66000_opc_info_t * table)
 
 	  for (j = 0; j < N_MAP; j++)
 	    {
-	      slot = str_hash_insert (s_opc_map[j], table[i].name,
-				      (void *) &table[i], 0);
-	      if (slot == NULL)
-		break;
+	      void *ptr = str_hash_find (s_opc_map[j], table[i].name);
+	      if (ptr == NULL)
+		{
+		  //		  if (j==0)
+		  //		    printf("%s\n",table[i].name);
+
+		  str_hash_insert (s_opc_map[j], table[i].name,
+				   (void *) &table[i], 0);
+		  break;
+		}
 	    }
 	  if (j == N_MAP)
 	    as_fatal (_ ("Internal error: more than %d equal opcodes: %s"),
