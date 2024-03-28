@@ -199,7 +199,6 @@ build_opc_hashes (const my66000_opc_info_t * table)
 		      N_MAP, table[i].name);
 	}
     }
-
 }
 
 static htab_t rname_map, rbase_map, rind_map;
@@ -434,24 +433,13 @@ match_5bits (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, -16, 15) & 31;
 }
 
-/* Match an integer between 0 and 8 inclusive, this is for
-   prediate clauses.  */
-
-static int
-match_max8 (char **ptr, char **errmsg)
-{
-  return match_integer (ptr, errmsg, 0, 8);
-}
-
-/* Match a six-bit positive constant.  Special case: Encode 64 as 0.   */
+/* Match a six-bit positive constant.  */
 
 static uint8_t
 match_6bit (char **ptr, char **errmsg)
 {
   uint8_t res;
-  res = match_integer (ptr, errmsg, 0, 64);
-  if (res == 64)
-    res = 0;
+  res = match_integer (ptr, errmsg, 0, 63);
   return res;
 }
 
@@ -470,6 +458,7 @@ match_6bit_p2 (char **ptr, char **errmsg)
 	  return ret;
 	default:
 	  sprintf (errbuf, "Illegal constant %u", ret);
+	  *errmsg = errbuf;
 	  break;
 	}
     }
@@ -815,24 +804,42 @@ match_scale (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, 0, 3);
 }
 
-/* Match an INS pattern <a:b>.  */
+static uint8_t
+match_ins_width (char **ptr, char **errmsg)
+{
+  return match_integer (ptr, errmsg, 1, 64);
+}
+
+/* Match an INS pattern <width:offset>.  */
 
 static uint32_t
 match_ins (char **ptr, char **errmsg, expressionS *ex)
 {
-  uint32_t v1, v2;
-  v1 = match_6bit (ptr, errmsg);
+  uint32_t width, offset;
+  width = match_ins_width (ptr, errmsg);
   if (*errmsg)
     return 0;
+
   match_character (':', ptr, errmsg);
   if (*errmsg)
     return 0;
-  v2 = match_6bit (ptr, errmsg);
+  offset = match_6bit (ptr, errmsg);
   if (*errmsg)
     return 0;
+
+  if (offset + width > 64)
+    {
+      sprintf (errbuf, "offset + width > 64");
+      *errmsg = errbuf;
+      return 0;
+    }
+
+  if (width == 64)
+    width = 0;
+
   ex->X_op = O_constant;
-  ex->X_add_number = (v1 << 6) + v2;
-  return (v1 << 6) + v2;
+  ex->X_add_number = (width << 6) + offset;
+  return (width << 6) + offset;
 }
 
 #define RELAX_IMM4_PCREL	1
@@ -862,12 +869,11 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   int imm_size = 0, imm_st_size = 0;
   uint64_t val_imm = 0;
   _Bool imm_pcrel = false;
-  int prthen = -1, prelse = -1;
 
-  //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
+  // fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
   for (; *fp; fp++)
     {
-      //      fprintf (stderr, "fp = %s sp = %s\n", fp, sp);
+      // fprintf (stderr, "fp = %s sp = %s\n", fp, sp);
       uint32_t bits = 0;
       if (*fp == '\'')
 	{
@@ -956,16 +962,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	case MY66000_OPS_TF:
 	  bits = match_tf_list (&sp, errmsg);
-	  break;
-
-	case MY66000_OPS_PRTHEN:
-	  bits = match_max8 (&sp, errmsg);
-	  prthen = bits;
-	  break;
-
-	case MY66000_OPS_PRELSE:
-	  bits = match_max8 (&sp, errmsg);
-	  prelse = bits;
 	  break;
 
 	case MY66000_OPS_LOOP_U:
@@ -1126,8 +1122,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
   if (*sp != '\0')
     *errmsg = _("junk at end of argument list");
-  else if (prthen == 0 && prelse == 0)
-    *errmsg = _("zero-length predicates not allowed");
 
   if (*errmsg)
     {

@@ -25,9 +25,10 @@
 
    Go into include/opcode/my66000.h and extend the my66000_operands
    enum.  Put the new operand into the my66000_operand_table (using a
-   new letter).  If single letters run out (currently, Z and p-z are
-   free), then you will have to extend the way that the format strings
-   are represented.
+   new letter).  If single letters run out, then you will have to
+   extend the way that the format strings are represented.  For
+   historical reasons, there are also a few unused letters in between
+   the other ones, which can be used.
 
    Then, handle the new operand in the big switch statement in
    match_arglist() in gas/config/tc-my66000.c for assembly and in the
@@ -322,7 +323,7 @@ static const my66000_opc_info_t opc_om7[] =
  { NULL,   MAJOR(7) | SHFT_MINOR( 4), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR( 5), MY66000_BAD,   NULL, 0, 0},
  { "ror",  MAJOR(7) | SHFT_MINOR( 6), MY66000_SHIFT, NULL, 0, 0},
- { "rol",  MAJOR(7) | SHFT_MINOR( 7), MY66000_BAD,   NULL, 0, 0},
+ { "rol",  MAJOR(7) | SHFT_MINOR( 7), MY66000_SHIFT, NULL, 0, 0},
  { "srl",  MAJOR(7) | SHFT_MINOR( 8), MY66000_SHIFT, NULL, 0, 0},
  { "sra",  MAJOR(7) | SHFT_MINOR( 9), MY66000_SHIFT, NULL, 0, 0},
  { "sll",  MAJOR(7) | SHFT_MINOR(10), MY66000_SHIFT, NULL, 0, 0},
@@ -621,6 +622,8 @@ static const my66000_opc_info_t opc_arith[] =
  {"sra",  MAJOR(10) | MINOR(44) | SIGNED(1), MY66000_ARITH, NULL, 0, 0},
  {"sll",  MAJOR(10) | MINOR(45) | SIGNED(0), MY66000_ARITH, NULL, 0, 0}, // + 14
  {"sla",  MAJOR(10) | MINOR(45) | SIGNED(1), MY66000_ARITH, NULL, 0, 0},
+ {"ror",  MAJOR(10) | MINOR(43) | SIGNED(0), MY66000_ARITH, NULL, 0, 0}, // +16
+ {"rol",  MAJOR(10) | MINOR(43) | SIGNED(1), MY66000_ARITH, NULL, 0, 0},
  { NULL,   0,        MY66000_END, NULL, 0, 0}
 };
 
@@ -715,7 +718,7 @@ static const my66000_opc_info_t opc_op2[] =
  { "or",  MAJOR(10) | MINOR (40), MY66000_ARITH, NULL, 0, 0},
  { "xor", MAJOR(10) | MINOR (41), MY66000_ARITH, NULL, 0, 0},
  { "and", MAJOR(10) | MINOR (42), MY66000_ARITH, NULL, 0, 0},
- { NULL,  MAJOR(10) | MINOR (43), MY66000_BAD,   NULL, 0, 0},
+ { NULL,  MAJOR(10) | MINOR (43), MY66000_BAD,   opc_arith +16, SIGNED_MASK, SIGNED_SHFT},/* ROT */
  { NULL,  MAJOR(10) | MINOR (44), MY66000_BAD,   opc_arith +12, SIGNED_MASK, SIGNED_SHFT}, /* SR */
  { NULL,  MAJOR(10) | MINOR (45), MY66000_BAD,   opc_arith +14, SIGNED_MASK, SIGNED_SHFT}, /* SL */
  { "bitr",MAJOR(10) | MINOR (46), MY66000_ARITH, NULL, 0, 0},
@@ -1349,19 +1352,19 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_OFFSET,  OPERAND_ENTRY ( 6, 0), "6-bit offset",		  'W' },
  {MY66000_OPS_W_BITR,  OPERAND_ENTRY ( 6, 6), "6-bit power of two",       'X' },
  {MY66000_OPS_FL_ENTER, OPERAND_ENTRY (2, 0), "Enter flags",		  'Y' },
- {MY66000_OPS_UNUSED1, 0, 0, 4, 1,            "unused",                   'Z' },
+ {MY66000_OPS_UNUSED,  0, 0, 0, 0,            "unused",                   'Z' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '[' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '\\' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   ']' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '^' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '_' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '\'' },
- {MY66000_OPS_PRTHEN,  OPERAND_ENTRY (4,  8), "predicate then",           'a' },
- {MY66000_OPS_PRELSE,  OPERAND_ENTRY (4,  0), "predicate else",           'b' },
+ {MY66000_OPS_UNUSED , 0, 0, 0, 0,            "unused",                   'a' },
+ {MY66000_OPS_UNUSED , 0, 0, 0, 0,            "unused",                   'b' },
  {MY66000_OPS_CARRY,   OPERAND_ENTRY (16, 0), "carry list",               'c' },
  {MY66000_OPS_TF,      OPERAND_ENTRY (12, 0), "true-false predicate list",'d' },
  {MY66000_OPS_HRFCN,   OPERAND_ENTRY ( 5, 0), "HR function",              'e' },
- {MY66000_OPS_UNUSED2, OPERAND_ENTRY ( 4, 0), "also unused",              'f' },
+ {MY66000_OPS_UNUSED,  OPERAND_ENTRY ( 4, 0), "also unused",              'f' },
  {MY66000_OPS_INS,     0, 0, 4, 1,            "INS specifier",            'g' },
  {MY66000_OPS_VEC,     OPERAND_ENTRY (21, 0), "Vector bitfield",          'h' },
  {MY66000_OPS_UIMM16,  OPERAND_ENTRY (16, 0), "16-bit unsigned immediate",'i' },
@@ -1472,27 +1475,35 @@ static const my66000_fmt_spec_t float_fmt_list [] =
 
 static const my66000_fmt_spec_t cvts_fmt_list [] =
 {
-  {"A,B,C",      XOP2_BITS (0,0,0,0), XOP2_MASK},
-  {"A,B",        XOP2_BITS (0,0,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,B,#G",     XOP2_BITS (0,0,0,1),               XOP2_MASK            },
-  {"A,-B,C",     XOP2_BITS (0,0,1,0),               XOP2_MASK            },
-  {"A,-B",       XOP2_BITS (0,0,1,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,-B,#G",    XOP2_BITS (0,0,1,1),               XOP2_MASK            },
+  {"A,B,C",	 XOP2_BITS (0,0,0,0), XOP2_MASK},
 
-  {"A,#F,C",     XOP2_BITS (0,1,0,0),               XOP2_MASK            },
-  {"A,#F",       XOP2_BITS (0,1,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,#F,#G",    XOP2_BITS (0,1,0,1),               XOP2_MASK            },
-  {"A,#-F,C",    XOP2_BITS (0,1,1,0),               XOP2_MASK            },
-  {"A,#-F",      XOP2_BITS (0,1,1,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,#-F,#G",   XOP2_BITS (0,1,1,1),               XOP2_MASK            },
+  /* Minus a rounding mode makes limited sense, but for the sake of
+     generality...  */
+  {"A,B,-C",	 XOP2_BITS (0,0,0,1), XOP2_MASK},
+  {"A,-B,C",     XOP2_BITS (0,0,1,0), XOP2_MASK},
+  {"A,B,-C",	 XOP2_BITS (0,0,1,1), XOP2_MASK},
 
-  {"A,#L,C",     XOP2_BITS (1,0,0,0),               XOP2_MASK            },
-  {"A,#L",       XOP2_BITS (1,0,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,#L,#G",    XOP2_BITS (1,0,0,1),               XOP2_MASK            },
+  /* 8 is the default constant, other modes are 1-7.  We accept other
+     values, because of why not.  */
+  {"A,B",        XOP2_BITS (0,1,0,0) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
+  {"A,B,#G",     XOP2_BITS (0,1,0,0), XOP2_MASK},
 
-  {"A,#P,C",     XOP2_BITS (1,1,0,0),               XOP2_MASK            },
-  {"A,#P",       XOP2_BITS (1,1,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,#P,#G",    XOP2_BITS (1,1,0,1),               XOP2_MASK            },
+  /* Rounding mode is immaterial for five-bit constants, we just set SRC2 to R0.  */
+  {"A,#F",	 XOP2_BITS (0,1,0,1), XOP2_MASK | SRC2_MASK},
+  /* This one will never be useful.  */
+
+  {"A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK},
+  {"A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK},
+  {"A,#L",     XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK | SRC2_MASK},
+  {"A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK},
+  {"A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK},
+  {"A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK},
+
+  {"A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK},
+  {"A,#P",     XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK | SRC2_MASK},
+  {"A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK},
+  {"A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK},
+  {"A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK | SRC1_MASK},
 
   { NULL,      0, 0},
 
@@ -1500,27 +1511,35 @@ static const my66000_fmt_spec_t cvts_fmt_list [] =
 
 static const my66000_fmt_spec_t cvtu_fmt_list [] =
 {
-  {"A,B,C",      XOP2_BITS (0,0,0,0), XOP2_MASK},
-  {"A,B",        XOP2_BITS (0,0,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,B,#G",     XOP2_BITS (0,0,0,1),               XOP2_MASK            },
-  {"A,-B,C",     XOP2_BITS (0,0,1,0),               XOP2_MASK            },
-  {"A,-B",       XOP2_BITS (0,0,1,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,-B,#G",    XOP2_BITS (0,0,1,1),               XOP2_MASK            },
+  {"A,B,C",	 XOP2_BITS (0,0,0,0), XOP2_MASK},
 
-  {"A,#F,C",     XOP2_BITS (0,1,0,0),               XOP2_MASK            },
-  {"A,#F",       XOP2_BITS (0,1,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,#F,#G",    XOP2_BITS (0,1,0,1),               XOP2_MASK            },
-  {"A,#-F,C",    XOP2_BITS (0,1,1,0),               XOP2_MASK            },
-  {"A,#-F",      XOP2_BITS (0,1,1,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,#-F,#G",   XOP2_BITS (0,1,1,1),               XOP2_MASK            },
+  /* Minus a rounding mode makes limited sense, but for the sake of
+     generality...  */
+  {"A,B,-C",	 XOP2_BITS (0,0,0,1), XOP2_MASK},
+  {"A,-B,C",     XOP2_BITS (0,0,1,0), XOP2_MASK},
+  {"A,B,-C",	 XOP2_BITS (0,0,1,1), XOP2_MASK},
 
-  {"A,#O,C",     XOP2_BITS (1,0,0,0),               XOP2_MASK            },
-  {"A,#O",       XOP2_BITS (1,0,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,#O,#G",    XOP2_BITS (1,0,0,1),               XOP2_MASK            },
+  /* 8 is the default constant, other modes are 1-7.  We accept other
+     values, because of why not.  */
+  {"A,B",        XOP2_BITS (0,1,0,0) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
+  {"A,B,#G",     XOP2_BITS (0,1,0,0), XOP2_MASK},
 
-  {"A,#P,C",     XOP2_BITS (1,1,0,0),               XOP2_MASK            },
-  {"A,#P",       XOP2_BITS (1,1,0,1) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,#P,#G",    XOP2_BITS (1,1,0,1),               XOP2_MASK            },
+  /* Rounding mode is immaterial for five-bit constants, we just set SRC2 to R0.  */
+  {"A,#F",	 XOP2_BITS (0,1,0,1), XOP2_MASK | SRC2_MASK},
+  /* This one will never be legal.  */
+
+  {"A,B,#-G",	 XOP2_BITS (0,1,1,0), XOP2_MASK},
+  { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK},
+  { "A,#O",     XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK | SRC2_MASK},
+  { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK},
+  { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK},
+  { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK},
+
+  { "A,B",      XOP2_BITS (1,1,0,0), XOP2_MASK | SRC1_MASK | SRC2_MASK},
+  { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK},
+  { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK},
+  { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK},
+  { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK | SRC1_MASK},
 
   { NULL,      0, 0},
 
@@ -1827,7 +1846,7 @@ static const my66000_fmt_spec_t hrx_fmt_list[] =
  { "A,e,#F",  HR_BITS(0,1), HR_FMT_MASK},
  { "A,e,#L",  HR_BITS(1,0), HR_FMT_MASK | SRC1_MASK},
  { "A,e,#P",  HR_BITS(1,1), HR_FMT_MASK | SRC1_MASK},
- { NULL,     0, 0},  
+ { NULL,     0, 0},
 };
 
 /* JMP is HRW IP,SRC1, CALLI is HR R0,IP,SRC1.  Since DST is zero in both

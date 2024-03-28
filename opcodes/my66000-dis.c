@@ -61,12 +61,13 @@ print_modifier_list (uint32_t io8)
 static void
 print_ins (uint32_t ins)
 {
-  int32_t v1, v2;
-  v1 = (ins >> 6) & 0x3f;
-  v1 = v1 == 0 ? 64 : v1;
-  v2 = ins & 0x3f;
-  v2 = v2 == 0 ? 64 : v2;
-  fpr (stream, "%d:%d", v1, v2);
+  int32_t  width, offset;
+  width = (ins >> 6) & 0x3f;
+  if (width == 0)
+    width = 64;
+
+  offset = ins & 0x3f;
+  fpr (stream, "%d:%d", width, offset);
 }
 
 /* Sign-extend an n-bit value, for offsets.  */

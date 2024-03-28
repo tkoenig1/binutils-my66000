@@ -163,14 +163,11 @@ typedef enum my66000_operands
  MY66000_OPS_W_BITR,
  MY66000_OPS_IMM13,    /* 13-bit immediate for enter.  */
  MY66000_OPS_FL_ENTER, /* Flag value for enter.  */
- MY66000_OPS_UNUSED1,  /* Unused.  */
+ MY66000_OPS_UNUSED,   /* Unused.  */
  MY66000_OPS_INVALID,  /* Invalid, used for non-letters.  */
  MY66000_OPS_CARRY,    /* Instruction modification list.  */
  MY66000_OPS_TF,       /* True/false list for predicates.  */
- MY66000_OPS_PRTHEN,   /* "Then" part of predicate.  */
- MY66000_OPS_PRELSE,   /* "Else" part of predicate.  */
  MY66000_OPS_HRFCN,    /* HR function.  */
- MY66000_OPS_UNUSED2,  /* Also unused. */
  MY66000_OPS_INS,      /* A 32-bit INS specifier.  */
  MY66000_OPS_VEC,      /* A vector bitmap.  */
  MY66000_OPS_UIMM16,   /* A 16-bit unsigned immediate.  */
