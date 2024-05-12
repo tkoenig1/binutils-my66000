@@ -1,5 +1,5 @@
 /* my66000-opc.c -- Definitions for my66000 opcodes.
-   Copyright (C) 2023 Free Software Foundation, Inc.
+   Copyright (C) 2023, 2024 Free Software Foundation, Inc.
    Contributed by Thomas König (tkoenig@gcc.gnu.org).
 
    This file is part of the GNU opcodes library.
@@ -1445,10 +1445,13 @@ static const my66000_fmt_spec_t float_fmt_list [] =
  { "A,-B,C",   XOP2_BITS (0,0,1,0) ,XOP2_MASK},
  { "A,-B,-C",  XOP2_BITS (0,0,1,1), XOP2_MASK},
 
- { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK},
- { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK},
+ /* Put the negative number first because -0 is significant for
+    floating point.  */
+
  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK},
+ { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK},
  { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK},
+ { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK},
 
  { "A,B,#O",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK},
  { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK},
