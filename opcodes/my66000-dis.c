@@ -452,12 +452,10 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
     {
       print_jt_entry (addr, info);
       jt_needed --;
-      return jt_size;
-    }
-  else if (jt_fill > 0)
-    {
-      jt_fill --;
-      return jt_size;
+      if (jt_needed > 0)
+	return jt_size;
+      else
+	return jt_size + (addr + jt_size) % 4;
     }
 
   if ((status = info->read_memory_func (addr, buffer, 4, info)))
@@ -471,7 +469,6 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
       jt_needed = (iword & 0xffff) + 1;
       jt_size = my66000_get_tt_size (iword);
       jt_addr = addr;
-      jt_fill = (4 - jt_size * jt_needed) % 4;
     }
   else
     jt_needed = jt_fill = 0;
