@@ -62,6 +62,7 @@
 #include "sysdep.h"
 #include <stdint.h>
 #include <assert.h>
+#include "safe-ctype.h"
 #include "disassemble.h"
 #include "opcode/my66000.h"
 
@@ -226,7 +227,7 @@ const my66000_opc_info_t opc_info_nop[] =
 
 const my66000_opc_info_t my66000_opc_info[] =
 {
- { "ill0", MAJOR( 0), MY66000_ILL,   NULL, 0, 0},
+ { "ill0", MAJOR( 0), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR( 1), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR( 2), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR( 3), MY66000_BAD,   NULL, 0, 0},
@@ -241,8 +242,8 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MAJOR(12), MY66000_BAD,   opc_op4, XOP4_MASK, XOP4_OFFS},
  { NULL,   MAJOR(13), MY66000_BAD,   opc_op5, MINOR_MASK, MINOR_OFFS},
  { NULL,   MAJOR(14), MY66000_BAD,   NULL, 0, 0},
- { "ill1", MAJOR(15), MY66000_ILL,   NULL, 0, 0},
- { "ill2", MAJOR(16), MY66000_ILL,   NULL, 0, 0},
+ { "ill1", MAJOR(15), MY66000_BAD,   NULL, 0, 0},
+ { "ill2", MAJOR(16), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(17), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(18), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(19), MY66000_BAD,   NULL, 0, 0},
@@ -273,8 +274,8 @@ const my66000_opc_info_t my66000_opc_info[] =
  { "enter", MAJOR(44), MY66000_ENTER, NULL, 0, 0},
  { "ldm",  MAJOR(45), MY66000_MM,    NULL, 0, 0},
  { "stm",  MAJOR(46), MY66000_MM,    NULL, 0, 0},
- { "ill3", MAJOR(47), MY66000_ILL,   NULL, 0, 0},
- { "ill4", MAJOR(48), MY66000_ILL,   NULL, 0, 0},
+ { "ill3", MAJOR(47), MY66000_BAD,   NULL, 0, 0},
+ { "ill4", MAJOR(48), MY66000_BAD,   NULL, 0, 0},
  { "add",  MAJOR(49), MY66000_OPIMM, NULL, 0, 0},
  { "mul",  MAJOR(50), MY66000_OPIMM, NULL, 0, 0},
  { "div",  MAJOR(51), MY66000_OPIMM, NULL, 0, 0},
@@ -289,14 +290,14 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MAJOR(60), MY66000_CARRY, opc_mod, MOD_MASK, MOD_OFFS},
  { "vec",  MAJOR(61), MY66000_VEC,   NULL, 0, 0},
  { NULL,   MAJOR(62), MY66000_BAD,   NULL, 0, 0},
- { "ill5", MAJOR(63), MY66000_ILL,   NULL, 0, 0},
+ { "ill5", MAJOR(63), MY66000_BAD,   NULL, 0, 0},
  { NULL,   0,         MY66000_END,   NULL, 0, 0},
 };
 
 static const my66000_opc_info_t opc_om6[] =
 {
  { "pb1",  MAJOR(6) | SHFT_MINOR( 0), MY66000_PB1,  opc_pb1a, BB1_MASK, BB1_OFFS},
- { "pcnd", MAJOR(6) | SHFT_MINOR( 1), MY66000_BAD,  opc_pcnd, CND_MASK, CND_OFFS},
+ { "pcnd", MAJOR(6) | SHFT_MINOR( 1), MY66000_PCND, opc_pcnd, CND_MASK, CND_OFFS},
  { NULL,   MAJOR(6) | SHFT_MINOR( 2), MY66000_BAD,  NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 3), MY66000_BAD,  NULL, 0, 0},
  { NULL,   MAJOR(6) | SHFT_MINOR( 4), MY66000_BAD,  NULL, 0, 0},
@@ -356,6 +357,9 @@ static const my66000_opc_info_t opc_om7[] =
 
 #define MRR_FMT_MASK (XOP1_D_MASK | XOP1_d_MASK)
 
+/* Mask for "all flags zero" for XOP1.  */
+
+#define XOP1_FLAGS_MASK (31 << 11)
 /* Mask for rindex=0 */
 
 #define RIND_ZERO_MASK 31
@@ -550,10 +554,10 @@ static const my66000_opc_info_t opc_op1[] =
  { NULL,   MAJOR(9) | MINOR (16), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (17), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (18), MY66000_BAD, NULL, 0, 0},
- { "ldm",  MAJOR(9) | MINOR (19), MY66000_MM,  NULL, 0, 0},
- { "stm",  MAJOR(9) | MINOR (20), MY66000_MM,  NULL, 0, 0},
- { "mm",   MAJOR(9) | MINOR (21), MY66000_MM,  NULL, 0, 0},
- { "ms",   MAJOR(9) | MINOR (22), MY66000_MM,  NULL, 0, 0},
+ { "ldm",  MAJOR(9) | MINOR (19), MY66000_LDM, NULL, 0, 0},
+ { "stm",  MAJOR(9) | MINOR (20), MY66000_LDM, NULL, 0, 0},
+ { NULL,   MAJOR(9) | MINOR (21), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(9) | MINOR (22), MY66000_BAD,  NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (23), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (24), MY66000_BAD, opc_mrr + 32, XOP1_L_MASK, XOP1_L_SHFT},
  { NULL,   MAJOR(9) | MINOR (25), MY66000_BAD, opc_mrr + 34, XOP1_L_MASK, XOP1_L_SHFT},
@@ -585,7 +589,7 @@ static const my66000_opc_info_t opc_op1[] =
  { NULL,   MAJOR(9) | MINOR (51), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (52), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (53), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (54), MY66000_BAD, NULL, 0, 0},
+ { "mm",   MAJOR(9) | MINOR (54), MY66000_MM,  NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (55), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (56), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (57), MY66000_BAD, NULL, 0, 0},
@@ -1214,9 +1218,11 @@ static const my66000_opc_info_t opc_mod[] =
 
 static const my66000_opc_info_t opc_loop[] =
 {
+#if 0
   { NULL,   0, MAJOR(29) | SIGNED(0), opc_loopu, LOOP_MASK, LOOP_OFFS },
   { NULL,   0, MAJOR(29) | SIGNED(1), opc_loops, LOOP_MASK, LOOP_OFFS },
-  { NULL,   0,                                       MY66000_END ,  NULL, 0, 0},
+#endif
+  { NULL,   0,                        MY66000_END ,  NULL, 0, 0},
 };
 
 static const my66000_opc_info_t opc_loopu[] =
@@ -1345,7 +1351,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",    'P' },
  {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel",  'Q' },
  {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit float immediate",   'R' },
- {MY66000_OPS_IMM13,  OPERAND_ENTRY (16, 0),  "13-bit aligned immediate", 'S' },
+ {MY66000_OPS_IMM13,  OPERAND_ENTRY (13, 3),  "13-bit aligned immediate", 'S' },
  {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate stw",     'T' },
  {MY66000_OPS_I64_ST,    0, 0, 8, 2,          "64-bit immediate store",   'U' },
  {MY66000_OPS_WIDTH,   OPERAND_ENTRY ( 6, 6), "6-bit width",		  'V' },
@@ -1538,7 +1544,6 @@ static const my66000_fmt_spec_t cvtu_fmt_list [] =
   { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK},
   { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK},
 
-  { "A,B",      XOP2_BITS (1,1,0,0), XOP2_MASK | SRC1_MASK | SRC2_MASK},
   { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK},
   { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK},
   { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK},
@@ -1883,8 +1888,15 @@ static const my66000_fmt_spec_t empty_fmt_list[] =
 
 static const my66000_fmt_spec_t mm_fmt_list [] =
 {
- { "A,B,C", 0, 0},
+ { "A,B,C", 0, XOP1_FLAGS_MASK},
+
  { NULL, 0, 0},
+};
+
+static const my66000_fmt_spec_t ldm_fmt_list [] =
+{
+  { "A,B,C", 0, XOP1_FLAGS_MASK},
+  { NULL, 0, 0},
 };
 
 static const my66000_fmt_spec_t op5_d_fmt_list [] =
@@ -2124,6 +2136,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { trans_fmt_list,    MY66000_TRANS },
    { ff1_fmt_list,      MY66000_FF1   },
    { nop_fmt_list,      MY66000_NOP   },
+   { ldm_fmt_list,      MY66000_LDM   },
    { NULL,	        MY66000_END   },
   };
 
@@ -2318,4 +2331,108 @@ my66000_get_call (int size)
       abort();
     }
   return ret;
+}
+
+/* Auxiliary routine for opc_mask_test.  Loop through the format
+   strings for an instruction, checking masks.  */
+
+static void
+opc_fmt_test (uint32_t mask, const my66000_opc_info_t *info)
+{
+  my66000_encoding enc = info->enc;
+  const my66000_opcode_fmt_t *opcode_fmt;
+  const my66000_fmt_spec_t *spec;
+  if (enc == MY66000_BAD)
+    return;
+
+  opcode_fmt = &my66000_opcode_fmt[enc];
+  spec = opcode_fmt->spec;
+  for (spec = opcode_fmt->spec; spec->fmt; spec++)
+    {
+      uint32_t spec_mask = mask | spec->mask;
+      uint32_t complete_mask = spec_mask;
+      if (spec_mask != (mask ^ spec->mask))
+	{
+	  opcodes_error_handler ("Internal error: Mask collision between "
+				 "instruction and format mask %s %s",
+				 info->name, spec->fmt);
+	  exit(EXIT_FAILURE);
+	}
+      for (const char *f = spec->fmt; *f; f++)
+	{
+	  const my66000_operand_info_t *op_info;
+	  if (!ISALPHA(*f))
+	    continue;
+
+	  op_info = &my66000_operand_table[*f - 'A'];
+	  if ((spec_mask | op_info->mask) != (spec_mask ^ op_info->mask))
+	    {
+	      /* Hack - the tests don't work for true/false predicate
+		 lists.  */
+	      if (*f != 'd')
+		{
+		  opcodes_error_handler ("Internal error: Operand mask collision "
+					 "\"%s\" \"%s\" %c",info->name, spec->fmt, *f);
+		  exit(EXIT_FAILURE);
+		}
+	    }
+	  complete_mask = complete_mask | op_info->mask;
+	}
+      if (complete_mask != (uint32_t) -1)
+	{
+	  char buffer[33];
+	  sprintf(buffer,"%32.32b",complete_mask);
+	  opcodes_error_handler ("Internal error: Bit pattern underspecified "
+				 "%s \"%s\" \"%s\" ",buffer,info->name,
+				 spec->fmt);
+	  exit(EXIT_FAILURE);
+	}
+    }
+
+  return;
+}
+
+/* Internal test - descent through the opcode tables, starting with
+   my66000_opc_info, and check for consistency with bitmasks.  */
+
+static void
+opc_mask_test (uint32_t mask, const my66000_opc_info_t *info)
+{
+  const my66000_opc_info_t *p;
+  for (p = info; p->enc != MY66000_END; p++)
+    {
+      uint32_t my_mask;
+
+      /* Hack.  PB1, BB1 and PCND extend the first argument into the
+	 last bit of the primary opcode. This means that we have to
+	 mask it off for the sanity check.  */
+      switch(p->enc)
+	{
+	  //	case MY66000_PB1:
+	case MY66000_BB1:
+	case MY66000_PCND:
+	  my_mask = mask & ~(1 << MY66000_MAJOR_SHIFT);
+	  break;
+	default:
+	  my_mask = mask;
+	}
+      opc_fmt_test (my_mask, p);
+
+      if ((my_mask | p->patt_mask) != (my_mask ^ p->patt_mask))
+	{
+	  opcodes_error_handler ("Internal error: Pattern collision %x %x",
+				 mask, p->patt_mask);
+	  exit (EXIT_FAILURE);
+	}
+
+      if (p->sub)
+	{
+	  opc_mask_test (my_mask | p->patt_mask, p->sub);
+	}
+    }
+}
+
+void my66000_opc_sanity_check()
+{
+  opc_mask_test(MY66000_MAJOR_MASK, my66000_opc_info);
 }

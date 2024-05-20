@@ -133,7 +133,7 @@ get_fmt (uint32_t iword, my66000_opc_info_t const *opc)
   if (spec == NULL)
     return NULL;
 
-  while (spec)
+  while (spec->fmt)
     {
       res = (spec->patt ^ iword) & spec->mask;
       if (res == 0)
@@ -427,7 +427,7 @@ comment_carry(void)
 
 /* We put found opcodes on a mini-stack because we prefer to print
    instructions which come lower, but the format strings don't always
-   match.  Put up to DEPTH_MAX opcoddes on the stack and complain with
+   match.  Put up to DEPTH_MAX opcodes on the stack and complain with
    an internal error if it overflows.  */
 
 #define DEPTH_MAX 4

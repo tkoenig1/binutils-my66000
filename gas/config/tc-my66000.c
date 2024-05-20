@@ -201,12 +201,14 @@ build_opc_hashes (const my66000_opc_info_t * table)
     }
 }
 
+
 static htab_t rname_map, rbase_map, rind_map;
 static htab_t hr_map;
 static htab_t vec_map;
 static htab_t loop_u_map, loop_s_map;
 
 #define MAX_REG_STR_LEN 10
+
 
 void
 md_begin (void)
@@ -272,6 +274,12 @@ md_begin (void)
 
       count ++;
     }
+#if 0
+  /* Apply some sanity checks to make sure the internal data
+     structures are in a consistent state.  */
+
+  my66000_opc_sanity_check();
+#endif
 }
 
 

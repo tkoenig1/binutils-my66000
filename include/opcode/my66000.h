@@ -86,6 +86,8 @@ typedef enum my66000_encoding
  MY66000_TRANS,    /* Transcendental instructions.  */
  MY66000_FF1,      /* FF1 etc.  */
  MY66000_NOP,      /* NOP instrucition - a special OR.  */
+ MY66000_LDM,      /* Load and store multiple.  */
+
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -232,5 +234,7 @@ extern uint32_t my66000_set_mem_size (uint32_t, uint32_t);
 
 extern bool my66000_is_call (uint32_t);
 extern uint32_t my66000_get_call (int);
+
+void my66000_opc_sanity_check(void);
 
 #endif
