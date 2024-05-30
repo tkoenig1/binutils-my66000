@@ -296,13 +296,20 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    /* Fallthrough */
 
 	  case MY66000_OPS_IMM16:
-	  case MY66000_OPS_BB1:
+	  case MY66000_OPS_BB1A:
 	  case MY66000_OPS_WIDTH:
 	  case MY66000_OPS_OFFSET:
 	  case MY66000_OPS_FL_ENTER:
+	  case MY66000_OPS_FL_EXIT:
 	  case MY66000_OPS_MSCALE:
 	    /* An integer constant.  */
 	    v = val;
+	    fpr (stream, "%d", v);
+	    break;
+
+	  case MY66000_OPS_BB1B:
+	    /* Lower bits of bit number 32-63.  */
+	    v = val + 32;
 	    fpr (stream, "%d", v);
 	    break;
 

@@ -274,7 +274,7 @@ md_begin (void)
 
       count ++;
     }
-#if 0
+#if 1
   /* Apply some sanity checks to make sure the internal data
      structures are in a consistent state.  */
 
@@ -422,6 +422,14 @@ match_3bit (char **ptr, char **errmsg)
 {
   uint16_t res;
   res = match_integer (ptr, errmsg, 0, 7);
+  return res;
+}
+
+static uint16_t
+match_2bit (char **ptr, char **errmsg)
+{
+  uint16_t res;
+  res = match_integer (ptr, errmsg, 0, 3);
   return res;
 }
 
@@ -934,18 +942,28 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	    *errmsg = _("Incorrect alignment of disp13");
 	  break;
 	case MY66000_OPS_FL_ENTER:
+	  bits = match_2bit (&sp, errmsg);
+	  break;
+
+	case MY66000_OPS_FL_EXIT:
 	  bits = match_3bit (&sp, errmsg);
 	  break;
+
 	case MY66000_OPS_I1:
 	case MY66000_OPS_I2:
 	case MY66000_OPS_I3:
 	  bits = match_5bitu (&sp, errmsg);
 	  break;
 
+	case MY66000_OPS_BB1A:
 	case MY66000_OPS_SI5:
 	  bits = match_5bits (&sp, errmsg);
 	  break;
-	case MY66000_OPS_BB1:
+
+	case MY66000_OPS_BB1B:
+	  bits = match_integer (&sp, errmsg, 32, 63) - 32;
+	  break;
+
 	case MY66000_OPS_WIDTH:
 	case MY66000_OPS_OFFSET:
 	  bits = match_6bit (&sp, errmsg);

@@ -38,9 +38,12 @@ typedef enum my66000_encoding
  MY66000_MVIMM,    /* Move 16-bit immediate.  */
  MY66000_MEM,      /* Load/store with a 16-bit offset.  */
  MY66000_ARITH,    /* Arithmetic operations.  */
- MY66000_BB1,      /* Branch on bit set, explicit bit.  */
+ MY66000_ARITHS0,  /* Same, with the S bit set to zero.  */ 
+ MY66000_BB1A,     /* Branch on bit set, explicit bit 0-31.  */
+ MY66000_BB1B,     /* Branch on bit set, explicit bit 32-63.  */
  MY66000_BR,       /* Branch, call etc.  */
  MY66000_MRR,	   /* Indexed memory operation, [Ra,Rb]  */
+ MY66000_MRRL0,	   /* Indexed memory operation, [Ra,Rb], with the L bit forced to 0.  */
  MY66000_FMAC,     /* FMAC instruction.  */
  MY66000_MUX,      /* MUX and CMOV.  */
  MY66000_MOV2,     /* Move from SRC2.  */
@@ -52,9 +55,11 @@ typedef enum my66000_encoding
  MY66000_SHIFT,    /* Shift formats with 6-bit immediates.  */
  MY66000_EMPTY,    /* No argument list.  */
  MY66000_ENTER,    /* Enter instruction.  */
+ MY66000_EXIT,     /* Exit instruction.  */
  MY66000_BC,       /* Conditional branch on bit set, named constant */
  MY66000_CARRY,    /* Carry modifier.  */
- MY66000_PB1,      /* Predicate on bit set, explicit bit  */
+ MY66000_PB1A,     /* Predicate on bit set, explicit bit, bit 0-31  */
+ MY66000_PB1B,     /* Predicate on bit set, explicit bit, bit 31-64  */
  MY66000_PC,       /* Predicate on bit set, from comparison  */
  MY66000_PCND,     /* Predicate on condition.  */
  MY66000_BCND,     /* Branch on condition.  */
@@ -145,7 +150,8 @@ typedef enum my66000_operands
  MY66000_OPS_IMM16,
  MY66000_OPS_I1,  /* Five-bit immediates.  */
  MY66000_OPS_I2,
- MY66000_OPS_BB1,
+ MY66000_OPS_BB1A, /* Bit number, 0-31.  */
+ MY66000_OPS_BB1B, /* Bit number, 32-63. */
  MY66000_OPS_B16, /* 16-bit branch target.  */
  MY66000_OPS_B26, /* 26-bit branch target.  */
  MY66000_OPS_RINDEX,
@@ -165,6 +171,7 @@ typedef enum my66000_operands
  MY66000_OPS_W_BITR,
  MY66000_OPS_IMM13,    /* 13-bit immediate for enter.  */
  MY66000_OPS_FL_ENTER, /* Flag value for enter.  */
+ MY66000_OPS_FL_EXIT,  /* Flag value for exit.  */
  MY66000_OPS_UNUSED,   /* Unused.  */
  MY66000_OPS_INVALID,  /* Invalid, used for non-letters.  */
  MY66000_OPS_CARRY,    /* Instruction modification list.  */
