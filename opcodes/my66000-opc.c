@@ -185,6 +185,7 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_jmp,
  opc_calli,
  opc_single,
+ opc_ff1,
  opc_trans,
  opc_transd,
  opc_transf,
@@ -197,8 +198,7 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
 
 /* Table for special opcodes which are not well suited for recursive
    table lookup.  Will be looked at first by the assembler and
-   disassembler. nop is "or r0, r0, #0000", jmp is "hrw ip,rs",
-   calli is "hrx r0,ip,rs.  */
+   disassembler.  */
 
 const my66000_opc_info_t opc_info_nop[] =
 {
@@ -837,9 +837,16 @@ static const my66000_opc_info_t opc_single[] =
 
 static const my66000_opc_info_t opc_ff1[] =
 {
-  {"ctlz",  MAJOR(13) | MINOR(9) | FF1(0), MY66000_FF1, NULL, 0, 0},
+  {"clz",   MAJOR(13) | MINOR(9) | FF1(0), MY66000_FF1, NULL, 0, 0},
   {"fl1",   MAJOR(13) | MINOR(9) | FF1(1), MY66000_FF1, NULL, 0, 0},
   {"ft1",   MAJOR(13) | MINOR(9) | FF1(2), MY66000_FF1, NULL, 0, 0},
+  {"ctz",   MAJOR(13) | MINOR(9) | FF1(3), MY66000_FF1, NULL, 0, 0},
+
+  /* Alternate spellings of instructions, which the compiler currently
+     emits.  These will never be reached on disassembly, but read by
+     the assembler.  */
+
+  {"ctlz",  MAJOR(13) | MINOR(9) | FF1(0), MY66000_FF1, NULL, 0, 0},
   {"cttz",  MAJOR(13) | MINOR(9) | FF1(3), MY66000_FF1, NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
