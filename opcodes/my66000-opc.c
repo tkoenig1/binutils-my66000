@@ -616,7 +616,7 @@ static const my66000_opc_info_t opc_op1[] =
  { NULL,   MAJOR(9) | MINOR (52), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (53), MY66000_BAD, NULL, 0, 0},
  { "mm",   MAJOR(9) | MINOR (54), MY66000_MM,  NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (55), MY66000_BAD, NULL, 0, 0},
+ { "ms",   MAJOR(9) | MINOR (55), MY66000_MS_55, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (56), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (57), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (58), MY66000_BAD, NULL, 0, 0},
@@ -2021,6 +2021,13 @@ static const my66000_fmt_spec_t mm_fmt_list [] =
  { NULL, 0, 0},
 };
 
+static const my66000_fmt_spec_t ms_55_fmt_list[] =
+{
+  { "B,A,C",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
+  { NULL, 0, 0},
+};
+
+
 static const my66000_fmt_spec_t ldm_fmt_list [] =
 {
   { "A,B,C", 0, XOP1_FLAGS_MASK},
@@ -2284,6 +2291,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { nop_fmt_list,      MY66000_NOP   },
    { ldm_fmt_list,      MY66000_LDM   },
    { xop0_fmt_list,     MY66000_XOP0  },
+   { ms_55_fmt_list,    MY66000_MS_55 },
    { NULL,	        MY66000_END   },
   };
 
