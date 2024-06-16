@@ -2008,10 +2008,16 @@ static const my66000_fmt_spec_t empty_fmt_list[] =
  { NULL, 0, 0},
 };
 
+/* Ordering of the operands for mm is "mm Rcount, Rfrom, Rto", hence
+   the strange ordering below.  Also, we use the unsigned float below;
+   the disassembler will then display this as hex, but so what.  */
+
 static const my66000_fmt_spec_t mm_fmt_list [] =
 {
- { "A,B,C", 0, XOP1_FLAGS_MASK},
-
+  { "B,A,C",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
+  { "#F,A,C", XOP1_BITS(0,1), XOP1_FLAGS_MASK},
+  { "#O,A,C", XOP1_BITS(1,0), XOP1_FLAGS_MASK | SRC1_MASK },
+  { "#P,A,C", XOP1_BITS(1,1), XOP1_FLAGS_MASK | SRC1_MASK },
  { NULL, 0, 0},
 };
 
