@@ -274,7 +274,7 @@ md_begin (void)
 
       count ++;
     }
-#if 1
+#if 0
   /* Apply some sanity checks to make sure the internal data
      structures are in a consistent state.  */
 

@@ -121,6 +121,7 @@
 const my66000_opc_info_t opc_info_nop[];
 static const my66000_opc_info_t opc_abs[];
 const my66000_opc_info_t my66000_opc_info[];
+static const my66000_opc_info_t opc_op0[];
 static const my66000_opc_info_t opc_om6[];
 static const my66000_opc_info_t opc_om7[];
 static const my66000_opc_info_t opc_mrr[];
@@ -140,6 +141,7 @@ static const my66000_opc_info_t opc_pb1a[];
 static const my66000_opc_info_t opc_pb1b[];
 static const my66000_opc_info_t opc_pcnd[];
 static const my66000_opc_info_t opc_hr[];
+static const my66000_opc_info_t opc_absf[];
 static const my66000_opc_info_t opc_jmp[];
 static const my66000_opc_info_t opc_calli[];
 static const my66000_opc_info_t opc_single[];
@@ -163,6 +165,7 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_info_nop,
  opc_abs,
  my66000_opc_info,
+ opc_op0,
  opc_om6,
  opc_om7,
  opc_mrr,
@@ -182,6 +185,7 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_pb1b,
  opc_pcnd,
  opc_hr,
+ opc_absf,
  opc_jmp,
  opc_calli,
  opc_single,
@@ -227,7 +231,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MAJOR( 5), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR( 6), MY66000_BAD,   opc_om6, SHFT_MASK, SHFT_OFFS},
  { NULL,   MAJOR( 7), MY66000_BAD,   opc_om7, SHFT_MASK, SHFT_OFFS},
- { NULL,   MAJOR( 8), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR( 8), MY66000_BAD,   opc_op0, SHFT_MASK, SHFT_OFFS},
  { NULL,   MAJOR( 9), MY66000_BAD,   opc_op1, MINOR_MASK, MINOR_OFFS},
  { NULL,   MAJOR(10), MY66000_BAD,   opc_op2, MINOR_MASK, MINOR_OFFS},
  { NULL,   MAJOR(11), MY66000_BAD,   NULL, 0, 0},
@@ -240,7 +244,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MAJOR(18), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(19), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(20), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(21), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   MAJOR(21), MY66000_BAD,   opc_loop, SIGNED_MASK, SIGNED_SHFT},
  { NULL,   MAJOR(22), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(23), MY66000_BAD,   NULL, 0, 0},
  { "bb1",  MAJOR(24), MY66000_BB1A,  opc_bb1a, BB1_MASK,  BB1_OFFS},
@@ -248,7 +252,7 @@ const my66000_opc_info_t my66000_opc_info[] =
  { NULL,   MAJOR(26), MY66000_BAD,   opc_bcnd, CND_MASK, CND_OFFS},
  { NULL,   MAJOR(27), MY66000_BAD,   opc_tt,   TT_SIZE_MASK, TT_SIZE_OFFS},
  { NULL,   MAJOR(28), MY66000_BAD,   NULL, 0, 0},
- { NULL,   MAJOR(29), MY66000_BAD,   opc_loop, SIGNED_MASK, SIGNED_SHFT},
+ { NULL,   MAJOR(29), MY66000_BAD,   NULL, 0, 0},
  { "br",   MAJOR(30), MY66000_BR,    NULL, 0, 0},
  { "call", MAJOR(31), MY66000_BR,    NULL, 0, 0},
  { "ldub", MAJOR(32), MY66000_MEM,   NULL, 0, 0},
@@ -325,6 +329,27 @@ static const my66000_opc_info_t opc_om7[] =
  { NULL,   MAJOR(7) | SHFT_MINOR(13), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR(14), MY66000_BAD,   NULL, 0, 0},
  { NULL,   MAJOR(7) | SHFT_MINOR(15), MY66000_BAD,   NULL, 0, 0},
+ { NULL,   0,              MY66000_END,   NULL, 0, 0}
+};
+
+static const my66000_opc_info_t opc_op0[] =
+{
+ { NULL,   MAJOR(8) | SHFT_MINOR( 0), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(8) | SHFT_MINOR( 1), MY66000_BAD,  NULL, 0, 0},
+ { NULL,   MAJOR(8) | SHFT_MINOR( 2), MY66000_BAD,  NULL, 0, 0},
+ { NULL,   MAJOR(8) | SHFT_MINOR( 3), MY66000_BAD,  NULL, 0, 0},
+ { NULL,   MAJOR(8) | SHFT_MINOR( 4), MY66000_BAD,  NULL, 0, 0},
+ { NULL,   MAJOR(8) | SHFT_MINOR( 5), MY66000_BAD,  NULL, 0, 0},
+ { "ror",  MAJOR(8) | SHFT_MINOR( 6), MY66000_XOP0, NULL, 0, 0},
+ { "rol",  MAJOR(8) | SHFT_MINOR( 7), MY66000_XOP0, NULL, 0, 0},
+ { "srl",  MAJOR(8) | SHFT_MINOR( 8), MY66000_XOP0, NULL, 0, 0},
+ { "sra",  MAJOR(8) | SHFT_MINOR( 9), MY66000_XOP0, NULL, 0, 0},
+ { "sll",  MAJOR(8) | SHFT_MINOR(10), MY66000_XOP0, NULL, 0, 0},
+ { "sla",  MAJOR(8) | SHFT_MINOR(11), MY66000_XOP0, NULL, 0, 0},
+ { "bitr", MAJOR(8) | SHFT_MINOR(12), MY66000_XOP0, NULL, 0, 0},
+ { NULL,   MAJOR(8) | SHFT_MINOR(13), MY66000_BAD,  NULL, 0, 0},
+ { NULL,   MAJOR(8) | SHFT_MINOR(14), MY66000_BAD,  NULL, 0, 0},
+ { NULL,   MAJOR(8) | SHFT_MINOR(15), MY66000_BAD,  NULL, 0, 0},
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
@@ -1222,28 +1247,26 @@ static const my66000_opc_info_t opc_mod[] =
 
 static const my66000_opc_info_t opc_loop[] =
 {
-#if 0
-  { NULL,   0, MAJOR(29) | SIGNED(0), opc_loopu, LOOP_MASK, LOOP_OFFS },
-  { NULL,   0, MAJOR(29) | SIGNED(1), opc_loops, LOOP_MASK, LOOP_OFFS },
-#endif
-  { NULL,   0,                        MY66000_END ,  NULL, 0, 0},
+  {NULL,    MAJOR(21) | SIGNED(0),   MY66000_BAD, opc_loopu, 0, 0},
+  {NULL,    MAJOR(21) | SIGNED(1),   MY66000_BAD, opc_loops, 0, 0},
+ { NULL,   0,                        MY66000_END , NULL, 0, 0},
 };
 
 static const my66000_opc_info_t opc_loopu[] =
 {
   { NULL,     0,                                     MY66000_BAD,   NULL, 0, 0},
-  { "loop1",  MAJOR(29) | LOOP_MINOR(1) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
-  { "loop2",  MAJOR(29) | LOOP_MINOR(2) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
-  { "loop3",  MAJOR(29) | LOOP_MINOR(3) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
+  { "loop1",  MAJOR(21) | LOOP_MINOR(1) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
+  { "loop2",  MAJOR(21) | LOOP_MINOR(2) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
+  { "loop3",  MAJOR(21) | LOOP_MINOR(3) | SIGNED(0), MY66000_LOOPU, NULL, 0, 0},
   { NULL,   0,                                       MY66000_END ,  NULL, 0, 0},
 };
 
 static const my66000_opc_info_t opc_loops[] =
 {
   { NULL,     0,                                     MY66000_BAD,   NULL, 0, 0},
-  { "loop1",  MAJOR(29) | LOOP_MINOR(1) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
-  { "loop2",  MAJOR(29) | LOOP_MINOR(2) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
-  { "loop3",  MAJOR(29) | LOOP_MINOR(3) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
+  { "loop1",  MAJOR(21) | LOOP_MINOR(1) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
+  { "loop2",  MAJOR(21) | LOOP_MINOR(2) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
+  { "loop3",  MAJOR(21) | LOOP_MINOR(3) | SIGNED(1), MY66000_LOOPS, NULL, 0, 0},
   { NULL,   0,                                       MY66000_END ,  NULL, 0, 0},
 };
 
@@ -1850,8 +1873,16 @@ static const my66000_fmt_spec_t mov64_fmt_list[] =
 
 static const my66000_fmt_spec_t shift_fmt_list[] =
 {
- { "A,B,<V:W>", 0, 0},
+ { "A,B,#W,#V", 0, 0},
  { NULL,        0, 0}
+};
+
+#define XOP0_BIT5_MASK (1 << 5)
+
+static const my66000_fmt_spec_t xop0_fmt_list[] =
+{
+  { "A,B,C,#V", 0, XOP0_BIT5_MASK},
+  { NULL,        0, 0}
 };
 
 /* Prediate on bit set, bits 0-31  */
@@ -1911,7 +1942,7 @@ static const my66000_fmt_spec_t exit_fmt_list[] =
 {
  { "A,B,S",   0, ENTER_7_MASK},
  { "A,B,S,a", 0, 0},
- { "A,B,S,a", 0, 0},  /* FIXME: This needs to be removed.  */
+ { "A,B,a,S", 0, 0},  /* FIXME: This needs to be removed.  */
  { NULL,      0, 0},
 };
 
@@ -2088,6 +2119,9 @@ static const my66000_fmt_spec_t abs_fmt_list[] =
   {"A,#P",  XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
   {"+A,#P", XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
   {"-A,#P", XOP5_BITS(1,1,1,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
+  {"A,#R",  XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
+  {"+A,#R", XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
+  {"-A,#R", XOP5_BITS(1,1,1,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
   { NULL, 0, 0},
 };
 
@@ -2243,6 +2277,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { ff1_fmt_list,      MY66000_FF1   },
    { nop_fmt_list,      MY66000_NOP   },
    { ldm_fmt_list,      MY66000_LDM   },
+   { xop0_fmt_list,     MY66000_XOP0  },
    { NULL,	        MY66000_END   },
   };
 

@@ -92,6 +92,7 @@ typedef enum my66000_encoding
  MY66000_FF1,      /* FF1 etc.  */
  MY66000_NOP,      /* NOP instrucition - a special OR.  */
  MY66000_LDM,      /* Load and store multiple.  */
+ MY66000_XOP0,     /* XOP0 group of shifts.  */
 
 } my66000_encoding;
 
