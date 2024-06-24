@@ -1074,6 +1074,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  imm.X_add_number = val_imm;
 	  break;
 
+	case MY66000_OPS_MSC32:
 	case MY66000_OPS_I32_HEX:
 	  val_imm = match_32_bit_vanilla (&sp, errmsg, &imm);
 	  if (*errmsg)
@@ -1090,6 +1091,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = 0;
 	  break;
 
+	case MY66000_OPS_MSC64:
 	case MY66000_OPS_I64_HEX:
 	  val_imm = match_64_bit_vanilla (&sp, errmsg, &imm);
 	  if (*errmsg)
@@ -1128,7 +1130,17 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	  break;
 
+	case MY66000_OPS_MSD32:
+	  match_integer_expr_ex (&sp, errmsg, INT32_MIN, UINT32_MAX, &imm_st);
+
+	  if (*errmsg)
+	    break;
+	  imm_st_size = 4;
+	  bits = 0;
+	  break;
+
 	case MY66000_OPS_I64_ST:
+	case MY66000_OPS_MSD64:
 	  match_64_bit_vanilla (&sp, errmsg, &imm_st);
 	  if (*errmsg)
 	    break;
@@ -1248,6 +1260,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	as_fatal ("Weird expression value");
     }
   //  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
+  // fprintf (stderr,"%s:\t%s\timm_st_size = %d\n", str, spec->fmt,imm_st_size);
   return;
 }
 

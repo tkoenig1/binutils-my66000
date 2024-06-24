@@ -619,8 +619,8 @@ static const my66000_opc_info_t opc_op1[] =
  { "ms",   MAJOR(9) | MINOR (55), MY66000_MS_55, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (56), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (57), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (58), MY66000_BAD, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (59), MY66000_BAD, NULL, 0, 0},
+ { "ms",   MAJOR(9) | MINOR (58), MY66000_MS_58, NULL, 0, 0},
+ { "ms",   MAJOR(9) | MINOR (59), MY66000_MS_59, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (60), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (61), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (62), MY66000_BAD, NULL, 0, 0},
@@ -1407,6 +1407,10 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_LOOP_U,  OPERAND_ENTRY ( 3,21), "LOOP condition, unsigned", 'm' },
  {MY66000_OPS_LOOP_S,  OPERAND_ENTRY ( 3,21), "LOOP condition, signed",   'n' },
  {MY66000_OPS_I3,      OPERAND_ENTRY ( 5, 5), "5-bit immediate SRC3",     'o' },
+ {MY66000_OPS_MSC32,   0, 0, 4, 1,            "32-bit count for MS",      'p' },
+ {MY66000_OPS_MSC64,   0, 0, 8, 1,            "64-bit count for MS",      'q' },
+ {MY66000_OPS_MSD32,   0, 0, 4, 2,            "32-bit data for MS",       'r' },
+ {MY66000_OPS_MSD64,   0, 0, 8, 2,            "64-bit data for MS",       's' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -2010,7 +2014,8 @@ static const my66000_fmt_spec_t empty_fmt_list[] =
 
 /* Ordering of the operands for mm is "mm Rcount, Rfrom, Rto", hence
    the strange ordering below.  Also, we use the unsigned float below;
-   the disassembler will then display this as hex, but so what.  */
+   the disassembler will then display this as hex, but so what.
+   FIXME: change to OPS_MSC*.  */
 
 static const my66000_fmt_spec_t mm_fmt_list [] =
 {
@@ -2021,12 +2026,40 @@ static const my66000_fmt_spec_t mm_fmt_list [] =
  { NULL, 0, 0},
 };
 
+/* Section with mm.  This also has
+
+   ms  Rcount, Rfrom, Rto
+
+*/
 static const my66000_fmt_spec_t ms_55_fmt_list[] =
 {
   { "B,A,C",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
   { NULL, 0, 0},
 };
 
+/* Cases here are as follows:
+   Count from SRC1 (B), 32-bit data from position 1, Rto  (D=0 and d=0)
+   32-bit count from position 1, 32-bit data from position 2, Rto (D=0 and d=1)
+   64-bit count from position 1, 32-bit data from position 2, Rto (D=1 and d=1)
+ */
+
+static const my66000_fmt_spec_t ms_58_fmt_list[] =
+{
+  { "B,#r,C", XOP1_BITS(0,0), XOP1_FLAGS_MASK | DST_MASK },
+  { "#p,#r,C", XOP1_BITS(0,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
+  { "#q,#r,C", XOP1_BITS(1,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
+  { NULL, 0, 0},
+};
+
+/* Same here, for minor opcode 59 (data is 64 bit).  */
+
+static const my66000_fmt_spec_t ms_59_fmt_list[] =
+{
+  { "B,#s,C", XOP1_BITS(0,0), XOP1_FLAGS_MASK | DST_MASK },
+  { "#p,#s,C", XOP1_BITS(0,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
+  { "#q,#s,C", XOP1_BITS(1,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
+  { NULL, 0, 0},
+};
 
 static const my66000_fmt_spec_t ldm_fmt_list [] =
 {
@@ -2292,6 +2325,8 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { ldm_fmt_list,      MY66000_LDM   },
    { xop0_fmt_list,     MY66000_XOP0  },
    { ms_55_fmt_list,    MY66000_MS_55 },
+   { ms_58_fmt_list,    MY66000_MS_58 },
+   { ms_59_fmt_list,    MY66000_MS_59 },
    { NULL,	        MY66000_END   },
   };
 
@@ -2443,7 +2478,7 @@ my66000_is_loop (uint32_t iword)
   return major == 29;
 }
 
-/* Return the size field hidden in the opcode for the store immedaite
+/* Return the size field hidden in the opcode for the store immediate
    instruction.  */
 
 uint32_t

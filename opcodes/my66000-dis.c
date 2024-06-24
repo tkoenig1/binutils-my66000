@@ -237,15 +237,29 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	      }
 	    else
 	      {
-		out_fmt = op_info->oper == MY66000_OPS_I32_HEX ? "0x%8.8x" : "%d";
+		if (op_info->oper == MY66000_OPS_MSC32
+		    || op_info->oper == MY66000_OPS_MSD32)
+		  out_fmt = "%u";
+		else if (op_info->oper == MY66000_OPS_I32_HEX)
+		  out_fmt = "0x%8.8x";
+		else
+		  out_fmt = "%d";
 		fpr (stream, out_fmt, val_32);
 	      }
 
 	    continue;
+
 	  case 8:
 	    buf = op_info->seq == 1 ? buf1 : buf2;
 	    val_64 = bfd_getl64 (buf);
-	    out_fmt = op_info->oper == MY66000_OPS_I64_HEX ? "0x%16.16lx" : "%ld";
+
+	    if (op_info->oper == MY66000_OPS_I64_HEX)
+	      out_fmt = "0x%16.16lx";
+	    else if (op_info->oper == MY66000_OPS_MSC64 || op_info->oper == MY66000_OPS_MSD64)
+	      out_fmt = "%lu";
+	    else
+	      out_fmt = "%ld";
+
 	    fpr (stream, out_fmt, val_64);
 	    continue;
 	  default:

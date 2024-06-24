@@ -93,7 +93,9 @@ typedef enum my66000_encoding
  MY66000_NOP,      /* NOP instrucition - a special OR.  */
  MY66000_LDM,      /* Load and store multiple.  */
  MY66000_XOP0,     /* XOP0 group of shifts.  */
-
+ MY66000_MS_55,    /* MS for minor opcode 55.  */
+ MY66000_MS_58,    /* MS for minor opcode 58.  */
+ MY66000_MS_59,    /* MS for minor opcode 59.  */
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -187,6 +189,10 @@ typedef enum my66000_operands
  MY66000_OPS_LOOP_U,   /* LOOP condition, unsigned.  */
  MY66000_OPS_LOOP_S,   /* LOOP condition, signed.  */
  MY66000_OPS_I3,       /* 5-bit immediate SRC3.  */
+ MY66000_OPS_MSC32,    /* 32-bit counting value for MS, unsigned.  */
+ MY66000_OPS_MSC64,    /* 64-bit counting value for MS, unsigned.  */
+ MY66000_OPS_MSD32,    /* 32-bit data for MS, unsigned.  */
+ MY66000_OPS_MSD64,    /* 64-bit data for MS, unsigned.  */
  MY66000_OPS_END
 } my66000_operands;
 
