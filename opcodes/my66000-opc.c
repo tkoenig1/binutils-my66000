@@ -617,11 +617,11 @@ static const my66000_opc_info_t opc_op1[] =
  { NULL,   MAJOR(9) | MINOR (53), MY66000_BAD, NULL, 0, 0},
  { "mm",   MAJOR(9) | MINOR (54), MY66000_MM,  NULL, 0, 0},
  { "ms",   MAJOR(9) | MINOR (55), MY66000_MS_55, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (56), MY66000_BAD, NULL, 0, 0},
+ { "ms",   MAJOR(9) | MINOR (56), MY66000_MS_56, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (57), MY66000_BAD, NULL, 0, 0},
- { "ms",   MAJOR(9) | MINOR (58), MY66000_MS_58, NULL, 0, 0},
- { "ms",   MAJOR(9) | MINOR (59), MY66000_MS_59, NULL, 0, 0},
- { NULL,   MAJOR(9) | MINOR (60), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(9) | MINOR (58), MY66000_BAD, NULL, 0, 0},
+ { NULL,   MAJOR(9) | MINOR (59), MY66000_BAD, NULL, 0, 0},
+ { "ms",   MAJOR(9) | MINOR (60), MY66000_MS_60, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (61), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (62), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (63), MY66000_BAD, NULL, 0, 0},
@@ -833,8 +833,8 @@ static const my66000_opc_info_t opc_absf[] =
   {"abs",  MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_FCN(0), MY66000_ABS, NULL, 0, 0}, // + 0
   {"mov",  MAJOR(13) | MINOR(5) | SIGNED(1) | XOP5_FCN(0), MY66000_ABS, NULL, 0, 0},
   /* F = 1.  */
-  {"dabs", MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_FCN(1), MY66000_ABS, NULL, 0, 0}, // + 2
-  {"fabs", MAJOR(13) | MINOR(5) | SIGNED(1) | XOP5_FCN(1), MY66000_ABS, NULL, 0, 0},
+  {"fabs", MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_FCN(1), MY66000_ABS, NULL, 0, 0}, // + 2
+  {"fabsf", MAJOR(13) | MINOR(5) | SIGNED(1) | XOP5_FCN(1), MY66000_ABS, NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
 
@@ -1247,8 +1247,8 @@ static const my66000_opc_info_t opc_mod[] =
 
 static const my66000_opc_info_t opc_loop[] =
 {
-  {NULL,    MAJOR(21) | SIGNED(0),   MY66000_BAD, opc_loopu, 0, 0},
-  {NULL,    MAJOR(21) | SIGNED(1),   MY66000_BAD, opc_loops, 0, 0},
+  {NULL,    MAJOR(21) | SIGNED(0),   MY66000_BAD, opc_loopu, LOOP_MASK, LOOP_OFFS},
+  {NULL,    MAJOR(21) | SIGNED(1),   MY66000_BAD, opc_loops, LOOP_MASK, LOOP_OFFS},
  { NULL,   0,                        MY66000_END , NULL, 0, 0},
 };
 
@@ -1371,11 +1371,11 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_B16,    OPERAND_ENTRY (16,  0), "16-bit branch target",	  'I' },
  {MY66000_OPS_B26,    OPERAND_ENTRY (26,  0), "26-bit branch target",	  'J' },
  {MY66000_OPS_RBASE,  OPERAND_ENTRY ( 5, 16), "Base register",            'K' },
- {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate SRC1",    'L' },
+ {MY66000_OPS_I32_1,     0, 0, 4, 1,          "32-bit immediate pos 1",   'L' },
  {MY66000_OPS_I32_PCREL, 0, 0, 4, 1,          "32-bit immediate ip-rel",  'M' },
  {MY66000_OPS_SRC3,   OPERAND_ENTRY ( 5,  5), "Source register 3",        'N' },
  {MY66000_OPS_I32_HEX,   0, 0, 4, 1,          "32-bit float immediate",   'O' },
- {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate SRC1",    'P' },
+ {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate pos 1",   'P' },
  {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel",  'Q' },
  {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit float immediate",   'R' },
  {MY66000_OPS_IMM13,  OPERAND_ENTRY (13, 3),  "13-bit aligned immediate", 'S' },
@@ -1393,11 +1393,11 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '_' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "non-letter placeholder",   '\'' },
  {MY66000_OPS_FL_EXIT, OPERAND_ENTRY (3, 0),  "Exit flags",               'a' },
- {MY66000_OPS_UNUSED , 0, 0, 0, 0,            "unused",                   'b' },
+ {MY66000_OPS_I32_2 ,  0, 0, 4, 2,            "32-bit immediate pos 2",   'b' },
  {MY66000_OPS_CARRY,   OPERAND_ENTRY (16, 0), "carry list",               'c' },
  {MY66000_OPS_TF,      OPERAND_ENTRY (12, 0), "true-false predicate list",'d' },
  {MY66000_OPS_HRFCN,   OPERAND_ENTRY ( 5, 0), "HR function",              'e' },
- {MY66000_OPS_UNUSED,  OPERAND_ENTRY ( 4, 0), "also unused",              'f' },
+ {MY66000_OPS_I16_LO,  0, 0, 2, 1,            "low 16 bit of 32-bit constant", 'f' },
  {MY66000_OPS_INS,     0, 0, 4, 1,            "INS specifier",            'g' },
  {MY66000_OPS_VEC,     OPERAND_ENTRY (21, 0), "Vector bitfield",          'h' },
  {MY66000_OPS_UIMM16,  OPERAND_ENTRY (16, 0), "16-bit unsigned immediate",'i' },
@@ -1407,10 +1407,9 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_LOOP_U,  OPERAND_ENTRY ( 3,21), "LOOP condition, unsigned", 'm' },
  {MY66000_OPS_LOOP_S,  OPERAND_ENTRY ( 3,21), "LOOP condition, signed",   'n' },
  {MY66000_OPS_I3,      OPERAND_ENTRY ( 5, 5), "5-bit immediate SRC3",     'o' },
- {MY66000_OPS_MSC32,   0, 0, 4, 1,            "32-bit count for MS",      'p' },
- {MY66000_OPS_MSC64,   0, 0, 8, 1,            "64-bit count for MS",      'q' },
- {MY66000_OPS_MSD32,   0, 0, 4, 2,            "32-bit data for MS",       'r' },
- {MY66000_OPS_MSD64,   0, 0, 8, 2,            "64-bit data for MS",       's' },
+ {MY66000_OPS_I8_MS,   0, 0, 4, 2,            "8-bit immediate ms",       'p' },
+ {MY66000_OPS_I5_MS,   OPERAND_ENTRY ( 5,21), "5-bit immediate ms",       'q' },
+ {MY66000_OPS_I16_HI,  0, 0, 2, 2,            "high 16 bit of 32-bit constant", 'r' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -1823,13 +1822,13 @@ static const my66000_fmt_spec_t fmac_fmt_list [] =
 static const my66000_fmt_spec_t ins_fmt_list [] =
 {
  { "A,B,C,N",    XOP4_BITS (0,0,0), XOP4_FMT_MASK},
- { "A,B,C,-N",   XOP4_BITS (0,0,1), XOP4_FMT_MASK},
- { "A,B,-C,N",   XOP4_BITS (0,1,0), XOP4_FMT_MASK},
- { "A,B,-C,-N",  XOP4_BITS (0,1,1), XOP4_FMT_MASK},
- { "A,B,C,#<g>", XOP4_BITS (1,0,0), XOP4_FMT_MASK | SRC3_MASK},
- { "A,B,#O,N",   XOP4_BITS (1,0,1), XOP4_FMT_MASK | SRC2_MASK},
- { "A,B,C,#R",   XOP4_BITS (1,1,0), XOP4_FMT_MASK | SRC3_MASK},
- { "A,B,#R,N",   XOP4_BITS (1,1,1), XOP4_FMT_MASK | SRC2_MASK},
+ // { "A,B,C,-N",   XOP4_BITS (0,0,1), XOP4_FMT_MASK},
+ // { "A,B,-C,N",   XOP4_BITS (0,1,0), XOP4_FMT_MASK},
+ // { "A,B,-C,-N",  XOP4_BITS (0,1,1), XOP4_FMT_MASK},
+ { "A,B,C,#g", XOP4_BITS (1,0,0), XOP4_FMT_MASK | SRC3_MASK},
+ // { "A,B,#O,N",   XOP4_BITS (1,0,1), XOP4_FMT_MASK | SRC2_MASK},
+ // { "A,B,C,#R",   XOP4_BITS (1,1,0), XOP4_FMT_MASK | SRC3_MASK},
+ // { "A,B,#R,N",   XOP4_BITS (1,1,1), XOP4_FMT_MASK | SRC2_MASK},
  { NULL,       0, 0},
 };
 
@@ -1892,20 +1891,14 @@ static const my66000_fmt_spec_t xop0_fmt_list[] =
 /* Prediate on bit set, bits 0-31  */
 static const my66000_fmt_spec_t pb1a_fmt_list[] =
 {
-  { "H,B,d", 0, THEN_FMT_MASK_7 | ELSE_FMT_MASK_7},
-  { "H,B,d", 0, THEN_FMT_MASK_7 | ELSE_FMT_MASK_8},
-  { "H,B,d", 0, THEN_FMT_MASK_8 | ELSE_FMT_MASK_7},
-  { "H,B,d", 0, THEN_FMT_MASK_8 | ELSE_FMT_MASK_8},
+  { "H,B,d", 0, 0},
  { NULL,        0, 0},
 };
 
 /* Prediate on bit set, bits 32-64  XXX */
 static const my66000_fmt_spec_t pb1b_fmt_list[] =
 {
-  { "Z,B,d", 0, THEN_FMT_MASK_7 | ELSE_FMT_MASK_7},
-  { "Z,B,d", 0, THEN_FMT_MASK_7 | ELSE_FMT_MASK_8},
-  { "Z,B,d", 0, THEN_FMT_MASK_8 | ELSE_FMT_MASK_7},
-  { "Z,B,d", 0, THEN_FMT_MASK_8 | ELSE_FMT_MASK_8},
+  { "Z,B,d", 0, 0},
  { NULL,        0, 0},
 };
 
@@ -2012,52 +2005,51 @@ static const my66000_fmt_spec_t empty_fmt_list[] =
  { NULL, 0, 0},
 };
 
-/* Ordering of the operands for mm is "mm Rcount, Rfrom, Rto", hence
-   the strange ordering below.  Also, we use the unsigned float below;
-   the disassembler will then display this as hex, but so what.
-   FIXME: change to OPS_MSC*.  */
+/* mm.  The ordering is Rto (SRC2), Rfrom (DST), Rcount (SRC1).  */
 
 static const my66000_fmt_spec_t mm_fmt_list [] =
 {
-  { "B,A,C",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
-  { "#F,A,C", XOP1_BITS(0,1), XOP1_FLAGS_MASK},
-  { "#O,A,C", XOP1_BITS(1,0), XOP1_FLAGS_MASK | SRC1_MASK },
-  { "#P,A,C", XOP1_BITS(1,1), XOP1_FLAGS_MASK | SRC1_MASK },
+  { "C,A,B",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
+  { "C,A,#L", XOP1_BITS(1,0), XOP1_FLAGS_MASK | SRC1_MASK },
+  { "C,A,#P", XOP1_BITS(1,1), XOP1_FLAGS_MASK | SRC1_MASK },
  { NULL, 0, 0},
 };
 
-/* Section with mm.  This also has
+/* Section with mm.  */
 
-   ms  Rcount, Rfrom, Rto
+/* Minor opcode 55 (110111) - Source is register, ordering is
+
+   ms	Rto (SRC2), Rval (DST), Rcount (SRC1).
 
 */
+
 static const my66000_fmt_spec_t ms_55_fmt_list[] =
 {
-  { "B,A,C",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
+  { "C,A,B",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
+  { "C,A,#L", XOP1_BITS(1,0), XOP1_FLAGS_MASK | SRC1_MASK },
+  { "C,A,#P", XOP1_BITS(1,1), XOP1_FLAGS_MASK | SRC1_MASK },
   { NULL, 0, 0},
 };
 
-/* Cases here are as follows:
-   Count from SRC1 (B), 32-bit data from position 1, Rto  (D=0 and d=0)
-   32-bit count from position 1, 32-bit data from position 2, Rto (D=0 and d=1)
-   64-bit count from position 1, 32-bit data from position 2, Rto (D=1 and d=1)
- */
 
-static const my66000_fmt_spec_t ms_58_fmt_list[] =
+/* Minor opcode 56 (111000) - Source is 8-bit data in a 32-bit
+   container.  */
+
+static const my66000_fmt_spec_t ms_56_fmt_list[] =
 {
-  { "B,#r,C", XOP1_BITS(0,0), XOP1_FLAGS_MASK | DST_MASK },
-  { "#p,#r,C", XOP1_BITS(0,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
-  { "#q,#r,C", XOP1_BITS(1,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
+  { "C,#p,B",  XOP1_BITS(0,0), XOP1_FLAGS_MASK | DST_MASK },
+  { "C,#p,#L", XOP1_BITS(1,0), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
+  { "C,#p,#P", XOP1_BITS(1,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
   { NULL, 0, 0},
 };
 
-/* Same here, for minor opcode 59 (data is 64 bit).  */
+/* Same here, for minor opcode 56, data is signed 5-bit immediate.  */
 
-static const my66000_fmt_spec_t ms_59_fmt_list[] =
+static const my66000_fmt_spec_t ms_60_fmt_list[] =
 {
-  { "B,#s,C", XOP1_BITS(0,0), XOP1_FLAGS_MASK | DST_MASK },
-  { "#p,#s,C", XOP1_BITS(0,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
-  { "#q,#s,C", XOP1_BITS(1,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
+  { "C,#q,B",  XOP1_BITS(0,0), XOP1_FLAGS_MASK },
+  { "C,#q,#L", XOP1_BITS(1,0), XOP1_FLAGS_MASK | SRC1_MASK },
+  { "C,#q,#P", XOP1_BITS(1,1), XOP1_FLAGS_MASK | SRC1_MASK },
   { NULL, 0, 0},
 };
 
@@ -2213,32 +2205,42 @@ static const my66000_fmt_spec_t vec32_fmt_list[] =
   { NULL, 0, 0},
 };
 
-/* LOOP uses the same bits as XOP4.  */
+/* LOOP uses the same bits as XOP4.  It also has some bits forced to
+zero, to pad out the KIND number.  */
+
+#define LOOP_KIND_MASK (3 << 24)
 
 static const my66000_fmt_spec_t loopu_fmt_list[] =
 {
-  { "m,B,N,C",   XOP4_BITS (0, 0, 0), XOP4_FMT_MASK},
-  { "m,B,N,#G",  XOP4_BITS (0, 0, 1), XOP4_FMT_MASK},
-  { "m,B,#o,C",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK},
-  { "m,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK},
-  { "m,B,N,#L",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | SRC2_MASK},
-  { "m,B,#L,C",  XOP4_BITS (1, 0, 1), XOP4_FMT_MASK | SRC3_MASK},
-  { "m,B,#T,#L", XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | SRC2_MASK | SRC3_MASK},
-  { "m,B,#1,#P", XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | SRC2_MASK},
+  { "m,B,N,C",   XOP4_BITS (0, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
+  { "m,B,#o,C",  XOP4_BITS (0, 0, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
+  { "m,B,N,#G",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
+  { "m,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
+
+  { "m,B,#L,C",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
+  { "m,B,N,#L",  XOP4_BITS (1, 0, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
+  { "m,B,#f,#r", XOP4_BITS (1, 0, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
+  { "m,B,#P,C",  XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
+  { "m,B,N,#P",  XOP4_BITS (1, 1, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
+  { "m,B,#b,#L", XOP4_BITS (1, 1, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
   { NULL, 0, 0},
 };
 
 static const my66000_fmt_spec_t loops_fmt_list[] =
 {
-  { "n,B,N,C",  XOP4_BITS (0, 0, 0), XOP4_FMT_MASK},
-  { "n,B,N,#G", XOP4_BITS (0, 0, 1), XOP4_FMT_MASK},
-  { "n,B,#o,C",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK},
-  { "n,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK},
-  { "n,B,N,#L",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | SRC2_MASK},
-  { "n,B,#L,C",  XOP4_BITS (1, 0, 1), XOP4_FMT_MASK | SRC3_MASK},
-  { "n,B,#T,#L", XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | SRC2_MASK | SRC3_MASK},
-  { "n,B,#1,#P", XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | SRC2_MASK},
-  { NULL, 0, 0},
+  { "n,B,N,C",   XOP4_BITS (0, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
+  { "n,B,#o,C",  XOP4_BITS (0, 0, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
+  { "n,B,N,#G",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
+  { "n,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
+
+  { "n,B,#L,C",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
+  { "n,B,N,#L",  XOP4_BITS (1, 0, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
+  { "n,B,#f,#r", XOP4_BITS (1, 0, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
+  { "n,B,#P,C",  XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
+  { "n,B,N,#P",  XOP4_BITS (1, 1, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
+  { "n,B,#b,#L", XOP4_BITS (1, 1, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
+
+   { NULL, 0, 0},
 };
 
 static const my66000_fmt_spec_t svc_fmt_list[] =
@@ -2325,8 +2327,8 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { ldm_fmt_list,      MY66000_LDM   },
    { xop0_fmt_list,     MY66000_XOP0  },
    { ms_55_fmt_list,    MY66000_MS_55 },
-   { ms_58_fmt_list,    MY66000_MS_58 },
-   { ms_59_fmt_list,    MY66000_MS_59 },
+   { ms_56_fmt_list,    MY66000_MS_56 },
+   { ms_60_fmt_list,    MY66000_MS_60 },
    { NULL,	        MY66000_END   },
   };
 

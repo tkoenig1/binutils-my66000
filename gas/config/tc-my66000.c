@@ -274,7 +274,7 @@ md_begin (void)
 
       count ++;
     }
-#if 0
+#if 1
   /* Apply some sanity checks to make sure the internal data
      structures are in a consistent state.  */
 
@@ -826,20 +826,25 @@ match_ins_width (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, 1, 64);
 }
 
-/* Match an INS pattern <width:offset>.  */
+/* Match an INS pattern, o,#w.  Dept. of dirty tricks: This breaks
+   only matching single operands, but anything else would be too
+   complicated for now.  */
 
 static uint32_t
 match_ins (char **ptr, char **errmsg, expressionS *ex)
 {
   uint32_t width, offset;
-  width = match_ins_width (ptr, errmsg);
+  offset = match_6bit (ptr, errmsg);
   if (*errmsg)
     return 0;
 
-  match_character (':', ptr, errmsg);
+  match_character (',', ptr, errmsg);
+  match_character ('#', ptr, errmsg);
   if (*errmsg)
     return 0;
-  offset = match_6bit (ptr, errmsg);
+
+  width = match_ins_width (ptr, errmsg);
+
   if (*errmsg)
     return 0;
 
@@ -952,10 +957,10 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_I1:
 	case MY66000_OPS_I2:
 	case MY66000_OPS_I3:
+	case MY66000_OPS_BB1A:
 	  bits = match_5bitu (&sp, errmsg);
 	  break;
 
-	case MY66000_OPS_BB1A:
 	case MY66000_OPS_SI5:
 	  bits = match_5bits (&sp, errmsg);
 	  break;
@@ -965,6 +970,9 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 
 	case MY66000_OPS_WIDTH:
+	  bits = match_integer (&sp, errmsg, 0, 64) & 63;
+	  break;
+	  
 	case MY66000_OPS_OFFSET:
 	  bits = match_6bit (&sp, errmsg);
 	  break;
@@ -1064,6 +1072,38 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = 0;
 	  break;
 
+	case MY66000_OPS_I32_2:
+	  match_32_bit_or_label (&sp, errmsg, &imm_st);
+	  if (*errmsg)
+	    break;
+	  imm_st_size = 4;
+	  bits = 0;
+	  break;
+
+	case MY66000_OPS_I16_HI:
+	  {
+	    uint16_t hi;
+	    hi = match_16bit (&sp, errmsg);
+	    if (*errmsg)
+	      break;
+	    val_imm |= (hi << 16);
+	    imm_size = 4;
+	    bits = 0;
+	    break;
+	  }
+
+	case MY66000_OPS_I16_LO:
+	  {
+	    uint16_t lo;
+	    lo = match_16bit (&sp, errmsg);
+	    if (*errmsg)
+	      break;
+	    val_imm |= lo;
+	    imm_size = 4;
+	    bits = 0;
+	    break;
+	  }
+
 	case MY66000_OPS_VEC32:
 	  val_imm = match_vec (&sp, errmsg, rname_map);
 	  if (*errmsg)
@@ -1074,7 +1114,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  imm.X_add_number = val_imm;
 	  break;
 
-	case MY66000_OPS_MSC32:
 	case MY66000_OPS_I32_HEX:
 	  val_imm = match_32_bit_vanilla (&sp, errmsg, &imm);
 	  if (*errmsg)
@@ -1091,7 +1130,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = 0;
 	  break;
 
-	case MY66000_OPS_MSC64:
 	case MY66000_OPS_I64_HEX:
 	  val_imm = match_64_bit_vanilla (&sp, errmsg, &imm);
 	  if (*errmsg)
@@ -1130,17 +1168,46 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	  break;
 
-	case MY66000_OPS_MSD32:
-	  match_integer_expr_ex (&sp, errmsg, INT32_MIN, UINT32_MAX, &imm_st);
+	case MY66000_OPS_I8_MS:
+	  {
+	    uint8_t u;
 
-	  if (*errmsg)
+	    match_64_bit_vanilla (&sp, errmsg, &imm_st);
+	    if (*errmsg)
+	      break;
+
+	    u = imm_st.X_add_number;
+	    if (u < 16 || u >= (uint8_t) -16)
+	      {
+		snprintf (errbuf, sizeof(errbuf),
+			  (_("Number could fit in five bits: %u")), u);
+		*errmsg = errbuf;
+		break;
+	      }
+	    imm_st.X_add_number = u;
+	    imm_st_size = 4;
+	    bits = 0;
 	    break;
-	  imm_st_size = 4;
-	  bits = 0;
-	  break;
+	  }
+	case MY66000_OPS_I5_MS:
+	  {
+	    uint8_t u;
+	    match_64_bit_vanilla (&sp, errmsg, &imm_st);
+	    u = imm_st.X_add_number;
+	    if (*errmsg)
+	      break;
+	    if (u >= 16 && u < (uint8_t) -16)
+	      {
+		snprintf (errbuf, sizeof(errbuf),
+			  (_("Number does not fit in five bits: %u")), u);
+		*errmsg = errbuf;
+		break;
+	      }
+	    bits = u & 0x1f;
+	    break;
+	  }
 
 	case MY66000_OPS_I64_ST:
-	case MY66000_OPS_MSD64:
 	  match_64_bit_vanilla (&sp, errmsg, &imm_st);
 	  if (*errmsg)
 	    break;
@@ -1259,8 +1326,12 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
       else
 	as_fatal ("Weird expression value");
     }
-  //  fprintf (stderr,"%s:\t%s\timm_size = %d\n", str, spec->fmt,imm_size);
-  // fprintf (stderr,"%s:\t%s\timm_st_size = %d\n", str, spec->fmt,imm_st_size);
+#if 0
+  fprintf (stderr,"%s:\t%s\timm_size = %d val_imm = %lu\n",
+	   str, spec->fmt,imm_size, val_imm);
+  fprintf (stderr,"%s:\t%s\timm_st_size = %d add_number = %lu\n",
+	   str, spec->fmt,imm_st_size, imm_st.X_add_number);
+#endif
   return;
 }
 

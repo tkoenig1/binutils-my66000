@@ -67,7 +67,7 @@ print_ins (uint32_t ins)
     width = 64;
 
   offset = ins & 0x3f;
-  fpr (stream, "%d:%d", width, offset);
+  fpr (stream, "%d,#%d", offset, width);
 }
 
 /* Sign-extend an n-bit value, for offsets.  */
@@ -107,14 +107,21 @@ print_vec (uint32_t ins, bool use_vec)
 static void
 print_tf (uint32_t v)
 {
-  int n_then = v & 63;
-  int n_else = v >> 6;
+  unsigned int n_then = v & 63;
+  unsigned int n_else = v >> 6;
 
-  for (int i=0; i<n_then; i++)
-    fpr (stream, "%c", 'T');
+  if (n_then + n_else > 8)
+    {
+      fpr (stream, "<invalid>");
+    }
+  else
+    {
+      for (unsigned int i=0; i<n_then; i++)
+	fpr (stream, "%c", 'T');
 
-  for (int i=0; i<n_else; i++)
-    fpr (stream, "%c", 'F');
+      for (unsigned int i=0; i<n_else; i++)
+	fpr (stream, "%c", 'F');
+    }
 
 }
 
@@ -164,6 +171,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
   if (*fmt == '\0')
     return 0;
 
+  memset(buf1,'1',8);
+  memset(buf2,'2',8);
   fpr (stream, "%c",'\t');
 
   size_1 = size_2 = 0;
@@ -224,6 +233,11 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	  {
 	  case 0:
 	    break;
+	  case 2:
+	    buf = op_info->seq == 1 ? buf1 : buf2;
+	    v = bfd_getl16 (buf);
+	    fpr (stream, "%d", v);
+	    continue;
 	  case 4:
 	    buf = op_info->seq == 1 ? buf1 : buf2;
 	    val_32 = bfd_getl32 (buf);
@@ -237,10 +251,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	      }
 	    else
 	      {
-		if (op_info->oper == MY66000_OPS_MSC32
-		    || op_info->oper == MY66000_OPS_MSD32)
-		  out_fmt = "%u";
-		else if (op_info->oper == MY66000_OPS_I32_HEX)
+		if (op_info->oper == MY66000_OPS_I32_HEX)
 		  out_fmt = "0x%8.8x";
 		else
 		  out_fmt = "%d";
@@ -255,8 +266,6 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 
 	    if (op_info->oper == MY66000_OPS_I64_HEX)
 	      out_fmt = "0x%16.16lx";
-	    else if (op_info->oper == MY66000_OPS_MSC64 || op_info->oper == MY66000_OPS_MSD64)
-	      out_fmt = "%lu";
 	    else
 	      out_fmt = "%ld";
 
@@ -304,20 +313,31 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    fpr (stream, "%d", v);
 	    break;
 
+	  case MY66000_OPS_I5_MS:
+	    v = sign_extend (val, 5);
+	    fpr (stream, "%u", (uint8_t) v);
+	    break;
+
 	  case MY66000_OPS_IMM13:
 	    /* Special case, the lower-order bits are used as flags.  */
 	    val &= ~0x7;
 	    /* Fallthrough */
 
+	    /* An integer constant.  */
+
 	  case MY66000_OPS_IMM16:
 	  case MY66000_OPS_BB1A:
-	  case MY66000_OPS_WIDTH:
 	  case MY66000_OPS_OFFSET:
 	  case MY66000_OPS_FL_ENTER:
 	  case MY66000_OPS_FL_EXIT:
 	  case MY66000_OPS_MSCALE:
-	    /* An integer constant.  */
+
 	    v = val;
+	    fpr (stream, "%d", v);
+	    break;
+
+	  case MY66000_OPS_WIDTH:
+	    v = val == 0 ? 64 : val;
 	    fpr (stream, "%d", v);
 	    break;
 
@@ -567,7 +587,9 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
 
  error:
   fpr (stream, ".word\t%8.8x", iword);
+#if 0
   fprintf (stderr, "Unrecognized instruction %8.8x\n", iword);
+#endif
   return length;
 
  fail:
