@@ -1023,10 +1023,10 @@ static const my66000_opc_info_t opc_bcnd[] =
  { "bfle", MAJOR(26) | CND_MINOR (21), MY66000_BC,  NULL, 0, 0},
  { "bfor", MAJOR(26) | CND_MINOR (22), MY66000_BC,  NULL, 0, 0},
  { "bfun", MAJOR(26) | CND_MINOR (23), MY66000_BC,  NULL, 0, 0},
- { "bin",  MAJOR(26) | CND_MINOR (24), MY66000_BC,  NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
+ { "bsin", MAJOR(26) | CND_MINOR (24), MY66000_BC,  NULL, 0, 0},
+ { "bfin", MAJOR(26) | CND_MINOR (25), MY66000_BC,  NULL, 0, 0},
+ { "bcin", MAJOR(26) | CND_MINOR (26), MY66000_BC,  NULL, 0, 0},
+ { "brin", MAJOR(26) | CND_MINOR (27), MY66000_BC,  NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
  { "svr",  MAJOR(26) | CND_MINOR (29), MY66000_SVC, NULL, 0, 0},
  { "svc",  MAJOR(26) | CND_MINOR (30), MY66000_SVC, NULL, 0, 0},
@@ -1060,16 +1060,15 @@ static const my66000_opc_info_t opc_pcnd[] =
  { "pfle", MAJOR(6) | SHFT_MINOR(1) | CND_MINOR (21), MY66000_PC,  NULL, 0, 0},
  { "pfor", MAJOR(6) | SHFT_MINOR(1) | CND_MINOR (22), MY66000_PC,  NULL, 0, 0},
  { "pfun", MAJOR(6) | SHFT_MINOR(1) | CND_MINOR (23), MY66000_PC,  NULL, 0, 0},
- { "pin",  MAJOR(6) | SHFT_MINOR(1) | CND_MINOR (24), MY66000_PC,  NULL, 0, 0},
+ { "psin", MAJOR(6) | SHFT_MINOR(1) | CND_MINOR (24), MY66000_PC,  NULL, 0, 0},
+ { "pfin", MAJOR(6) | SHFT_MINOR(1) | CND_MINOR (25), MY66000_PC,  NULL, 0, 0},
+ { "pcin", MAJOR(6) | SHFT_MINOR(1) | CND_MINOR (26), MY66000_PC,  NULL, 0, 0},
+ { "prin", MAJOR(6) | SHFT_MINOR(1) | CND_MINOR (27), MY66000_PC,  NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { NULL,   0,              MY66000_END,   NULL, 0, 0}
+ { NULL,    0,                         MY66000_END,   NULL, 0, 0}
 };
 
 static const my66000_opc_info_t opc_tt[] = {
