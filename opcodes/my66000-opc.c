@@ -1793,12 +1793,12 @@ static const my66000_fmt_spec_t si5_fmt_list [] =
  { "#j,[K,D<<k]",   XOP1_BITS(0,0), MRR_FMT_MASK},
  { "#j,[K,D<<k,0]", XOP1_BITS(0,0), MRR_FMT_MASK},
 
- { "#j,[K,M]",      XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK},
+ { "#j,[K,M]",      XOP1_BITS(1,0), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK},
  { "#j,[K,Q]",      XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK | RIND_ZERO_MASK},
 
- { "#j,[K,D,M]",    XOP1_BITS(0,1), MRR_FMT_MASK | XOP1_SCALE_MASK},
+ { "#j,[K,D,M]",    XOP1_BITS(1,0), MRR_FMT_MASK | XOP1_SCALE_MASK},
  { "#j,[K,D,Q]",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK},
- { "#j,[K,D<<k,M]", XOP1_BITS(0,1), MRR_FMT_MASK},
+ { "#j,[K,D<<k,M]", XOP1_BITS(1,0), MRR_FMT_MASK},
  { "#j,[K,D<<k,Q]", XOP1_BITS(1,1), MRR_FMT_MASK},
  { NULL, 0, 0},
 };

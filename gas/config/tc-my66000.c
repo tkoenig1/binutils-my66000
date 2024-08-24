@@ -165,9 +165,34 @@ md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
 
 static htab_t s_opc_map[N_MAP];
 
+#define COUNT_VARIANTS 0
+
+long int num_instr;
+
+static void
+count_instruction_variants (const my66000_opc_info_t *opc)
+{
+  my66000_encoding enc;
+  const my66000_opcode_fmt_t *fmtlist;
+  const my66000_fmt_spec_t *spec;
+
+  enc = opc->enc;
+  fmtlist = &my66000_opcode_fmt[enc];
+  spec = fmtlist->spec;
+
+  if (spec == NULL || spec->fmt == NULL || spec->fmt[0] == '\0')
+    {
+      num_instr ++;
+      return;
+    }
+  for (spec = fmtlist->spec; spec->fmt; spec++)
+    num_instr ++;
+}
+
 static void
 build_opc_hashes (const my66000_opc_info_t * table)
 {
+
   for (int i = 0; table[i].enc != MY66000_END; i++)
     {
       //      void ** slot;
@@ -181,14 +206,14 @@ build_opc_hashes (const my66000_opc_info_t * table)
 	  /* Loop over the N_MAP available hashmaps and look for a place
 	     to store the name.  */
 
+	  if (COUNT_VARIANTS)
+	    count_instruction_variants (&table[i]);
+
 	  for (j = 0; j < N_MAP; j++)
 	    {
 	      void *ptr = str_hash_find (s_opc_map[j], table[i].name);
 	      if (ptr == NULL)
 		{
-		  //		  if (j==0)
-		  //		    printf("%s\n",table[i].name);
-
 		  str_hash_insert (s_opc_map[j], table[i].name,
 				   (void *) &table[i], 0);
 		  break;
@@ -274,6 +299,9 @@ md_begin (void)
 
       count ++;
     }
+  if (COUNT_VARIANTS)
+    fprintf (stderr,"%ld different instructions found\n", num_instr);
+
 #if 1
   /* Apply some sanity checks to make sure the internal data
      structures are in a consistent state.  */
