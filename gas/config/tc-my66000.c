@@ -1505,7 +1505,6 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
   rel->address = fixp->fx_frag->fr_address + fixp->fx_where;
 
   r_type = fixp->fx_r_type;
-  rel->addend = fixp->fx_addnumber;
   rel->howto = bfd_reloc_type_lookup (stdoutput, r_type);
 
   if (rel->howto == NULL)
@@ -1517,7 +1516,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
       rel->howto = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_32);
       assert (rel->howto != NULL);
     }
-
+  rel->addend = fixp->fx_addnumber; //  >> rel->howto->rightshift;
   return rel;
 }
 
@@ -1575,6 +1574,20 @@ known_frag_symbol (fragS *fragP, segT segment)
     && segment == S_GET_SEGMENT (fragP->fr_symbol);
 }
 
+/* Check the range for diferent relocaltions shifted by two.  */
+
+static void
+check_reloc_range (valueT valu, int bits, fixS *fixP)
+{
+  offsetT vmax = ((valueT) 1 << (bits + 1)) - 1;
+  offsetT vmin = - ((valueT) 1 << (bits + 1));
+  offsetT vals = (offsetT) valu;
+  if (vals < vmin || vals > vmax)
+    as_bad_where (fixP->fx_file, fixP->fx_line,
+		  "relocation overflow: %ld not between %ld and %ld",
+		  (long int) vals, (long int) vmin, (long int) vmax);
+}
+
 void
 md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 {
@@ -1588,17 +1601,23 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 
   //  fprintf (stderr,"md_apply_fix: *valP = %ld\n", *valP);
   /* FIXME: Look up the masks etc from the tables, eventually.  */
+  /* For the fixups that are shifted, we do the range checking here.  */
+
   switch (fixP->fx_r_type)
     {
     case BFD_RELOC_26_PCREL_S2:
+      check_reloc_range (*valP, 26, fixP);
       iword = (uint32_t) bfd_getl32 (buf);
       iword |= (*valP >> 2) & 0x3ffffff;
       bfd_putl32 ((bfd_vma) iword, buf);
+      fixP ->fx_no_overflow = 1;
       break;
 
     case BFD_RELOC_16_PCREL_S2:
+      check_reloc_range (*valP, 16, fixP);
       val16 = *valP >> 2;
       bfd_putl16 ((bfd_vma) val16, buf);
+      fixP ->fx_no_overflow = 1;
       break;
 
     case BFD_RELOC_32_PCREL:
@@ -1606,8 +1625,10 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
       break;
 
     case BFD_RELOC_32_PCREL_S2:
+      check_reloc_range (*valP, 32, fixP);
       val32 = *valP >> 2;
       bfd_putl32 ((bfd_vma) val32, buf);
+      fixP ->fx_no_overflow = 1;
       break;
 
     case BFD_RELOC_64_PCREL:
@@ -1619,8 +1640,10 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
       break;
 
     case BFD_RELOC_8_PCREL_S2:
+      check_reloc_range (*valP, 8, fixP);
       val8 = *valP >> 2;
       *buf = val8;
+      fixP ->fx_no_overflow = 1;
       break;
 
     case BFD_RELOC_16:
@@ -1643,6 +1666,7 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
   if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
     fixP->fx_done = 1;
 
+  return;
 }
 
 /* Calculate the length of an IP-relative offset that can be
