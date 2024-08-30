@@ -1071,11 +1071,25 @@ static const my66000_opc_info_t opc_pcnd[] =
  { NULL,    0,                         MY66000_END,   NULL, 0, 0}
 };
 
+/* Implementing a far branch as a jtt with just a default jump
+   table. */
+
+static const my66000_opc_info_t opc_br_far4[] =
+{
+  {"br", MAJOR(27) | TT_SIZE(2), MY66000_BR_FAR8, NULL, 0, 0},
+  { NULL,		      0, MY66000_END,	  NULL, 0, 0}
+};
+
+static const my66000_opc_info_t opc_br_far8[] = {
+  {"br", MAJOR(27) | TT_SIZE(3), MY66000_BR_FAR8, NULL, 0, 0},
+  { NULL,   		      0, MY66000_END,	  NULL, 0, 0}
+};
+
 static const my66000_opc_info_t opc_tt[] = {
- {"jttb", MAJOR(27) | TT_SIZE(0), MY66000_TT,  NULL, 0, 0},
- {"jtth", MAJOR(27) | TT_SIZE(1), MY66000_TT,  NULL, 0, 0},
- {"jttw", MAJOR(27) | TT_SIZE(2), MY66000_TT,  NULL, 0, 0},
- {"jttd", MAJOR(27) | TT_SIZE(3), MY66000_TT,  NULL, 0, 0},
+ {"jttb", MAJOR(27) | TT_SIZE(0), MY66000_TT,	     NULL, 0, 0},
+ {"jtth", MAJOR(27) | TT_SIZE(1), MY66000_TT,	     NULL, 0, 0},
+ {"jttw", MAJOR(27) | TT_SIZE(2), MY66000_TT, opc_br_far4, 0, 0},
+ {"jttd", MAJOR(27) | TT_SIZE(3), MY66000_TT, opc_br_far8, 0, 0},
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
 
@@ -2257,6 +2271,20 @@ static const my66000_fmt_spec_t nop_fmt_list[] =
   { NULL, 0, 0},
 };
 
+#define BRFAR_MASK (((1u << 21) - 1) | (7u<<23))
+
+static const my66000_fmt_spec_t br_far4_fmt_list[] =
+{
+  {"M", 0, BRFAR_MASK},
+  { NULL, 0, 0},
+};
+
+static const my66000_fmt_spec_t br_far8_fmt_list[] =
+{
+  {"Q", 0, BRFAR_MASK},
+  { NULL, 0, 0},
+};
+
 /* Where to look up the operand list for a certain instruction
    format.  Warning: Keep this table in the same order as enum
    my66000_encoding in include/opcode/my66000.h, this will be checked
@@ -2328,6 +2356,8 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { ms_55_fmt_list,    MY66000_MS_55 },
    { ms_56_fmt_list,    MY66000_MS_56 },
    { ms_60_fmt_list,    MY66000_MS_60 },
+   { br_far4_fmt_list,  MY66000_BR_FAR4 },
+   { br_far8_fmt_list,  MY66000_BR_FAR8 },
    { NULL,	        MY66000_END   },
   };
 
@@ -2387,7 +2417,7 @@ my66000_set_imm_size (uint32_t iword, uint32_t size)
 bool
 my66000_is_tt (uint32_t iword)
 {
-  return ((iword ^ MAJOR(27)) & MAJOR_MASK) == 0;
+  return (((iword ^ MAJOR(27)) & MAJOR_MASK) == 0) && !my66000_is_branch (iword);
 }
 
 /* Return size the of the TT .jt "arguments" from the
@@ -2500,6 +2530,29 @@ my66000_is_call (uint32_t iword)
   return major == 31 || (major == 9 && minor == 39);
 }
 
+/* Is this a BR instruction?  */
+
+bool
+my66000_is_branch (uint32_t iword)
+{
+  uint32_t major = (iword & MAJOR_MASK) >> MY66000_MAJOR_SHIFT;
+  uint32_t tt_sz;
+
+  if (major == 30)
+    return 1;
+
+  if (major != 27)
+    return 0;
+
+  tt_sz = (iword & TT_SIZE_MASK) >> TT_SIZE_OFFS;
+  if (tt_sz != 2 && tt_sz != 3)
+    return 0;
+
+  if ((iword & BRFAR_MASK) != 0)
+    return 0;
+
+  return 1;
+}
 /* Return the iword for a CALL offset or CALA [ip,offset].  */
 
 uint32_t
@@ -2507,7 +2560,7 @@ my66000_get_call (int size)
 {
   uint32_t ret;
 
-  switch(size)
+  switch (size)
     {
     case 0:
       ret = MAJOR(31);
@@ -2519,7 +2572,33 @@ my66000_get_call (int size)
       ret = MAJOR(9) | MINOR(39) | XOP1_D(1) | XOP1_D(0);
       break;
     default:
-      abort();
+      fprintf (stderr, "Internal error: my66000_get_call\n");
+      exit (EXIT_FAILURE);
+    }
+  return ret;
+}
+
+/* Similar, but for branches.  */
+
+
+uint32_t
+my66000_get_branch (int size)
+{
+  uint32_t ret;
+  switch (size)
+    {
+    case 0:
+      ret = MAJOR (30);
+      break;
+    case 4:
+      ret = MAJOR (27) | TT_SIZE (2);
+      break;
+    case 8:
+      ret = MAJOR (27) | TT_SIZE (3);
+      break;
+    default:
+      fprintf (stderr, "Internal error: my66000_get_branch\n");
+      exit (EXIT_FAILURE);
     }
   return ret;
 }

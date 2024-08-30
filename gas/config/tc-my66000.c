@@ -40,18 +40,27 @@ const char FLT_CHARS[] = "dDeExXpP";
 /* Target specific command line options.  */
 enum options
 {
-  OPTION_RELAX = OPTION_MD_BASE,
-  OPTION_NO_RELAX
+  OPTION_MCMODEL = OPTION_MD_BASE,
 };
 
 struct option md_longopts[] =
 {
+  {"mcmodel", required_argument, NULL, OPTION_MCMODEL},
   {NULL, no_argument, NULL, 0}
 };
 
 size_t md_longopts_size = sizeof (md_longopts);
 
 const char *md_shortopts = "";
+
+enum memory_model
+  {
+    TINY = 0,
+    SMALL = 4,
+    LARGE = 8,
+  };
+
+enum memory_model mcmodel = SMALL;
 
 /* Stuff for handling the pseudo-ops.  */
 static void handle_jt (int);
@@ -146,7 +155,22 @@ md_atof (int type, char *litP, int *sizeP)
 int
 md_parse_option (int c ATTRIBUTE_UNUSED, const char *arg ATTRIBUTE_UNUSED)
 {
-  return 0;
+  switch (c)
+    {
+    case OPTION_MCMODEL:
+      if (strcasecmp (arg, "tiny") == 0)
+	mcmodel = TINY;
+      else if (strcasecmp (arg, "small") == 0)
+	mcmodel = SMALL;
+      else if (strcasecmp (arg, "large") == 0)
+	mcmodel = LARGE;
+      else
+	as_fatal (_("invalid -mcmodel= option: `%s'"), arg);
+      break;
+    default:
+      return 0;
+    }
+  return 1;
 }
 
 void
@@ -897,6 +921,10 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
 #define RELAX_CALL		4
 #define RELAX_CALL_IMM4		5
 #define RELAX_CALL_IMM8		6
+#define RELAX_BR		7
+#define RELAX_BR_IMM4		8
+#define RELAX_BR_IMM8		9
+
 
 /* Attempt a match of the arglist pointed to by str against fmt.  If
    errmsg is set, the match was a failure; otherwise issue issue the
@@ -1000,7 +1028,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_WIDTH:
 	  bits = match_integer (&sp, errmsg, 0, 64) & 63;
 	  break;
-	  
+
 	case MY66000_OPS_OFFSET:
 	  bits = match_6bit (&sp, errmsg);
 	  break;
@@ -1069,10 +1097,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_B26:
 	  {
 	    expressionS ex;
+	    int relax;
+
 	    bits = match_26bit_or_label (&sp, errmsg, &ex);
 	    if (*errmsg)
 	      break;
 
+	    relax = my66000_is_call (iword) ? RELAX_CALL : RELAX_BR;
 	    if (ex.X_op == O_symbol)
 	      {
 		dwarf2_emit_insn (0);
@@ -1080,7 +1111,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 		frag_var (rs_machine_dependent,
 			  12,
 			  8,
-			  RELAX_CALL,
+			  relax,
 			  ex.X_add_symbol,
 			  ex.X_add_number,
 			  opc_pos (p));
@@ -1544,6 +1575,9 @@ md_pcrel_from_section (fixS *fixP, segT sec)
     case RELAX_CALL:
     case RELAX_CALL_IMM4:
     case RELAX_CALL_IMM8:
+    case RELAX_BR:
+    case RELAX_BR_IMM4:
+    case RELAX_BR_IMM8:
       return get_opc_addr (fixP->fx_frag->fr_opcode);
     default:
       return fixP->fx_where + fixP->fx_frag->fr_address;
@@ -1669,6 +1703,28 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
   return;
 }
 
+/* Calculate the number of extra bytes, depending on memory
+   model and if this is a jump instruction or not.  */
+
+static int
+imm_length (bool is_jmp)
+{
+  switch (mcmodel)
+    {
+    case TINY:
+      if (is_jmp)
+	return 0;
+      else
+	return 4;
+    case SMALL:
+      return 4;
+    case LARGE:
+      return 8;
+    default:
+      abort();
+    }
+}
+
 /* Calculate the length of an IP-relative offset that can be
    either 4 or 8 bytes.  If we don't know, return 8.  */
 
@@ -1680,15 +1736,18 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
 {
   int ret;
   relax_substateT substate = fragP->fr_subtype;
-  bool is_call;
+  bool is_call, is_branch;
 
   is_call = substate == RELAX_CALL || substate == RELAX_CALL_IMM4
     || substate == RELAX_CALL_IMM8;
 
+  is_branch = substate == RELAX_BR || substate == RELAX_BR_IMM4
+    || substate == RELAX_BR_IMM8;
+
   if (known_frag_symbol (fragP, segment))
     {
       offsetT val = calc_relative_offset (fragP);
-      if (is_call && val >= B26_MIN && val <= B26_MAX)
+      if ((is_call | is_branch) && val >= B26_MIN && val <= B26_MAX)
 	{
 	  ret = 0;
 	}
@@ -1700,17 +1759,17 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
 	ret = 8;
     }
   else
-    ret = 8;
+    ret = imm_length (is_call || is_branch);
 
   if (update)
     {
       uint32_t *ip;
       ip = get_opc_insn (fragP->fr_opcode);
-      if (is_call)
+      if (is_call || is_branch)
 	{
 	  if (ret == 0)
 	    {
-	      fragP->fr_subtype = RELAX_CALL;
+	      fragP->fr_subtype = is_call ? RELAX_CALL : RELAX_BR;
 	      fix_new (fragP,
 		       fragP->fr_fix - 4,  /* This actually points to the opcode.  */
 		       4, /* size */
@@ -1721,12 +1780,15 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
 	    }
 	  else if (ret == 4)
 	    {
-	      fragP->fr_subtype = RELAX_CALL_IMM4;
+	      fragP->fr_subtype = is_call ? RELAX_CALL_IMM4 : RELAX_BR;
 	    }
 	  else
-	    fragP->fr_subtype = RELAX_CALL_IMM8;
+	    fragP->fr_subtype = is_call? RELAX_CALL_IMM8 : RELAX_BR_IMM8;
 
-	  *ip = my66000_get_call (ret);
+	  if (is_call)
+	    *ip = my66000_get_call (ret);
+	  else
+	    *ip = my66000_get_branch (ret);
 	}
       else
 	{
@@ -1815,6 +1877,9 @@ my66000_relax_frag (segT seg, fragS *fragP,
     case RELAX_CALL:
     case RELAX_CALL_IMM4:
     case RELAX_CALL_IMM8:
+    case RELAX_BR:
+    case RELAX_BR_IMM4:
+    case RELAX_BR_IMM8:
       fragP->fr_var = relaxed_imm_length (fragP, seg, true);
       break;
     case RELAX_TT:

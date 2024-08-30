@@ -96,6 +96,8 @@ typedef enum my66000_encoding
  MY66000_MS_55,	  /* MS for minor opcode 55.  */
  MY66000_MS_56,	  /* MS for minor opcode 56.  */
  MY66000_MS_60,	  /* MS for minor opcode 60.  */
+ MY66000_BR_FAR4, /* Far branches, fourxo bytes offset.  */
+ MY66000_BR_FAR8  /* Far branches, eight bytes offset.  */
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -247,6 +249,8 @@ extern uint32_t my66000_set_mem_size (uint32_t, uint32_t);
 
 extern bool my66000_is_call (uint32_t);
 extern uint32_t my66000_get_call (int);
+extern bool my66000_is_branch (uint32_t);
+extern uint32_t my66000_get_branch (int);
 
 void my66000_opc_sanity_check(void);
 
