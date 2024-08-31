@@ -1076,7 +1076,7 @@ static const my66000_opc_info_t opc_pcnd[] =
 
 static const my66000_opc_info_t opc_br_far4[] =
 {
-  {"br", MAJOR(27) | TT_SIZE(2), MY66000_BR_FAR8, NULL, 0, 0},
+  {"br", MAJOR(27) | TT_SIZE(2), MY66000_BR_FAR4, NULL, 0, 0},
   { NULL,		      0, MY66000_END,	  NULL, 0, 0}
 };
 
