@@ -164,8 +164,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
   const char *f;
   uint32_t size_1, size_2;
   bfd_byte buf1[8], buf2[8];
-  int32_t val_32;
-  int64_t val_64;
+  int32_t val_32 = 0;
+  int64_t val_64 = 0;
   bool pcrel_32 = false, pcrel_64 = false;
 
   /* Check for nothing to do.  */
