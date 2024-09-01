@@ -166,6 +166,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
   bfd_byte buf1[8], buf2[8];
   int32_t val_32;
   int64_t val_64;
+  bool pcrel_32 = false, pcrel_64 = false;
 
   /* Check for nothing to do.  */
   if (*fmt == '\0')
@@ -258,6 +259,9 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 		fpr (stream, out_fmt, val_32);
 	      }
 
+	    if (op_info->oper == MY66000_OPS_I32_PCREL)
+	      pcrel_32 = true;
+
 	    continue;
 
 	  case 8:
@@ -270,6 +274,10 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	      out_fmt = "%ld";
 
 	    fpr (stream, out_fmt, val_64);
+
+	    if (op_info->oper == MY66000_OPS_I64_PCREL)
+	      pcrel_64 = true;
+
 	    continue;
 	  default:
 	    opcodes_error_handler ("Internal error: size");
@@ -401,6 +409,16 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
       fpr (stream, "%c", *f);
 
   }
+
+  if (pcrel_32 || pcrel_64)
+    fpr (stream,"\t");
+
+  if (pcrel_32)
+    (*info->print_address_func) ((bfd_vma) (addr + sign_extend(val_32,32)), info);
+
+  if (pcrel_64)
+    (*info->print_address_func) ((bfd_vma) (addr + val_64), info);
+
   return size_1 + size_2;
  fail:
  info->memory_error_func (status, addr, info);
