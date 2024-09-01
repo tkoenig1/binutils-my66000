@@ -131,6 +131,7 @@ get_opc_insn (char *p)
 
   frag = fp->frag;
   ip = (uint32_t *) (frag->fr_literal + fp->pos);
+  fprintf (stderr,"get_opc_insn: *ip = %x\n", *ip);
   return ip;
 }
 
@@ -924,6 +925,7 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
 #define RELAX_BR		7
 #define RELAX_BR_IMM4		8
 #define RELAX_BR_IMM8		9
+#define RELAX_BCOND	       10
 
 
 /* Attempt a match of the arglist pointed to by str against fmt.  If
@@ -1081,15 +1083,15 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	      break;
 	    if (ex.X_op == O_symbol)
 	      {
+		dwarf2_emit_insn (0);
 		p = frag_more (length);
-
-		fix_new_exp (frag_now,
-			     p - frag_now->fr_literal,  /* where */
-			     2,  /* size.  */
-			     &ex, /* expression.  */
-			     1,  /* pcrel.  */
-			     BFD_RELOC_16_PCREL_S2
-			     );
+		frag_var (rs_machine_dependent,
+			  4,
+			  4,
+			  MY66000_OPS_B16,
+			  ex.X_add_symbol,
+			  ex.X_add_number,
+			  opc_pos (p));
 	      }
 	  }
 	  break;
@@ -1629,11 +1631,12 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
   uint32_t iword;
   uint16_t val16, val32;
   uint8_t val8;
+  offsetT val = *valP;
 
   /* Remember value for tc_gen_reloc.  */
   fixP->fx_addnumber = *valP;
 
-  //  fprintf (stderr,"md_apply_fix: *valP = %ld\n", *valP);
+  //  fprintf (stderr,"md_apply_fix: *valP = %ld\n", val);
   /* FIXME: Look up the masks etc from the tables, eventually.  */
   /* For the fixups that are shifted, we do the range checking here.  */
 
@@ -1642,14 +1645,14 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_26_PCREL_S2:
       check_reloc_range (*valP, 26, fixP);
       iword = (uint32_t) bfd_getl32 (buf);
-      iword |= (*valP >> 2) & 0x3ffffff;
+      iword |= (val / 4) & 0x3ffffff;
       bfd_putl32 ((bfd_vma) iword, buf);
       fixP ->fx_no_overflow = 1;
       break;
 
     case BFD_RELOC_16_PCREL_S2:
       check_reloc_range (*valP, 16, fixP);
-      val16 = *valP >> 2;
+      val16 = val / 4;
       bfd_putl16 ((bfd_vma) val16, buf);
       fixP ->fx_no_overflow = 1;
       break;
@@ -1660,7 +1663,7 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_32_PCREL_S2:
       check_reloc_range (*valP, 32, fixP);
-      val32 = *valP >> 2;
+      val32 = val / 4;
       bfd_putl32 ((bfd_vma) val32, buf);
       fixP ->fx_no_overflow = 1;
       break;
@@ -1675,7 +1678,7 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_8_PCREL_S2:
       check_reloc_range (*valP, 8, fixP);
-      val8 = *valP >> 2;
+      val8 = val / 4;
       *buf = val8;
       fixP ->fx_no_overflow = 1;
       break;
