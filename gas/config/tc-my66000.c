@@ -131,7 +131,7 @@ get_opc_insn (char *p)
 
   frag = fp->frag;
   ip = (uint32_t *) (frag->fr_literal + fp->pos);
-  fprintf (stderr,"get_opc_insn: *ip = %x\n", *ip);
+  //  fprintf (stderr,"get_opc_insn: *ip = %x\n", *ip);
   return ip;
 }
 
