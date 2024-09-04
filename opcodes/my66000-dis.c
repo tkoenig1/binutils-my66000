@@ -328,7 +328,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 
 	  case MY66000_OPS_IMM13:
 	    /* Special case, the lower-order bits are used as flags.  */
-	    val &= ~0x7;
+	    val = val * 8;
 	    /* Fallthrough */
 
 	    /* An integer constant.  */

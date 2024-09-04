@@ -540,6 +540,21 @@ match_16bit_u (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, 0, UINT16_MAX);
 }
 
+static uint16_t
+match_imm13 (char **ptr, char **errmsg)
+{
+  uint16_t res;
+  res = match_integer (ptr, errmsg, 0, UINT16_MAX);
+  if (*errmsg)
+    return 0;
+  if ((res & 0x7) != 0)
+    {
+      sprintf (errbuf, "IMM13 not properly aligned");
+      *errmsg = errbuf;
+      return 0;
+    }
+  return res;
+}
 /* Match a modifier list item and set the pointer to the
    beginning of the next item or the trailing }.  */
 
@@ -1000,10 +1015,9 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = match_16bit (&sp, errmsg);
 	  break;
 	case MY66000_OPS_IMM13:
-	  bits = match_16bit (&sp, errmsg);
-	  if (bits & 0x7)
-	    *errmsg = _("Incorrect alignment of disp13");
+	  bits = match_imm13 (&sp, errmsg) / 8;
 	  break;
+
 	case MY66000_OPS_FL_ENTER:
 	  bits = match_2bit (&sp, errmsg);
 	  break;

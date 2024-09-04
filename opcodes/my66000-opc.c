@@ -1391,7 +1391,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I64_1,     0, 0, 8, 1,          "64-bit immediate pos 1",   'P' },
  {MY66000_OPS_I64_PCREL, 0, 0, 8, 1,          "64-bit immediate ip-rel",  'Q' },
  {MY66000_OPS_I64_HEX,   0, 0, 8, 1,          "64-bit float immediate",   'R' },
- {MY66000_OPS_IMM13,  OPERAND_ENTRY (13, 3),  "13-bit aligned immediate", 'S' },
+ {MY66000_OPS_IMM13,  OPERAND_ENTRY (13, 3),  "ENTER and EXIT immediate", 'S' },
  {MY66000_OPS_I32_ST,    0, 0, 4, 2,          "32-bit immediate stw",     'T' },
  {MY66000_OPS_I64_ST,    0, 0, 8, 2,          "64-bit immediate store",   'U' },
  {MY66000_OPS_WIDTH,   OPERAND_ENTRY ( 6, 6), "6-bit width",		  'V' },
