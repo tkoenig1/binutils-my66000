@@ -1787,13 +1787,6 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
 	  if (ret == 0)
 	    {
 	      fragP->fr_subtype = is_call ? RELAX_CALL : RELAX_BR;
-	      fix_new (fragP,
-		       fragP->fr_fix - 4,  /* This actually points to the opcode.  */
-		       4, /* size */
-		       fragP->fr_symbol,
-		       fragP->fr_offset,
-		       1,
-		       BFD_RELOC_26_PCREL_S2);
 	    }
 	  else if (ret == 4)
 	    {
@@ -1968,7 +1961,16 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       fix_new_exp (fragP, fragP->fr_fix, size, &ex, true, reloc);
       //      fprintf (stderr, "fix_new_exp\n");
     }
-
+  else if (fragP->fr_subtype == RELAX_CALL)
+    {
+      fix_new (fragP,
+	       fragP->fr_fix - 4,  /* This actually points to the opcode.  */
+	       4, /* size */
+	       fragP->fr_symbol,
+	       fragP->fr_offset,
+	       1,
+	       BFD_RELOC_26_PCREL_S2);
+    }
   fragP->fr_fix += fragP->fr_var;
 }
 
