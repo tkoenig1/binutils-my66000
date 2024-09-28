@@ -141,7 +141,8 @@ static const my66000_opc_info_t opc_pb1a[];
 static const my66000_opc_info_t opc_pb1b[];
 static const my66000_opc_info_t opc_pcnd[];
 static const my66000_opc_info_t opc_hr[];
-static const my66000_opc_info_t opc_absf[];
+static const my66000_opc_info_t opc_fabs[];
+static const my66000_opc_info_t opc_iabs[];
 static const my66000_opc_info_t opc_jmp[];
 static const my66000_opc_info_t opc_calli[];
 static const my66000_opc_info_t opc_single[];
@@ -185,7 +186,8 @@ const my66000_opc_info_t *my66000_opc_info_list[] =
  opc_pb1b,
  opc_pcnd,
  opc_hr,
- opc_absf,
+ opc_iabs,
+ opc_fabs,
  opc_jmp,
  opc_calli,
  opc_single,
@@ -827,23 +829,26 @@ static const my66000_opc_info_t opc_hr[] =
 
 /* All the ABS versions.  */
 
-static const my66000_opc_info_t opc_absf[] =
+static const my66000_opc_info_t opc_iabs[] =
 {
-  /* F = 0.  */
-  {"abs",  MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_FCN(0), MY66000_ABS, NULL, 0, 0}, // + 0
-  {"mov",  MAJOR(13) | MINOR(5) | SIGNED(1) | XOP5_FCN(0), MY66000_ABS, NULL, 0, 0},
-  /* F = 1.  */
-  {"fabs", MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_FCN(1), MY66000_ABS, NULL, 0, 0}, // + 2
+  {"abs",  MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_FCN(0),  MY66000_ABS, NULL, 0, 0},
+  {"fabs", MAJOR(13) | MINOR(5) | SIGNED(0) | XOP5_FCN(1),  MY66000_ABS, NULL, 0, 0},
+  { NULL,   0,              MY66000_END,   NULL, 0, 0},
+};
+
+static const my66000_opc_info_t opc_fabs[] =
+{
+  {"mov",  MAJOR(13) | MINOR(5) | SIGNED(1) | XOP5_FCN(0),  MY66000_ABS, NULL, 0, 0},
   {"fabsf", MAJOR(13) | MINOR(5) | SIGNED(1) | XOP5_FCN(1), MY66000_ABS, NULL, 0, 0},
   { NULL,   0,              MY66000_END,   NULL, 0, 0},
 };
 
-/* Switch on the F bit of the ABS instruction.  */
+/* Come here indexed on the sign bit.  */
 
 static const my66000_opc_info_t opc_abs[] =
 {
-  {NULL, MAJOR(13) | MINOR(5) | SIGNED(0), MY66000_BAD, opc_absf + 0, XOP5_ABS_MASK, XOP5_OFFS}, // + 0
-  {NULL, MAJOR(13) | MINOR(5) | SIGNED(1), MY66000_BAD, opc_absf + 2, XOP5_ABS_MASK, XOP5_OFFS}, // + 1
+  {NULL, MAJOR(13) | MINOR(5), MY66000_BAD, opc_iabs, XOP5_ABS_MASK, XOP5_OFFS},
+  {NULL, MAJOR(13) | MINOR(5), MY66000_BAD, opc_fabs, XOP5_ABS_MASK, XOP5_OFFS},
   {NULL,  0, MY66000_END, NULL, 0, 0},
 };
 
