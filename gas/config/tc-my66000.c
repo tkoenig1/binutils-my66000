@@ -964,7 +964,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   uint64_t val_imm = 0;
   _Bool imm_pcrel = false;
 
-  // fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
+  //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
   for (; *fp; fp++)
     {
       // fprintf (stderr, "fp = %s sp = %s\n", fp, sp);
@@ -1214,6 +1214,12 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 
 	case MY66000_OPS_I64_PCREL:
+	  if (mcmodel != LARGE)
+	    {
+	      snprintf (errbuf, sizeof(errbuf),(_("64-bit offsets only valid for "
+						  "-mcmodel=large")));
+	      break;
+	    }
 	  imm_pcrel = true;
 	  /* Fallthrough.  */
 
@@ -1923,6 +1929,9 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       || fragP->fr_subtype == RELAX_CALL_IMM4
       || fragP->fr_subtype == RELAX_CALL_IMM8)
     {
+      /* This works on the assumption that the PC-relative offset
+	 is always the first argument.  FIXME: Is this correct?  */
+      ex.X_add_number -= fragP->fr_fix;
       if (fragP->fr_var == 4)
 	{
 	  fix_new_exp (fragP, fragP->fr_fix, 4, &ex, true, BFD_RELOC_32_PCREL);
