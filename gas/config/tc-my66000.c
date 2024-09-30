@@ -941,6 +941,7 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
 #define RELAX_BR_IMM4		8
 #define RELAX_BR_IMM8		9
 #define RELAX_BCOND	       10
+#define RELAX_BR16	       11
 
 
 /* Attempt a match of the arglist pointed to by str against fmt.  If
@@ -1102,7 +1103,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 		frag_var (rs_machine_dependent,
 			  4,
 			  4,
-			  MY66000_OPS_B16,
+			  RELAX_BR16,
 			  ex.X_add_symbol,
 			  ex.X_add_number,
 			  opc_pos (p));
@@ -1901,6 +1902,10 @@ my66000_relax_frag (segT seg, fragS *fragP,
     case RELAX_TT:
       fragP->fr_var = relaxed_tt_length (fragP, seg, true);
       break;
+    case RELAX_BR16:
+      /* TODO: At some time, we need to do wide branches here.  */
+      fragP->fr_var = 0;
+      break;
     default:
       as_fatal ("relax_frag: subtype %d not handled", fragP->fr_subtype);
     }
@@ -1979,6 +1984,16 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 	       fragP->fr_offset,
 	       1,
 	       BFD_RELOC_26_PCREL_S2);
+    }
+  else if (fragP->fr_subtype == RELAX_BR16)
+    {
+      fix_new (fragP,
+	       fragP->fr_fix - 4,
+	       4,
+	       fragP->fr_symbol,
+	       fragP->fr_offset,
+	       1,
+	       BFD_RELOC_16_PCREL_S2);
     }
   fragP->fr_fix += fragP->fr_var;
 }
