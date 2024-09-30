@@ -1931,7 +1931,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
     {
       /* This works on the assumption that the PC-relative offset
 	 is always the first argument.  FIXME: Is this correct?  */
-      ex.X_add_number += fragP->fr_fix;
+      ex.X_add_number += 4;
       if (fragP->fr_var == 4)
 	{
 	  fix_new_exp (fragP, fragP->fr_fix, 4, &ex, true, BFD_RELOC_32_PCREL);
