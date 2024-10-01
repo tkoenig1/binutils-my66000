@@ -1975,7 +1975,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       fix_new_exp (fragP, fragP->fr_fix, size, &ex, true, reloc);
       //      fprintf (stderr, "fix_new_exp\n");
     }
-  else if (fragP->fr_subtype == RELAX_CALL)
+  else if (fragP->fr_subtype == RELAX_CALL || fragP->fr_subtype == RELAX_BR)
     {
       fix_new (fragP,
 	       fragP->fr_fix - 4,  /* This actually points to the opcode.  */
@@ -1995,6 +1995,9 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 	       1,
 	       BFD_RELOC_16_PCREL_S2);
     }
+  else
+    as_fatal (_("Unhandled relax subtype: %d\n"), fragP->fr_subtype);
+
   fragP->fr_fix += fragP->fr_var;
 }
 
