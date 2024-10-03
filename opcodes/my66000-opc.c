@@ -1033,8 +1033,8 @@ static const my66000_opc_info_t opc_bcnd[] =
  { "bcin", MAJOR(26) | CND_MINOR (26), MY66000_BC,  NULL, 0, 0},
  { "brin", MAJOR(26) | CND_MINOR (27), MY66000_BC,  NULL, 0, 0},
  { NULL,    0,                         MY66000_BAD, NULL, 0, 0},
- { "svr",  MAJOR(26) | CND_MINOR (29), MY66000_SVC, NULL, 0, 0},
- { "svc",  MAJOR(26) | CND_MINOR (30), MY66000_SVC, NULL, 0, 0},
+ { "svc",  MAJOR(26) | CND_MINOR (29), MY66000_SVC, NULL, 0, 0},
+ { "svr",  MAJOR(26) | CND_MINOR (30), MY66000_SVR, NULL, 0, 0},
  { "ret",  MAJOR(26) | CND_MINOR (31), MY66000_EMPTY, NULL, 0, 0},
  { NULL,   0,              MY66000_END,   NULL, 0, 0}
 };
@@ -1418,7 +1418,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I16_LO,  0, 0, 2, 1,            "low 16 bit of 32-bit constant", 'f' },
  {MY66000_OPS_INS,     0, 0, 4, 1,            "INS specifier",            'g' },
  {MY66000_OPS_VEC,     OPERAND_ENTRY (21, 0), "Vector bitfield",          'h' },
- {MY66000_OPS_UIMM16,  OPERAND_ENTRY (16, 0), "16-bit unsigned immediate",'i' },
+ {MY66000_OPS_IMM16JT, OPERAND_ENTRY (16, 0), "16-bit JT immediate",      'i' },
  {MY66000_OPS_SI5,     OPERAND_ENTRY ( 5,21), "5-bit immediate store",    'j' },
  {MY66000_OPS_MSCALE,  OPERAND_ENTRY ( 2,13), "Scale for indexed ld/st",  'k' },
  {MY66000_OPS_VEC32,   0, 0, 4, 1,            "32-bit vector bitfield",   'l' },
@@ -1428,6 +1428,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I8_MS,   0, 0, 4, 2,            "8-bit immediate ms",       'p' },
  {MY66000_OPS_I5_MS,   OPERAND_ENTRY ( 5,21), "5-bit immediate ms",       'q' },
  {MY66000_OPS_I16_HI,  0, 0, 2, 2,            "high 16 bit of 32-bit constant", 'r' },
+ {MY66000_OPS_SVC16,   OPERAND_ENTRY (16, 0), "16-bit SVC immediate",     's' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -2263,7 +2264,15 @@ static const my66000_fmt_spec_t loops_fmt_list[] =
 
 static const my66000_fmt_spec_t svc_fmt_list[] =
 {
-  { "#i", 0, SRC1_MASK},
+  { "#F,#s", 0, 0},
+  { NULL, 0, 0},
+};
+
+#define IMM16_MASK 0xffff
+
+static const my66000_fmt_spec_t svr_fmt_list[] =
+{
+  { "#F", 0, IMM16_MASK},
   { NULL, 0, 0},
 };
 
@@ -2363,6 +2372,7 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { ms_60_fmt_list,    MY66000_MS_60 },
    { br_far4_fmt_list,  MY66000_BR_FAR4 },
    { br_far8_fmt_list,  MY66000_BR_FAR8 },
+   { svr_fmt_list,	MY66000_SVR },
    { NULL,	        MY66000_END   },
   };
 

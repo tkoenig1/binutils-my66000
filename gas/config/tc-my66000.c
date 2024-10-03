@@ -1054,9 +1054,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = match_6bit_p2 (&sp, errmsg);
 	  break;
 
-	case MY66000_OPS_UIMM16:
+	case MY66000_OPS_IMM16JT:
 	  bits = match_16bit_u (&sp, errmsg);
 	  needs_jt = bits + 1;
+	  break;
+
+	case MY66000_OPS_SVC16:
+	  bits = match_16bit_u (&sp, errmsg);
 	  break;
 
 	case MY66000_OPS_MSCALE:

@@ -97,7 +97,8 @@ typedef enum my66000_encoding
  MY66000_MS_56,	  /* MS for minor opcode 56.  */
  MY66000_MS_60,	  /* MS for minor opcode 60.  */
  MY66000_BR_FAR4, /* Far branches, fourxo bytes offset.  */
- MY66000_BR_FAR8  /* Far branches, eight bytes offset.  */
+ MY66000_BR_FAR8, /* Far branches, eight bytes offset.  */
+ MY66000_SVR,     /* SVR instruction.  */
 } my66000_encoding;
 
 /* This is the main data structure for instructions. The table
@@ -182,7 +183,7 @@ typedef enum my66000_operands
   MY66000_OPS_HRFCN,	 /* HR function.  */
   MY66000_OPS_INS,	 /* A 32-bit INS specifier.  */
   MY66000_OPS_VEC,	 /* A vector bitmap.  */
-  MY66000_OPS_UIMM16,	 /* A 16-bit displacement.  */
+  MY66000_OPS_IMM16JT,	 /* A 16-bit displacement.  */
   MY66000_OPS_SI5,	 /* 5-bit immediate, DST.  */
   MY66000_OPS_MSCALE,	 /* Scale for load and store.  */
   MY66000_OPS_VEC32,	 /* A 32-bit immediate for big VEC.  */
@@ -194,6 +195,7 @@ typedef enum my66000_operands
   MY66000_OPS_I32_2,     /* 32-bit immediate at position two.  */
   MY66000_OPS_I16_LO,    /* Low 16 bit of 32-bit immediate.  */
   MY66000_OPS_I16_HI,    /* High 16-bit of 32-bit immediate. */
+  MY66000_OPS_SVC16,     /* SVC immediate 16.  */
   MY66000_OPS_END
 } my66000_operands;
 

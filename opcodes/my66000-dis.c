@@ -362,7 +362,8 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	  case MY66000_OPS_I1:
 	  case MY66000_OPS_I2:
 	  case MY66000_OPS_I3:
-	  case MY66000_OPS_UIMM16:
+	  case MY66000_OPS_IMM16JT:
+	  case MY66000_OPS_SVC16:
 	    fpr (stream, "%u", val);
 	    break;
 
