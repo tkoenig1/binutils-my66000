@@ -943,6 +943,20 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
 #define RELAX_BCOND	       10
 #define RELAX_BR16	       11
 
+/* Count commas in a string, for returning early if the number of
+   arguments does not match.  */
+
+static int
+n_commas (const char *p)
+{
+  int ret = 0;
+  while (*p)
+    {
+      ret += *p == ',';
+      p++;
+    }
+  return ret;
+}
 
 /* Attempt a match of the arglist pointed to by str against fmt.  If
    errmsg is set, the match was a failure; otherwise issue issue the
@@ -965,7 +979,18 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
   uint64_t val_imm = 0;
   _Bool imm_pcrel = false;
 
-  //  fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
+
+  // fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
+  /* Early check - if the number of commas do not agree, this cannot match.  */
+  if (n_commas (str) != n_commas (spec->fmt))
+    {
+      snprintf (errbuf, sizeof(errbuf),(_("Wrong number of operands")));
+      *errmsg = errbuf;
+      return;
+    }
+
+  memset(&imm, 0, sizeof(imm));
+  memset(&imm_st, 0, sizeof(imm_st));
   for (; *fp; fp++)
     {
       // fprintf (stderr, "fp = %s sp = %s\n", fp, sp);
