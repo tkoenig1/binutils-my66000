@@ -1154,13 +1154,25 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	      {
 		dwarf2_emit_insn (0);
 		p = frag_more (length);
-		frag_var (rs_machine_dependent,
-			  12,
-			  8,
-			  relax,
-			  ex.X_add_symbol,
-			  ex.X_add_number,
-			  opc_pos (p));
+		if (mcmodel == TINY)
+		  {
+		    fix_new_exp (frag_now,
+				 p - frag_now->fr_literal,
+				 4,
+				 &ex,
+				 1,
+				 BFD_RELOC_26_PCREL_S2);
+		  }
+		else
+		  {
+		    frag_var (rs_machine_dependent,
+			      12,
+			      8,
+			      relax,
+			      ex.X_add_symbol,
+			      ex.X_add_number,
+			      opc_pos (p));
+		  }
 	      }
 	  }
 	  break;
