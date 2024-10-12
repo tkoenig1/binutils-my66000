@@ -300,6 +300,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    break;
 
 	  case MY66000_OPS_RBASE:
+	  case MY66000_OPS_IP_BASE:
 	    /* Base register.  */
 	    fpr (stream, "%s", my66000_rbase[val]);
 	    break;

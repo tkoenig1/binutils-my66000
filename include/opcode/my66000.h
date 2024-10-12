@@ -196,6 +196,7 @@ typedef enum my66000_operands
   MY66000_OPS_I16_LO,    /* Low 16 bit of 32-bit immediate.  */
   MY66000_OPS_I16_HI,    /* High 16-bit of 32-bit immediate. */
   MY66000_OPS_SVC16,     /* SVC immediate 16.  */
+  MY66000_OPS_IP_BASE,   /* IP as base register.  */
   MY66000_OPS_END
 } my66000_operands;
 

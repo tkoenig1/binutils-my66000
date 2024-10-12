@@ -1031,6 +1031,14 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_RINDEX:
 	  bits = match_register (&sp, errmsg, rind_map);
 	  break;
+	case MY66000_OPS_IP_BASE:
+	  bits = match_register (&sp, errmsg, rbase_map);
+	  if (bits != 0)
+	    {
+	      snprintf (errbuf, sizeof(errbuf),_("IP should be zero"));
+	      *errmsg = errbuf;
+	    }
+	  break;
 	case MY66000_OPS_RBASE:
 	  bits = match_register (&sp, errmsg, rbase_map);
 	  break;
