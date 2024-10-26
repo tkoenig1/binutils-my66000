@@ -2747,7 +2747,7 @@ opc_mask_test (uint32_t mask, const my66000_opc_info_t *info)
     }
 }
 
-void my66000_opc_sanity_check()
+void my66000_opc_sanity_check(void)
 {
   opc_mask_test(MY66000_MAJOR_MASK, my66000_opc_info);
 }
