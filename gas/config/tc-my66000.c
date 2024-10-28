@@ -1160,27 +1160,16 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	    relax = my66000_is_call (iword) ? RELAX_CALL : RELAX_BR;
 	    if (ex.X_op == O_symbol)
 	      {
+		/* Correct fixups will be done later.  */
 		dwarf2_emit_insn (0);
 		p = frag_more (length);
-		if (mcmodel == TINY)
-		  {
-		    fix_new_exp (frag_now,
-				 p - frag_now->fr_literal,
-				 4,
-				 &ex,
-				 1,
-				 BFD_RELOC_26_PCREL_S2);
-		  }
-		else
-		  {
-		    frag_var (rs_machine_dependent,
-			      12,
-			      8,
-			      relax,
-			      ex.X_add_symbol,
-			      ex.X_add_number,
-			      opc_pos (p));
-		  }
+		frag_var (rs_machine_dependent,
+			  12,
+			  8,
+			  relax,
+			  ex.X_add_symbol,
+			  ex.X_add_number,
+			  opc_pos (p));
 	      }
 	  }
 	  break;
@@ -1619,7 +1608,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
       rel->howto = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_32);
       assert (rel->howto != NULL);
     }
-  rel->addend = fixp->fx_addnumber; //  >> rel->howto->rightshift;
+  rel->addend = fixp->fx_addnumber;
   return rel;
 }
 
@@ -1665,7 +1654,7 @@ calc_relative_offset (fragS *fragP)
 {
   offsetT target_address = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
   offsetT opcode_address = get_opc_addr (fragP->fr_opcode);
-  //  fprintf (stderr, "calc_relative_offset: %ld %ld\n", target_address, opcode_address);
+  // fprintf (stderr, "calc_relative_offset: %s %ld %ld\n", S_GET_NAME (fragP->fr_symbol), target_address, opcode_address);
   return target_address - opcode_address;
 }
 
