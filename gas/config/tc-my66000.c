@@ -1160,7 +1160,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	    relax = my66000_is_call (iword) ? RELAX_CALL : RELAX_BR;
 	    if (ex.X_op == O_symbol)
 	      {
-		/* Correct fixups will be done later.  */
 		dwarf2_emit_insn (0);
 		p = frag_more (length);
 		frag_var (rs_machine_dependent,
@@ -1618,6 +1617,8 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 long
 md_pcrel_from_section (fixS *fixP, segT sec)
 {
+  long ret;
+
   if (fixP->fx_addsy != (symbolS *) NULL &&
       (!S_IS_DEFINED (fixP->fx_addsy) ||
        (S_GET_SEGMENT (fixP->fx_addsy) != sec) ||
@@ -1633,16 +1634,16 @@ md_pcrel_from_section (fixS *fixP, segT sec)
     case RELAX_IMM4_PCREL:
     case RELAX_IMM8_PCREL:
     case RELAX_TT:
-    case RELAX_CALL:
     case RELAX_CALL_IMM4:
     case RELAX_CALL_IMM8:
-    case RELAX_BR:
     case RELAX_BR_IMM4:
     case RELAX_BR_IMM8:
-      return get_opc_addr (fixP->fx_frag->fr_opcode);
+      ret = get_opc_addr (fixP->fx_frag->fr_opcode);
+      break;
     default:
-      return fixP->fx_where + fixP->fx_frag->fr_address;
+      ret = fixP->fx_where + fixP->fx_frag->fr_address;
     }
+  return ret;
 }
 
 /* Calculate a PC-relative offset.  These are always relative to the
@@ -1654,7 +1655,6 @@ calc_relative_offset (fragS *fragP)
 {
   offsetT target_address = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
   offsetT opcode_address = get_opc_addr (fragP->fr_opcode);
-  // fprintf (stderr, "calc_relative_offset: %s %ld %ld\n", S_GET_NAME (fragP->fr_symbol), target_address, opcode_address);
   return target_address - opcode_address;
 }
 
@@ -1695,7 +1695,6 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
   /* Remember value for tc_gen_reloc.  */
   fixP->fx_addnumber = *valP;
 
-  //  fprintf (stderr,"md_apply_fix: *valP = %ld\n", val);
   /* FIXME: Look up the masks etc from the tables, eventually.  */
   /* For the fixups that are shifted, we do the range checking here.  */
 
