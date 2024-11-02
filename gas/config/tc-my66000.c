@@ -942,6 +942,7 @@ match_ins (char **ptr, char **errmsg, expressionS *ex)
 #define RELAX_BR_IMM8		9
 #define RELAX_BCOND	       10
 #define RELAX_BR16	       11
+#define RELAX_TT_FIRST	       12
 
 /* Count commas in a string, for returning early if the number of
    arguments does not match.  */
@@ -1634,6 +1635,7 @@ md_pcrel_from_section (fixS *fixP, segT sec)
     case RELAX_IMM4_PCREL:
     case RELAX_IMM8_PCREL:
     case RELAX_TT:
+    case RELAX_TT_FIRST:
     case RELAX_CALL_IMM4:
     case RELAX_CALL_IMM8:
     case RELAX_BR_IMM4:
@@ -1655,6 +1657,8 @@ calc_relative_offset (fragS *fragP)
 {
   offsetT target_address = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
   offsetT opcode_address = get_opc_addr (fragP->fr_opcode);
+  //  fprintf(stderr,"calc_relative_offset: %s S_GET_VALUE=%ld\n",S_GET_NAME(fragP->fr_symbol),
+  //	  (long int) S_GET_VALUE(fragP->fr_symbol));
   return target_address - opcode_address;
 }
 
@@ -1857,8 +1861,8 @@ relaxed_imm_length (fragS *fragP, segT segment, _Bool update)
 }
 
 
-#define TT_MIN(bits) (-((offsetT) 1 << (bits - 1)))
-#define TT_MAX(bits) (((offsetT) 1 << (bits - 1)) - 1)
+#define TT_MIN(bits) (-((offsetT) 1 << (bits + 1)))
+#define TT_MAX(bits) (((offsetT) 1 << (bits + 1)) - 1)
 
 /* Same, but for a TT relaxation, which is shifted by two bits.  */
 
@@ -1869,9 +1873,23 @@ relaxed_tt_length (fragS *fragP, segT segment, _Bool update)
   uint32_t *ip;
   int size_insn;
 
-  gas_assert (fragP->fr_subtype == RELAX_TT);
+  gas_assert (fragP->fr_subtype == RELAX_TT
+	      || fragP->fr_subtype == RELAX_TT_FIRST);
+
+  /* The first round is done with all symbols set to zero, which could
+     cause setting the size to 16 bit prematurely.  Hence, say we have
+     size 1 in the beginning, subsequent passes will get this
+     right.  */
+
   ip = get_opc_insn (fragP->fr_opcode);
   size_insn = my66000_get_tt_size (*ip);
+
+  if (fragP->fr_subtype == RELAX_TT_FIRST)
+    {
+      gas_assert (size_insn == 1);
+      fragP->fr_subtype = RELAX_TT;
+      return 1;
+    }
   if (known_frag_symbol (fragP, segment))
     {
       offsetT val = calc_relative_offset (fragP);
@@ -1937,6 +1955,7 @@ my66000_relax_frag (segT seg, fragS *fragP,
       fragP->fr_var = relaxed_imm_length (fragP, seg, true);
       break;
     case RELAX_TT:
+    case RELAX_TT_FIRST:
       fragP->fr_var = relaxed_tt_length (fragP, seg, true);
       break;
     case RELAX_BR16:
@@ -2086,7 +2105,7 @@ handle_jt (int num ATTRIBUTE_UNUSED)
       frag_var (rs_machine_dependent,
 		8,
 		1,
-		RELAX_TT,
+		RELAX_TT_FIRST,
 		ex.X_add_symbol,
 		ex.X_add_number,
 		(char *) current_jt);
