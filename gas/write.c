@@ -1292,9 +1292,12 @@ write_relocs (bfd *abfd ATTRIBUTE_UNUSED, asection *sec,
 	fx_size = fx_size > slack ? fx_size - slack : 0;
       loc = fixp->fx_where + fx_size;
       if (slack >= 0 && loc > fixp->fx_frag->fr_fix)
-	as_bad_where (fixp->fx_file, fixp->fx_line,
-		      _("internal error: fixup not contained within frag"));
-
+	{
+	  print_fixup (fixp);
+	  fprintf (stderr,"loc = %lu fixp->fx_frag->fr_fix = %lu\n",loc,fixp->fx_frag->fr_fix);
+	  as_bad_where (fixp->fx_file, fixp->fx_line,
+			_("internal error: fixup not contained within frag"));
+	}
 #ifdef obj_fixup_removed_symbol
       if (fixp->fx_addsy && symbol_removed_p (fixp->fx_addsy))
 	obj_fixup_removed_symbol (&fixp->fx_addsy);

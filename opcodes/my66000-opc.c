@@ -2426,10 +2426,10 @@ my66000_imm_size (uint32_t iword)
   if (major != MAJOR(9) && major != MAJOR (10))
     return 0;
 
-  if ((iword & XOP1_d_MASK) == 0)
+  if ((iword & XOP1_D_MASK) == 0)
     return 0;
 
-  return iword & XOP1_D_MASK ? 8 : 4;
+  return iword & XOP1_d_MASK ? 8 : 4;
 }
 
 /* Set the size of the immediate (with sanity check).  */
@@ -2464,6 +2464,18 @@ my66000_set_imm_size (uint32_t iword, uint32_t size)
   return ret;
 }
 
+/* Set immediate instruction - note the different convention to the
+   function above.  */
+int
+my66000_set_imm (char *p, int var)
+{
+  uint32_t iword;
+  uint32_t *ip = (uint32_t *) p;
+  //  fprintf(stderr,"set_imm: p = %p var = %d\n", p, var);
+  iword = *ip;
+  *ip = my66000_set_imm_size (iword, var - 4);
+  return 4;
+}
 /* Check if an instruction is a TT instruction, for use in the assembler.  */
 
 bool
@@ -2605,53 +2617,76 @@ my66000_is_branch (uint32_t iword)
 
   return 1;
 }
-/* Return the iword for a CALL offset or CALA [ip,offset].  */
 
-uint32_t
-my66000_get_call (int size)
+int
+my66000_set_tt (char *p, int var)
 {
-  uint32_t ret;
+  uint32_t iword, *ip;
+  ip = (uint32_t *) p;
+  iword = *ip;
+  //  fprintf(stderr,"set_tt : p = %p iword=%8.8x\n", p, iword);
+  *ip = my66000_set_tt_size (iword, var);
+  return 0; // var;
+}
+/* Store an instruction in the buffer provided, depending on fr_var,
+   and return the size, relative to the start of the instruction,
+   where the reloc starts.  */
 
-  switch (size)
+int
+my66000_set_call (char *p, int var)
+{
+  uint32_t iword;
+  int ret;
+
+  switch (var)
     {
-    case 0:
-      ret = MAJOR(31);
-      break;
     case 4:
-      ret = MAJOR(9) | MINOR(39) | XOP1_D(1) | XOP1_d(0);
+      iword = MAJOR(31);
+      ret = 0;
       break;
     case 8:
-      ret = MAJOR(9) | MINOR(39) | XOP1_D(1) | XOP1_D(0);
+      iword = MAJOR(9) | MINOR(39) | XOP1_D(1) | XOP1_d(0);
+      ret = 4;
+      break;
+    case 12:
+      iword = MAJOR(9) | MINOR(39) | XOP1_D(1) | XOP1_d(1);
+      ret = 4;
       break;
     default:
-      fprintf (stderr, "Internal error: my66000_get_call\n");
+      fprintf (stderr, "Internal error: my66000_set_call\n");
       exit (EXIT_FAILURE);
     }
+  bfd_putl32 ((bfd_vma) iword, p);
   return ret;
 }
 
 /* Similar, but for branches.  */
 
-
-uint32_t
-my66000_get_branch (int size)
+int
+my66000_set_branch (char *p, int var)
 {
-  uint32_t ret;
-  switch (size)
+  uint32_t iword;
+  int ret;
+
+  switch (var)
     {
-    case 0:
-      ret = MAJOR (30);
-      break;
     case 4:
-      ret = MAJOR (27) | TT_SIZE (2);
+      iword = MAJOR (30);
+      ret = 0;
       break;
     case 8:
-      ret = MAJOR (27) | TT_SIZE (3);
+      iword = MAJOR (27) | TT_SIZE (2);
+      ret = 4;
+      break;
+    case 12:
+      iword = MAJOR (27) | TT_SIZE (3);
+      ret = 4;
       break;
     default:
-      fprintf (stderr, "Internal error: my66000_get_branch\n");
+      fprintf (stderr, "Internal error: my66000_set_branch\n");
       exit (EXIT_FAILURE);
     }
+  bfd_putl32 ((bfd_vma) iword, p);
   return ret;
 }
 

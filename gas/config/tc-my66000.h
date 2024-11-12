@@ -44,4 +44,29 @@ extern long md_pcrel_from_section (struct fix *, segT);
   my66000_relax_frag (segment, fragp, stretch)
 extern int my66000_relax_frag (asection *, struct frag *, long);
 
+#if 0
+struct my66000_fix
+{
+  fragS *fragP;
+  uint32_t *ip;
+};
+
+#define TC_FIX_TYPE struct my66000_fix
+#define TC_INIT_FIX_DATA(FIX) while (0) {		\
+  (FIX)->tc_fix_data.fragP = my66000_current_opc_frag ;	\
+  (FIX)->tc_fix_data.ip = my66000_current_opc_p ;	\
+  }
+#endif
+
+struct my66000_frag
+{
+  fragS *old_frag;
+  char *p;
+};
+
+#define TC_FRAG_TYPE struct my66000_frag
+#define TC_FRAG_INIT(frag, max_chars) my66000_tc_frag_init (frag, max_chars)
+
+extern void my66000_tc_frag_init (fragS *, size_t);
+
 #endif /* TC_MY66000 */

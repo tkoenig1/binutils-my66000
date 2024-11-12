@@ -238,10 +238,12 @@ extern const my66000_opc_info_t my66000_opc_info_special[];
 
 extern uint32_t my66000_set_imm_size (uint32_t, uint32_t);
 extern int my66000_imm_size (uint32_t);
+extern int my66000_set_imm (char *, int);
 
 extern bool my66000_is_tt (uint32_t);
 extern uint32_t my66000_get_tt_size (uint32_t);
 extern uint32_t my66000_set_tt_size (uint32_t,	uint32_t);
+extern int my66000_set_tt (char *, int);
 
 extern bool my66000_is_imm_st (uint32_t);
 extern bool my66000_is_loop (uint32_t);
@@ -251,10 +253,11 @@ extern bool my66000_is_mem (uint32_t);
 extern uint32_t my66000_set_mem_size (uint32_t, uint32_t);
 
 extern bool my66000_is_call (uint32_t);
-extern uint32_t my66000_get_call (int);
 extern bool my66000_is_branch (uint32_t);
-extern uint32_t my66000_get_branch (int);
 
 void my66000_opc_sanity_check(void);
 
+extern int my66000_set_call (char *, int);
+extern int my66000_set_branch (char *, int);
+typedef int (*my66000_set_opc) (char *, int);
 #endif

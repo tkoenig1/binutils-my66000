@@ -516,7 +516,7 @@ print_insn_my66000 (bfd_vma addr, struct disassemble_info *info)
       if (jt_needed > 0)
 	return jt_size;
       else
-	return jt_size + (addr + jt_size) % 4;
+	return jt_size + (-addr-jt_size) % 4;
     }
 
   if ((status = info->read_memory_func (addr, buffer, 4, info)))
