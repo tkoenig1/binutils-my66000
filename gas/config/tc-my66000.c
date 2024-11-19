@@ -101,7 +101,7 @@ static addressT
 get_opc_addr (fragS *frag)
 {
   fragS *f;
-  
+
   if (frag->tc_frag_data.old_frag)
     f = frag->tc_frag_data.old_frag;
   else
@@ -971,15 +971,23 @@ const struct relax_tabS relax_tab[RELAX_LAST+1] =
 };
 
 /* Count commas in a string, for returning early if the number of
-   arguments does not match.  */
+   arguments does not match.  Ignore anything between curly
+   braces.  */
 
 static int
 n_commas (const char *p)
 {
   int ret = 0;
+  int n_curly = 0;
   while (*p)
     {
-      ret += *p == ',';
+      if (*p == '{')
+	n_curly ++;
+      else if (*p == '}')
+	n_curly --;
+
+      if (n_curly == 0)
+	ret += *p == ',';
       p++;
     }
   return ret;
@@ -1410,7 +1418,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
       /* 	  current_tt.old_frag = NULL; */
       /* 	  current_tt.p = NULL; */
       /* 	} */
- 
+
       md_number_to_chars (p, iword, 4);
       return;
     }
@@ -1883,7 +1891,7 @@ relax_tt_frag (segT seg, fragS *fragP)
   if (tt_var < smallest_var)
     {
       iword = my66000_set_tt_size (iword, smallest_var);
-      *ip = iword;    
+      *ip = iword;
     }
   else if (tt_var > smallest_var)
     {
@@ -2031,4 +2039,3 @@ handle_jt (int num ATTRIBUTE_UNUSED)
 
   do_align (2, (char *) 0, 0, 0);
 }
-
