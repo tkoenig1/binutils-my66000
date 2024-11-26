@@ -954,7 +954,7 @@ const struct relax_tabS relax_tab[RELAX_LAST+1] =
   {RELAX_TT_FIRST,     BFD_RELOC_NONE,	  0,   1, RELAX_TT_FIRST,   1, NULL, TINY},
   {RELAX_TT_8_S2,      BFD_RELOC_8_PCREL_S2,  10, 1, RELAX_TT_8_S2, 1, my66000_set_tt, TINY},
   {RELAX_TT_16_S2,     BFD_RELOC_16_PCREL_S2, 18, 2, RELAX_TT_8_S2, 1, my66000_set_tt, TINY},
-  {RELAX_TT_32_S2,     BFD_RELOC_32_PCREL_S2, 34, 4, RELAX_TT_8_S2, 1, my66000_set_tt, TINY},
+  {RELAX_TT_32_S2,     BFD_RELOC_32_PCREL_S2, 34, 4, RELAX_TT_8_S2, 1, my66000_set_tt, SMALL},
   {RELAX_TT_64_S2,     BFD_RELOC_64_PCREL_S2, 64, 8, 0,		    1, my66000_set_tt, LARGE},
   {RELAX_CALL_26,      BFD_RELOC_26_PCREL_S2, 28, 4, RELAX_CALL_26, 1, my66000_set_call, TINY},
   {RELAX_CALL_32,      BFD_RELOC_32_PCREL,    32, 8, RELAX_CALL_26, 1, my66000_set_call, SMALL},
@@ -1636,6 +1636,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
   arelent *rel;
   bfd_reloc_code_real_type r_type;
 
+  //    print_fixup (fixp);
   rel = xmalloc (sizeof (arelent));
   rel->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
   *rel->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
@@ -1653,7 +1654,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
       rel->howto = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_32);
       assert (rel->howto != NULL);
     }
-  rel->addend = fixp->fx_addnumber;
+  rel->addend = fixp->fx_addnumber + fixp->fx_offset;
   return rel;
 }
 
@@ -1722,13 +1723,23 @@ check_reloc_range (valueT valu, int bits, fixS *fixP)
 #endif
 
 void
-md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
+md_apply_fix (fixS *fixP, valueT * valP, segT seg)
 {
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
   uint32_t iword;
-  uint16_t val16, val32;
+  uint16_t val16;
+  uint32_t val32;
+  uint64_t val64;
   uint8_t val8;
   offsetT val = *valP;
+
+  /* Don't do anything for a different segment.  */
+
+  if (fixP->fx_addsy != (symbolS *) NULL &&
+      (!S_IS_DEFINED (fixP->fx_addsy) ||
+       (S_GET_SEGMENT (fixP->fx_addsy) != seg) ||
+       S_IS_EXTERNAL (fixP->fx_addsy) || S_IS_WEAK (fixP->fx_addsy)))
+    return;
 
   /* FIXME: Look up the masks etc from the tables, eventually.  */
   /* For the fixups that are shifted, we do the range checking here.  */
@@ -1767,6 +1778,13 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
       bfd_putl64 ((bfd_vma) *valP, buf);
       break;
 
+    case BFD_RELOC_64_PCREL_S2:
+      //      check_reloc_range (*valP, 64, fixP);
+      val64 = val / 4;
+      bfd_putl64 ((bfd_vma) val64, buf);
+      fixP ->fx_no_overflow = 1;
+      break;
+
     case BFD_RELOC_8:
       *buf = *valP;
       break;
@@ -1790,8 +1808,8 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
       bfd_putl64 ((bfd_vma) *valP, buf);
       break;
     default:
-      as_fatal ("Unknown relocation %d in md_apply_fix",
-		(int) fixP->fx_r_type);
+      as_fatal ("Unknown relocation %s in md_apply_fix",
+		bfd_get_reloc_code_name(fixP->fx_r_type));
       break;
     }
 
