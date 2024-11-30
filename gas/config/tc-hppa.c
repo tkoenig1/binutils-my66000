@@ -1,5 +1,5 @@
 /* tc-hppa.c -- Assemble for the PA
-   Copyright (C) 1989-2023 Free Software Foundation, Inc.
+   Copyright (C) 1989-2024 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -1631,26 +1631,26 @@ md_estimate_size_before_relax (fragS *fragP, asection *segment ATTRIBUTE_UNUSED)
 
 #ifdef OBJ_ELF
 # ifdef WARN_COMMENTS
-const char *md_shortopts = "Vc";
+const char md_shortopts[] = "Vc";
 # else
-const char *md_shortopts = "V";
+const char md_shortopts[] = "V";
 # endif
 #else
 # ifdef WARN_COMMENTS
-const char *md_shortopts = "c";
+const char md_shortopts[] = "c";
 # else
-const char *md_shortopts = "";
+const char md_shortopts[] = "";
 # endif
 #endif
 
-struct option md_longopts[] =
+const struct option md_longopts[] =
 {
 #ifdef WARN_COMMENTS
   {"warn-comment", no_argument, NULL, 'c'},
 #endif
   {NULL, no_argument, NULL, 0}
 };
-size_t md_longopts_size = sizeof (md_longopts);
+const size_t md_longopts_size = sizeof (md_longopts);
 
 int
 md_parse_option (int c, const char *arg ATTRIBUTE_UNUSED)
@@ -6199,7 +6199,7 @@ pa_callinfo (int unused ATTRIBUTE_UNUSED)
    label when finished.  */
 
 static void
-pa_text (int unused ATTRIBUTE_UNUSED)
+pa_text (int arg)
 {
 #ifdef OBJ_SOM
   current_space = is_defined_space ("$TEXT$");
@@ -6207,21 +6207,32 @@ pa_text (int unused ATTRIBUTE_UNUSED)
     = pa_subsegment_to_subspace (current_space->sd_seg, 0);
 #endif
 
-  s_text (0);
+#ifdef OBJ_ELF
+  obj_elf_text (arg);
+#else
+  s_text (arg);
+#endif
+
   pa_undefine_label ();
 }
 
 /* Switch to the data space.  As usual delete our label.  */
 
 static void
-pa_data (int unused ATTRIBUTE_UNUSED)
+pa_data (int arg)
 {
 #ifdef OBJ_SOM
   current_space = is_defined_space ("$PRIVATE$");
   current_subspace
     = pa_subsegment_to_subspace (current_space->sd_seg, 0);
 #endif
-  s_data (0);
+
+#ifdef OBJ_ELF
+  obj_elf_data (arg);
+#else
+  s_data (arg);
+#endif
+
   pa_undefine_label ();
 }
 

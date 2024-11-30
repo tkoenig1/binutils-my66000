@@ -1,5 +1,5 @@
 /* tc-ppc.c -- Assemble for the PowerPC or POWER (RS/6000)
-   Copyright (C) 1994-2023 Free Software Foundation, Inc.
+   Copyright (C) 1994-2024 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.
@@ -279,7 +279,7 @@ const pseudo_typeS md_pseudo_table[] =
 /* Structure to hold information about predefined registers.  */
 struct pd_reg
   {
-    const char *name;
+    char name[6];
     unsigned short value;
     unsigned short flags;
   };
@@ -1098,9 +1098,9 @@ unsigned int ppc_apuinfo_num_alloc;
 #endif /* OBJ_ELF */
 
 #ifdef OBJ_ELF
-const char *const md_shortopts = "b:l:usm:K:VQ:";
+const char md_shortopts[] = "b:l:usm:K:VQ:";
 #else
-const char *const md_shortopts = "um:";
+const char md_shortopts[] = "um:";
 #endif
 #define OPTION_NOPS (OPTION_MD_BASE + 0)
 const struct option md_longopts[] = {
@@ -1391,6 +1391,8 @@ PowerPC options:\n"));
 -mpower9, -mpwr9        generate code for Power9 architecture\n"));
   fprintf (stream, _("\
 -mpower10, -mpwr10      generate code for Power10 architecture\n"));
+  fprintf (stream, _("\
+-mpower11, -mpwr11      generate code for Power11 architecture\n"));
   fprintf (stream, _("\
 -mlibresoc              generate code for Libre-SOC architecture\n"));
   fprintf (stream, _("\
@@ -2390,8 +2392,8 @@ ppc_elf_lcomm (int xxx ATTRIBUTE_UNUSED)
 
   /* Just after name is now '\0'.  */
   p = input_line_pointer;
-  *p = c;
-  SKIP_WHITESPACE_AFTER_NAME ();
+  restore_line_pointer (c);
+  SKIP_WHITESPACE ();
   if (*input_line_pointer != ',')
     {
       as_bad (_("expected comma after symbol-name: rest of line ignored."));
@@ -2490,8 +2492,8 @@ ppc_elf_localentry (int ignore ATTRIBUTE_UNUSED)
   elf_symbol_type *elfsym;
 
   p = input_line_pointer;
-  *p = c;
-  SKIP_WHITESPACE_AFTER_NAME ();
+  restore_line_pointer (c);
+  SKIP_WHITESPACE ();
   if (*input_line_pointer != ',')
     {
       *p = 0;
@@ -5034,8 +5036,8 @@ ppc_ref (int ignore ATTRIBUTE_UNUSED)
       fix_at_start (symbol_get_frag (ppc_current_csect), 0,
 		    symbol_find_or_make (name), 0, false, BFD_RELOC_NONE);
 
-      *input_line_pointer = c;
-      SKIP_WHITESPACE_AFTER_NAME ();
+      restore_line_pointer (c);
+      SKIP_WHITESPACE ();
       c = *input_line_pointer;
       if (c == ',')
 	{

@@ -1,6 +1,6 @@
 /* Support for printing Fortran values for GDB, the GNU debugger.
 
-   Copyright (C) 1993-2023 Free Software Foundation, Inc.
+   Copyright (C) 1993-2024 Free Software Foundation, Inc.
 
    Contributed by Motorola.  Adapted from the C definitions by Farooq Butt
    (fmbutt@engage.sps.mot.com), additionally worked over by Stan Shebs.
@@ -20,7 +20,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "annotate.h"
 #include "symtab.h"
 #include "gdbtypes.h"
@@ -266,6 +265,10 @@ public:
     if (m_options->repeat_count_threshold < UINT_MAX
 	&& elt_type_prev != nullptr)
       {
+	/* When printing large arrays this spot is called frequently, so clean
+	   up temporary values asap to prevent allocating a large amount of
+	   them.  */
+	scoped_value_mark free_values;
 	struct value *e_val = value_from_component (m_val, elt_type, elt_off);
 	struct value *e_prev = value_from_component (m_val, elt_type,
 						     elt_off_prev);
@@ -548,7 +551,7 @@ f_language::value_print_inner (struct value *val, struct ui_file *stream,
 		     value field before printing its value.  */
 		  struct block_symbol sym
 		    = lookup_symbol (field_name, get_selected_block (nullptr),
-				     VAR_DOMAIN, nullptr);
+				     SEARCH_VFT, nullptr);
 		  if (sym.symbol == nullptr)
 		    error (_("failed to find symbol for name list component %s"),
 			   field_name);

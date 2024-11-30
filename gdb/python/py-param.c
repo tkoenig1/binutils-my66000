@@ -1,6 +1,6 @@
 /* GDB parameters implemented in Python
 
-   Copyright (C) 2008-2023 Free Software Foundation, Inc.
+   Copyright (C) 2008-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,11 +18,10 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 
-#include "defs.h"
 #include "value.h"
 #include "python-internal.h"
 #include "charset.h"
-#include "gdbcmd.h"
+#include "cli/cli-cmds.h"
 #include "cli/cli-decode.h"
 #include "completer.h"
 #include "language.h"
@@ -30,7 +29,7 @@
 
 /* Python parameter types as in PARM_CONSTANTS below.  */
 
-enum param_types
+enum py_param_types
 {
   param_boolean,
   param_auto_boolean,
@@ -44,8 +43,7 @@ enum param_types
   param_zuinteger,
   param_zuinteger_unlimited,
   param_enum,
-}
-param_types;
+};
 
 /* Translation from Python parameters to GDB variable types.  Keep in the
    same order as PARAM_TYPES due to C++'s lack of designated initializers.  */
@@ -887,8 +885,7 @@ parmpy_init (PyObject *self, PyObject *args, PyObject *kwds)
   catch (const gdb_exception &except)
     {
       Py_DECREF (self);
-      gdbpy_convert_exception (except);
-      return -1;
+      return gdbpy_handle_gdb_exception (-1, except);
     }
 
   return 0;
@@ -912,7 +909,7 @@ gdbpy_initialize_parameters (void)
   int i;
 
   parmpy_object_type.tp_new = PyType_GenericNew;
-  if (PyType_Ready (&parmpy_object_type) < 0)
+  if (gdbpy_type_ready (&parmpy_object_type) < 0)
     return -1;
 
   set_doc_cst = PyUnicode_FromString ("set_doc");
@@ -930,8 +927,7 @@ gdbpy_initialize_parameters (void)
 	return -1;
     }
 
-  return gdb_pymodule_addobject (gdb_module, "Parameter",
-				 (PyObject *) &parmpy_object_type);
+  return 0;
 }
 
 GDBPY_INITIALIZE_FILE (gdbpy_initialize_parameters);

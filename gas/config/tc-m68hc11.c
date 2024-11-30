@@ -1,5 +1,5 @@
 /* tc-m68hc11.c -- Assembler code for the Motorola 68HC11 & 68HC12.
-   Copyright (C) 1999-2023 Free Software Foundation, Inc.
+   Copyright (C) 1999-2024 Free Software Foundation, Inc.
    Written by Stephane Carrez (stcarrez@nerim.fr)
    XGATE and S12X added by James Murray (jsm@jsm-net.demon.co.uk)
 
@@ -323,9 +323,9 @@ const pseudo_typeS md_pseudo_table[] =
 
 /* Options and initialization.  */
 
-const char *md_shortopts = "Sm:";
+const char md_shortopts[] = "Sm:";
 
-struct option md_longopts[] =
+const struct option md_longopts[] =
 {
 #define OPTION_FORCE_LONG_BRANCH (OPTION_MD_BASE)
   {"force-long-branches", no_argument, NULL, OPTION_FORCE_LONG_BRANCH},
@@ -364,7 +364,7 @@ struct option md_longopts[] =
 
   {NULL, no_argument, NULL, 0}
 };
-size_t md_longopts_size = sizeof (md_longopts);
+const size_t md_longopts_size = sizeof (md_longopts);
 
 /* Get the target cpu for the assembler.  This is based on the configure
    options and on the -m68hc11/-m68hc12 option.  If no option is specified,

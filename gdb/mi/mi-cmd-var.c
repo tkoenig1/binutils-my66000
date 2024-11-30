@@ -1,5 +1,5 @@
 /* MI Command Set - varobj commands.
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
 
@@ -18,7 +18,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "mi-cmds.h"
 #include "mi-main.h"
 #include "ui-out.h"
@@ -30,7 +29,7 @@
 #include "mi-getopt.h"
 #include "gdbthread.h"
 #include "mi-parse.h"
-#include "gdbsupport/gdb_optional.h"
+#include <optional>
 #include "inferior.h"
 
 static void varobj_update_one (struct varobj *var,
@@ -246,7 +245,7 @@ mi_cmd_var_set_visualizer (const char *command, const char *const *argv,
   struct varobj *var;
 
   if (argc != 2)
-    error (_("Usage: NAME VISUALIZER_FUNCTION."));
+    error (_("-var-set-visualizer: Usage: NAME VISUALIZER_FUNCTION."));
 
   var = varobj_get_handle (argv[0]);
 
@@ -263,7 +262,7 @@ mi_cmd_var_set_frozen (const char *command, const char *const *argv, int argc)
   bool frozen;
 
   if (argc != 2)
-    error (_("-var-set-format: Usage: NAME FROZEN_FLAG."));
+    error (_("-var-set-frozen: Usage: NAME FROZEN_FLAG."));
 
   var = varobj_get_handle (argv[0]);
 
@@ -442,7 +441,7 @@ mi_cmd_var_info_path_expression (const char *command, const char *const *argv,
   struct varobj *var;
 
   if (argc != 1)
-    error (_("Usage: NAME."));
+    error (_("-var-info-path-expression: Usage: NAME."));
 
   /* Get varobj handle, if a valid var obj name was specified.  */
   var = varobj_get_handle (argv[0]);

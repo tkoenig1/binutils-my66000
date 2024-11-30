@@ -1,6 +1,6 @@
 /* Parse expressions for GDB.
 
-   Copyright (C) 1986-2023 Free Software Foundation, Inc.
+   Copyright (C) 1986-2024 Free Software Foundation, Inc.
 
    Modified from expread.y by the Department of Computer Science at the
    State University of New York at Buffalo, 1991.
@@ -29,7 +29,6 @@
    during the process of parsing; the lower levels of the tree always
    come first in the result.  */
 
-#include "defs.h"
 #include <ctype.h>
 #include "arch-utils.h"
 #include "symtab.h"
@@ -40,8 +39,8 @@
 #include "command.h"
 #include "language.h"
 #include "parser-defs.h"
-#include "gdbcmd.h"
-#include "symfile.h"		/* for overlay functions */
+#include "cli/cli-cmds.h"
+#include "symfile.h"
 #include "inferior.h"
 #include "target-float.h"
 #include "block.h"
@@ -49,7 +48,7 @@
 #include "objfiles.h"
 #include "user-regs.h"
 #include <algorithm>
-#include "gdbsupport/gdb_optional.h"
+#include <optional>
 #include "c-exp.h"
 
 static unsigned int expressiondebug = 0;
@@ -101,7 +100,7 @@ void
 parser_state::mark_struct_expression (expr::structop_base_operation *op)
 {
   gdb_assert (parse_completion && m_completion_state == nullptr);
-  m_completion_state.reset (new expr_complete_structop (op));
+  m_completion_state = std::make_unique<expr_complete_structop> (op);
 }
 
 /* Indicate that the current parser invocation is completing a tag.
@@ -146,10 +145,12 @@ parser_state::push_symbol (const char *name, block_symbol sym)
     }
   else
     {
-      struct bound_minimal_symbol msymbol = lookup_bound_minimal_symbol (name);
+      bound_minimal_symbol msymbol
+	= lookup_minimal_symbol (current_program_space, name);
       if (msymbol.minsym != NULL)
 	push_new<expr::var_msym_value_operation> (msymbol);
-      else if (!have_full_symbols () && !have_partial_symbols ())
+      else if (!have_full_symbols (current_program_space)
+	       && !have_partial_symbols (current_program_space))
 	error (_("No symbol table is loaded.  Use the \"file\" command."));
       else
 	error (_("No symbol \"%s\" in current context."), name);
@@ -162,7 +163,6 @@ void
 parser_state::push_dollar (struct stoken str)
 {
   struct block_symbol sym;
-  struct bound_minimal_symbol msym;
   struct internalvar *isym = NULL;
   std::string copy;
 
@@ -225,13 +225,15 @@ parser_state::push_dollar (struct stoken str)
   /* On some systems, such as HP-UX and hppa-linux, certain system routines
      have names beginning with $ or $$.  Check for those, first.  */
 
-  sym = lookup_symbol (copy.c_str (), NULL, VAR_DOMAIN, NULL);
+  sym = lookup_symbol (copy.c_str (), nullptr,
+		       SEARCH_VAR_DOMAIN | SEARCH_FUNCTION_DOMAIN, nullptr);
   if (sym.symbol)
     {
       push_new<expr::var_value_operation> (sym);
       return;
     }
-  msym = lookup_bound_minimal_symbol (copy.c_str ());
+  bound_minimal_symbol msym
+    = lookup_minimal_symbol (current_program_space, copy.c_str ());
   if (msym.minsym)
     {
       push_new<expr::var_msym_value_operation> (msym);
@@ -242,6 +244,21 @@ parser_state::push_dollar (struct stoken str)
 
   push_new<expr::internalvar_operation>
     (create_internalvar (copy.c_str () + 1));
+}
+
+/* See parser-defs.h.  */
+
+void
+parser_state::parse_error (const char *msg)
+{
+  if (this->prev_lexptr)
+    this->lexptr = this->prev_lexptr;
+
+  if (*this->lexptr == '\0')
+    error (_("A %s in expression, near the end of `%s'."),
+	   msg, this->start_of_input);
+  else
+    error (_("A %s in expression, near `%s'."), msg, this->lexptr);
 }
 
 
@@ -359,8 +376,8 @@ parse_exp_in_context (const char **stringptr, CORE_ADDR pc,
 
       if (!expression_context_block)
 	{
-	  struct symtab_and_line cursal
-	    = get_current_source_symtab_and_line ();
+	  symtab_and_line cursal
+	    = get_current_source_symtab_and_line (current_program_space);
 
 	  if (cursal.symtab)
 	    expression_context_block
@@ -406,8 +423,7 @@ parse_exp_in_context (const char **stringptr, CORE_ADDR pc,
 		   expression_context_pc, flags, *stringptr,
 		   completer != nullptr, tracker);
 
-  scoped_restore_current_language lang_saver;
-  set_language (lang->la_language);
+  scoped_restore_current_language lang_saver (lang->la_language);
 
   try
     {
@@ -471,12 +487,9 @@ parse_expression (const char *string, innermost_block_tracker *tracker,
 expression_up
 parse_expression_with_language (const char *string, enum language lang)
 {
-  gdb::optional<scoped_restore_current_language> lang_saver;
+  std::optional<scoped_restore_current_language> lang_saver;
   if (current_language->la_language != lang)
-    {
-      lang_saver.emplace ();
-      set_language (lang);
-    }
+    lang_saver.emplace (lang);
 
   return parse_expression (string);
 }

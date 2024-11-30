@@ -1,6 +1,6 @@
 /* DWARF 2 location expression support for GDB.
 
-   Copyright (C) 2003-2023 Free Software Foundation, Inc.
+   Copyright (C) 2003-2024 Free Software Foundation, Inc.
 
    Contributed by Daniel Jacobowitz, MontaVista Software, Inc.
 
@@ -19,7 +19,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
+#include "event-top.h"
+#include "exceptions.h"
 #include "ui-out.h"
 #include "value.h"
 #include "frame.h"
@@ -31,7 +32,7 @@
 #include "regcache.h"
 #include "objfiles.h"
 #include "block.h"
-#include "gdbcmd.h"
+#include "cli/cli-cmds.h"
 #include "complaints.h"
 #include "dwarf2.h"
 #include "dwarf2/expr.h"
@@ -40,7 +41,6 @@
 #include "dwarf2/frame.h"
 #include "dwarf2/leb.h"
 #include "compile/compile.h"
-#include "gdbsupport/selftest.h"
 #include <algorithm>
 #include <vector>
 #include <unordered_set>
@@ -48,7 +48,7 @@
 #include "gdbsupport/byte-vector.h"
 
 static struct value *dwarf2_evaluate_loc_desc_full
-  (struct type *type, frame_info_ptr frame, const gdb_byte *data,
+  (struct type *type, const frame_info_ptr &frame, const gdb_byte *data,
    size_t size, dwarf2_per_cu_data *per_cu, dwarf2_per_objfile *per_objfile,
    struct type *subobj_type, LONGEST subobj_byte_offset, bool as_lval = true);
 
@@ -363,7 +363,8 @@ decode_debug_loc_dwo_addresses (dwarf2_per_cu_data *per_cu,
 
 const gdb_byte *
 dwarf2_find_location_expression (const dwarf2_loclist_baton *baton,
-				 size_t *locexpr_length, const CORE_ADDR pc)
+				 size_t *locexpr_length, const CORE_ADDR pc,
+				 bool at_entry)
 {
   dwarf2_per_objfile *per_objfile = baton->per_objfile;
   struct objfile *objfile = per_objfile->objfile;
@@ -456,7 +457,7 @@ dwarf2_find_location_expression (const dwarf2_loclist_baton *baton,
 	  loc_ptr += bytes_read;
 	}
 
-      if (low == high && unrel_pc == low)
+      if (low == high && unrel_pc == low && at_entry)
 	{
 	  /* This is entry PC record present only at entry point
 	     of a function.  Verify it is really the function entry point.  */
@@ -502,7 +503,7 @@ locexpr_find_frame_base_location (struct symbol *framefunc, CORE_ADDR pc,
    LOC_BLOCK functions using a DWARF expression as its DW_AT_frame_base.  */
 
 static CORE_ADDR
-locexpr_get_frame_base (struct symbol *framefunc, frame_info_ptr frame)
+locexpr_get_frame_base (struct symbol *framefunc, const frame_info_ptr &frame)
 {
   struct gdbarch *gdbarch;
   struct type *type;
@@ -514,14 +515,15 @@ locexpr_get_frame_base (struct symbol *framefunc, frame_info_ptr frame)
   /* If this method is called, then FRAMEFUNC is supposed to be a DWARF block.
      Thus, it's supposed to provide the find_frame_base_location method as
      well.  */
-  gdb_assert (SYMBOL_BLOCK_OPS (framefunc)->find_frame_base_location != NULL);
+  gdb_assert (framefunc->block_ops ()->find_frame_base_location != nullptr);
 
   gdbarch = get_frame_arch (frame);
   type = builtin_type (gdbarch)->builtin_data_ptr;
   dlbaton = (struct dwarf2_locexpr_baton *) SYMBOL_LOCATION_BATON (framefunc);
 
-  SYMBOL_BLOCK_OPS (framefunc)->find_frame_base_location
-    (framefunc, get_frame_pc (frame), &start, &length);
+  framefunc->block_ops ()->find_frame_base_location (framefunc,
+						     get_frame_pc (frame),
+						     &start, &length);
   result = dwarf2_evaluate_loc_desc (type, frame, start, length,
 				     dlbaton->per_cu, dlbaton->per_objfile);
 
@@ -559,7 +561,7 @@ loclist_find_frame_base_location (struct symbol *framefunc, CORE_ADDR pc,
    LOC_BLOCK functions using a DWARF location list as its DW_AT_frame_base.  */
 
 static CORE_ADDR
-loclist_get_frame_base (struct symbol *framefunc, frame_info_ptr frame)
+loclist_get_frame_base (struct symbol *framefunc, const frame_info_ptr &frame)
 {
   struct gdbarch *gdbarch;
   struct type *type;
@@ -571,14 +573,15 @@ loclist_get_frame_base (struct symbol *framefunc, frame_info_ptr frame)
   /* If this method is called, then FRAMEFUNC is supposed to be a DWARF block.
      Thus, it's supposed to provide the find_frame_base_location method as
      well.  */
-  gdb_assert (SYMBOL_BLOCK_OPS (framefunc)->find_frame_base_location != NULL);
+  gdb_assert (framefunc->block_ops ()->find_frame_base_location != nullptr);
 
   gdbarch = get_frame_arch (frame);
   type = builtin_type (gdbarch)->builtin_data_ptr;
   dlbaton = (struct dwarf2_loclist_baton *) SYMBOL_LOCATION_BATON (framefunc);
 
-  SYMBOL_BLOCK_OPS (framefunc)->find_frame_base_location
-    (framefunc, get_frame_pc (frame), &start, &length);
+  framefunc->block_ops ()->find_frame_base_location (framefunc,
+						     get_frame_pc (frame),
+						     &start, &length);
   result = dwarf2_evaluate_loc_desc (type, frame, start, length,
 				     dlbaton->per_cu, dlbaton->per_objfile);
 
@@ -605,12 +608,9 @@ void
 func_get_frame_base_dwarf_block (struct symbol *framefunc, CORE_ADDR pc,
 				 const gdb_byte **start, size_t *length)
 {
-  if (SYMBOL_BLOCK_OPS (framefunc) != NULL)
-    {
-      const struct symbol_block_ops *ops_block = SYMBOL_BLOCK_OPS (framefunc);
-
-      ops_block->find_frame_base_location (framefunc, pc, start, length);
-    }
+  if (const symbol_block_ops *block_ops = framefunc->block_ops ();
+      block_ops != nullptr)
+    block_ops->find_frame_base_location (framefunc, pc, start, length);
   else
     *length = 0;
 
@@ -624,7 +624,7 @@ func_get_frame_base_dwarf_block (struct symbol *framefunc, CORE_ADDR pc,
 value *
 compute_var_value (const char *name)
 {
-  struct block_symbol sym = lookup_symbol (name, nullptr, VAR_DOMAIN,
+  struct block_symbol sym = lookup_symbol (name, nullptr, SEARCH_VAR_DOMAIN,
 					   nullptr);
   if (sym.symbol != nullptr)
     return value_of_variable (sym.symbol, sym.block);
@@ -649,11 +649,10 @@ show_entry_values_debug (struct ui_file *file, int from_tty,
 /* See gdbtypes.h.  */
 
 void
-call_site_target::iterate_over_addresses
-     (struct gdbarch *call_site_gdbarch,
-      const struct call_site *call_site,
-      frame_info_ptr caller_frame,
-      iterate_ftype callback) const
+call_site_target::iterate_over_addresses (gdbarch *call_site_gdbarch,
+					  const call_site *call_site,
+					  const frame_info_ptr &caller_frame,
+					  iterate_ftype callback) const
 {
   switch (m_loc_kind)
     {
@@ -667,9 +666,8 @@ call_site_target::iterate_over_addresses
 	dwarf_block = m_loc.dwarf_block;
 	if (dwarf_block == NULL)
 	  {
-	    struct bound_minimal_symbol msym;
-	    
-	    msym = lookup_minimal_symbol_by_pc (call_site->pc () - 1);
+	    bound_minimal_symbol msym
+	      = lookup_minimal_symbol_by_pc (call_site->pc () - 1);
 	    throw_error (NO_ENTRY_VALUE_ERROR,
 			 _("DW_AT_call_target is not specified at %s in %s"),
 			 paddress (call_site_gdbarch, call_site->pc ()),
@@ -679,9 +677,8 @@ call_site_target::iterate_over_addresses
 	  }
 	if (caller_frame == NULL)
 	  {
-	    struct bound_minimal_symbol msym;
-	    
-	    msym = lookup_minimal_symbol_by_pc (call_site->pc () - 1);
+	    bound_minimal_symbol msym
+	      = lookup_minimal_symbol_by_pc (call_site->pc () - 1);
 	    throw_error (NO_ENTRY_VALUE_ERROR,
 			 _("DW_AT_call_target DWARF block resolving "
 			   "requires known frame which is currently not "
@@ -708,12 +705,12 @@ call_site_target::iterate_over_addresses
     case call_site_target::PHYSNAME:
       {
 	const char *physname;
-	struct bound_minimal_symbol msym;
 
 	physname = m_loc.physname;
 
 	/* Handle both the mangled and demangled PHYSNAME.  */
-	msym = lookup_minimal_symbol (physname, NULL, NULL);
+	bound_minimal_symbol msym
+	  = lookup_minimal_symbol (current_program_space, physname);
 	if (msym.minsym == NULL)
 	  {
 	    msym = lookup_minimal_symbol_by_pc (call_site->pc () - 1);
@@ -782,7 +779,7 @@ func_addr_to_tail_call_list (struct gdbarch *gdbarch, CORE_ADDR addr)
    via its tail calls (incl. transitively).  Throw NO_ENTRY_VALUE_ERROR if it
    can call itself via tail calls.
 
-   If a funtion can tail call itself its entry value based parameters are
+   If a function can tail call itself its entry value based parameters are
    unreliable.  There is no verification whether the value of some/all
    parameters is unchanged through the self tail call, we expect if there is
    a self tail call all the parameters can be modified.  */
@@ -820,9 +817,8 @@ func_verify_no_selftailcall (struct gdbarch *gdbarch, CORE_ADDR verify_addr)
 	    {
 	      if (target_addr == verify_addr)
 		{
-		  struct bound_minimal_symbol msym;
-
-		  msym = lookup_minimal_symbol_by_pc (verify_addr);
+		  bound_minimal_symbol msym
+		    = lookup_minimal_symbol_by_pc (verify_addr);
 		  throw_error (NO_ENTRY_VALUE_ERROR,
 			       _("DW_OP_entry_value resolving has found "
 				 "function \"%s\" at %s can call itself via tail "
@@ -846,7 +842,7 @@ static void
 tailcall_dump (struct gdbarch *gdbarch, const struct call_site *call_site)
 {
   CORE_ADDR addr = call_site->pc ();
-  struct bound_minimal_symbol msym = lookup_minimal_symbol_by_pc (addr - 1);
+  bound_minimal_symbol msym = lookup_minimal_symbol_by_pc (addr - 1);
 
   gdb_printf (gdb_stdlog, " %s(%s)", paddress (gdbarch, addr),
 	      (msym.minsym == NULL ? "???"
@@ -1064,10 +1060,10 @@ call_site_find_chain_1 (struct gdbarch *gdbarch, CORE_ADDR caller_pc,
 
   if (retval == NULL)
     {
-      struct bound_minimal_symbol msym_caller, msym_callee;
-      
-      msym_caller = lookup_minimal_symbol_by_pc (caller_pc);
-      msym_callee = lookup_minimal_symbol_by_pc (callee_pc);
+      bound_minimal_symbol msym_caller
+	= lookup_minimal_symbol_by_pc (caller_pc);
+      bound_minimal_symbol msym_callee
+	= lookup_minimal_symbol_by_pc (callee_pc);
       throw_error (NO_ENTRY_VALUE_ERROR,
 		   _("There are no unambiguously determinable intermediate "
 		     "callers or callees between caller function \"%s\" at %s "
@@ -1138,9 +1134,9 @@ call_site_parameter_matches (struct call_site_parameter *parameter,
 /* See loc.h.  */
 
 struct call_site_parameter *
-dwarf_expr_reg_to_entry_parameter (frame_info_ptr frame,
-				   enum call_site_parameter_kind kind,
-				   union call_site_parameter_u kind_u,
+dwarf_expr_reg_to_entry_parameter (const frame_info_ptr &initial_frame,
+				   call_site_parameter_kind kind,
+				   call_site_parameter_u kind_u,
 				   dwarf2_per_cu_data **per_cu_return,
 				   dwarf2_per_objfile **per_objfile_return)
 {
@@ -1152,10 +1148,11 @@ dwarf_expr_reg_to_entry_parameter (frame_info_ptr frame,
   /* Initialize it just to avoid a GCC false warning.  */
   struct call_site_parameter *parameter = NULL;
   CORE_ADDR target_addr;
+  frame_info_ptr frame = initial_frame;
 
   while (get_frame_type (frame) == INLINE_FRAME)
     {
-      frame = get_prev_frame (frame);
+      frame = get_prev_frame_always (frame);
       gdb_assert (frame != NULL);
     }
 
@@ -1164,8 +1161,7 @@ dwarf_expr_reg_to_entry_parameter (frame_info_ptr frame,
   caller_frame = get_prev_frame (frame);
   if (gdbarch != frame_unwind_arch (frame))
     {
-      struct bound_minimal_symbol msym
-	= lookup_minimal_symbol_by_pc (func_addr);
+      bound_minimal_symbol msym = lookup_minimal_symbol_by_pc (func_addr);
       struct gdbarch *caller_gdbarch = frame_unwind_arch (frame);
 
       throw_error (NO_ENTRY_VALUE_ERROR,
@@ -1180,8 +1176,7 @@ dwarf_expr_reg_to_entry_parameter (frame_info_ptr frame,
 
   if (caller_frame == NULL)
     {
-      struct bound_minimal_symbol msym
-	= lookup_minimal_symbol_by_pc (func_addr);
+      bound_minimal_symbol msym = lookup_minimal_symbol_by_pc (func_addr);
 
       throw_error (NO_ENTRY_VALUE_ERROR, _("DW_OP_entry_value resolving "
 					   "requires caller of %s (%s)"),
@@ -1263,7 +1258,7 @@ dwarf_expr_reg_to_entry_parameter (frame_info_ptr frame,
 static struct value *
 dwarf_entry_parameter_to_value (struct call_site_parameter *parameter,
 				CORE_ADDR deref_size, struct type *type,
-				frame_info_ptr caller_frame,
+				const frame_info_ptr &caller_frame,
 				dwarf2_per_cu_data *per_cu,
 				dwarf2_per_objfile *per_objfile)
 {
@@ -1339,7 +1334,7 @@ static const struct lval_funcs entry_data_value_funcs =
 
 /* See dwarf2/loc.h.  */
 struct value *
-value_of_dwarf_reg_entry (struct type *type, frame_info_ptr frame,
+value_of_dwarf_reg_entry (struct type *type, const frame_info_ptr &frame,
 			  enum call_site_parameter_kind kind,
 			  union call_site_parameter_u kind_u)
 {
@@ -1395,7 +1390,7 @@ value_of_dwarf_reg_entry (struct type *type, frame_info_ptr frame,
    cannot resolve the parameter for any reason.  */
 
 static struct value *
-value_of_dwarf_block_entry (struct type *type, frame_info_ptr frame,
+value_of_dwarf_block_entry (struct type *type, const frame_info_ptr &frame,
 			    const gdb_byte *block, size_t block_len)
 {
   union call_site_parameter_u kind_u;
@@ -1456,7 +1451,7 @@ struct value *
 indirect_synthetic_pointer (sect_offset die, LONGEST byte_offset,
 			    dwarf2_per_cu_data *per_cu,
 			    dwarf2_per_objfile *per_objfile,
-			    frame_info_ptr frame, struct type *type,
+			    const frame_info_ptr &frame, struct type *type,
 			    bool resolve_abstract_p)
 {
   /* Fetch the location expression of the DIE we're pointing to.  */
@@ -1496,7 +1491,7 @@ indirect_synthetic_pointer (sect_offset die, LONGEST byte_offset,
    SUBOBJ_BYTE_OFFSET within the variable of type TYPE.  */
 
 static struct value *
-dwarf2_evaluate_loc_desc_full (struct type *type, frame_info_ptr frame,
+dwarf2_evaluate_loc_desc_full (struct type *type, const frame_info_ptr &frame,
 			       const gdb_byte *data, size_t size,
 			       dwarf2_per_cu_data *per_cu,
 			       dwarf2_per_objfile *per_objfile,
@@ -1561,7 +1556,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, frame_info_ptr frame,
    passes 0 as the byte_offset.  */
 
 struct value *
-dwarf2_evaluate_loc_desc (struct type *type, frame_info_ptr frame,
+dwarf2_evaluate_loc_desc (struct type *type, const frame_info_ptr &frame,
 			  const gdb_byte *data, size_t size,
 			  dwarf2_per_cu_data *per_cu,
 			  dwarf2_per_objfile *per_objfile, bool as_lval)
@@ -1584,7 +1579,7 @@ dwarf2_evaluate_loc_desc (struct type *type, frame_info_ptr frame,
 
 static int
 dwarf2_locexpr_baton_eval (const struct dwarf2_locexpr_baton *dlbaton,
-			   frame_info_ptr frame,
+			   const frame_info_ptr &frame,
 			   const struct property_addr_info *addr_stack,
 			   CORE_ADDR *valp,
 			   gdb::array_view<CORE_ADDR> push_values,
@@ -1644,9 +1639,9 @@ dwarf2_locexpr_baton_eval (const struct dwarf2_locexpr_baton *dlbaton,
 /* See dwarf2/loc.h.  */
 
 bool
-dwarf2_evaluate_property (const struct dynamic_prop *prop,
-			  frame_info_ptr frame,
-			  const struct property_addr_info *addr_stack,
+dwarf2_evaluate_property (const dynamic_prop *prop,
+			  const frame_info_ptr &initial_frame,
+			  const property_addr_info *addr_stack,
 			  CORE_ADDR *value,
 			  gdb::array_view<CORE_ADDR> push_values)
 {
@@ -1657,6 +1652,7 @@ dwarf2_evaluate_property (const struct dynamic_prop *prop,
      Without this here this could happen if the code below selects a
      frame.  */
   scoped_restore_current_language save_language;
+  frame_info_ptr frame = initial_frame;
 
   if (frame == NULL && has_stack_frames ())
     frame = get_selected_frame (NULL);
@@ -1954,12 +1950,12 @@ dwarf2_get_symbol_read_needs (gdb::array_view<const gdb_byte> expr,
 	case DW_OP_lt:
 	case DW_OP_gt:
 	case DW_OP_ne:
-	case DW_OP_GNU_push_tls_address:
 	case DW_OP_nop:
 	case DW_OP_GNU_uninit:
 	case DW_OP_push_object_address:
 	  break;
 
+	case DW_OP_GNU_push_tls_address:
 	case DW_OP_form_tls_address:
 	  if (symbol_needs <= SYMBOL_NEEDS_REGISTERS)
 	    symbol_needs = SYMBOL_NEEDS_REGISTERS;
@@ -1971,6 +1967,7 @@ dwarf2_get_symbol_read_needs (gdb::array_view<const gdb_byte> expr,
 	case DW_OP_GNU_reinterpret:
 	case DW_OP_addrx:
 	case DW_OP_GNU_addr_index:
+	case DW_OP_constx:
 	case DW_OP_GNU_const_index:
 	case DW_OP_constu:
 	case DW_OP_plus_uconst:
@@ -2251,7 +2248,7 @@ dwarf2_get_symbol_read_needs (gdb::array_view<const gdb_byte> expr,
 /* A helper function that throws an unimplemented error mentioning a
    given DWARF operator.  */
 
-static void ATTRIBUTE_NORETURN
+[[noreturn]] static void
 unimplemented (unsigned int op)
 {
   const char *name = get_DW_OP_name (op);
@@ -3051,7 +3048,7 @@ dwarf2_compile_expr_to_ax (struct agent_expr *expr, struct axs_value *loc,
 /* Return the value of SYMBOL in FRAME using the DWARF-2 expression
    evaluator to calculate the location.  */
 static struct value *
-locexpr_read_variable (struct symbol *symbol, frame_info_ptr frame)
+locexpr_read_variable (struct symbol *symbol, const frame_info_ptr &frame)
 {
   struct dwarf2_locexpr_baton *dlbaton
     = (struct dwarf2_locexpr_baton *) SYMBOL_LOCATION_BATON (symbol);
@@ -3069,7 +3066,7 @@ locexpr_read_variable (struct symbol *symbol, frame_info_ptr frame)
    will be thrown.  */
 
 static struct value *
-locexpr_read_variable_at_entry (struct symbol *symbol, frame_info_ptr frame)
+locexpr_read_variable_at_entry (struct symbol *symbol, const frame_info_ptr &frame)
 {
   struct dwarf2_locexpr_baton *dlbaton
     = (struct dwarf2_locexpr_baton *) SYMBOL_LOCATION_BATON (symbol);
@@ -3269,10 +3266,13 @@ locexpr_describe_location_piece (struct symbol *symbol, struct ui_file *stream,
   /* With -gsplit-dwarf a TLS variable can also look like this:
      DW_AT_location    : 3 byte block: fc 4 e0
 			(DW_OP_GNU_const_index: 4;
-			 DW_OP_GNU_push_tls_address)  */
+			 DW_OP_GNU_push_tls_address) |
+			 3 byte block a2 4 e0
+			(DW_OP_constx: 4;
+			 DW_OP_form_tls_address)  */
   else if (data + 3 <= end
 	   && data + 1 + (leb128_size = skip_leb128 (data + 1, end)) < end
-	   && data[0] == DW_OP_GNU_const_index
+	   && (data[0] == DW_OP_constx || data[0] == DW_OP_GNU_const_index)
 	   && leb128_size > 0
 	   && (data[1 + leb128_size] == DW_OP_GNU_push_tls_address
 	       || data[1 + leb128_size] == DW_OP_form_tls_address)
@@ -3679,6 +3679,7 @@ disassemble_dwarf_expression (struct ui_file *stream,
 	  gdb_printf (stream, " 0x%s", phex_nz (ul, addr_size));
 	  break;
 
+	case DW_OP_constx:
 	case DW_OP_GNU_const_index:
 	  data = safe_read_uleb128 (data, end, &ul);
 	  ul = (uint64_t) dwarf2_read_addr_index (per_cu, per_objfile, ul);
@@ -3884,7 +3885,7 @@ const struct symbol_computed_ops dwarf2_locexpr_funcs = {
 /* Return the value of SYMBOL in FRAME using the DWARF-2 expression
    evaluator to calculate the location.  */
 static struct value *
-loclist_read_variable (struct symbol *symbol, frame_info_ptr frame)
+loclist_read_variable (struct symbol *symbol, const frame_info_ptr &frame)
 {
   struct dwarf2_loclist_baton *dlbaton
     = (struct dwarf2_loclist_baton *) SYMBOL_LOCATION_BATON (symbol);
@@ -3909,7 +3910,7 @@ loclist_read_variable (struct symbol *symbol, frame_info_ptr frame)
    if it cannot resolve the parameter for any reason.  */
 
 static struct value *
-loclist_read_variable_at_entry (struct symbol *symbol, frame_info_ptr frame)
+loclist_read_variable_at_entry (struct symbol *symbol, const frame_info_ptr &frame)
 {
   struct dwarf2_loclist_baton *dlbaton
     = (struct dwarf2_loclist_baton *) SYMBOL_LOCATION_BATON (symbol);
@@ -3920,7 +3921,7 @@ loclist_read_variable_at_entry (struct symbol *symbol, frame_info_ptr frame)
   if (frame == NULL || !get_frame_func_if_available (frame, &pc))
     return value::allocate_optimized_out (symbol->type ());
 
-  data = dwarf2_find_location_expression (dlbaton, &size, pc);
+  data = dwarf2_find_location_expression (dlbaton, &size, pc, true);
   if (data == NULL)
     return value::allocate_optimized_out (symbol->type ());
 
@@ -4123,13 +4124,13 @@ _initialize_dwarf2loc ()
 {
   add_setshow_zuinteger_cmd ("entry-values", class_maintenance,
 			     &entry_values_debug,
-			     _("Set entry values and tail call frames "
-			       "debugging."),
-			     _("Show entry values and tail call frames "
-			       "debugging."),
-			     _("When non-zero, the process of determining "
-			       "parameter values from function entry point "
-			       "and tail call frames will be printed."),
+			     _("\
+Set entry values and tail call frames debugging."),
+			     _("\
+Show entry values and tail call frames debugging."),
+			     _("\
+When non-zero, the process of determining parameter values from\n\
+function entry point and tail call frames will be printed."),
 			     NULL,
 			     show_entry_values_debug,
 			     &setdebuglist, &showdebuglist);

@@ -1,6 +1,6 @@
 /* MI Interpreter Definitions and Commands for GDB, the GNU debugger.
 
-   Copyright (C) 2002-2023 Free Software Foundation, Inc.
+   Copyright (C) 2002-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,10 +17,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 
 #include "mi-interp.h"
 
+#include "exceptions.h"
 #include "interps.h"
 #include "event-top.h"
 #include "gdbsupport/event-loop.h"
@@ -95,7 +95,7 @@ mi_interp::init (bool top_level)
   mi->log = mi->err;
   mi->targ = new mi_console_file (mi->raw_stdout, "@", '"');
   mi->event_channel = new mi_console_file (mi->raw_stdout, "=", 0);
-  mi->mi_uiout = mi_out_new (name ());
+  mi->mi_uiout = mi_out_new (name ()).release ();
   gdb_assert (mi->mi_uiout != nullptr);
   mi->cli_uiout = new cli_ui_out (mi->out);
 
@@ -133,8 +133,6 @@ mi_interp::resume ()
   gdb_stdlog = mi->log;
   /* Route target output through the MI.  */
   gdb_stdtarg = mi->targ;
-  /* Route target error through the MI as well.  */
-  gdb_stdtargerr = mi->targ;
 
   deprecated_show_load_progress = mi_load_progress;
 }
@@ -277,7 +275,9 @@ mi_interp::on_new_thread (thread_info *t)
 }
 
 void
-mi_interp::on_thread_exited (thread_info *t, int silent)
+mi_interp::on_thread_exited (thread_info *t,
+			     std::optional<ULONGEST> /* exit_code */,
+			     int /* silent */)
 {
   target_terminal::scoped_restore_terminal_state term_state;
   target_terminal::ours_for_output ();
@@ -673,7 +673,7 @@ mi_on_resume_1 (struct mi_interp *mi,
   if (!mi->running_result_record_printed && mi->mi_proceeded)
     {
       gdb_printf (mi->raw_stdout, "%s^running\n",
-		  current_token ? current_token : "");
+		  mi->current_token ? mi->current_token : "");
     }
 
   /* Backwards compatibility.  If doing a wildcard resume and there's
@@ -722,28 +722,28 @@ mi_interp::on_target_resumed (ptid_t ptid)
 /* See mi-interp.h.  */
 
 void
-mi_output_solib_attribs (ui_out *uiout, struct so_list *solib)
+mi_output_solib_attribs (ui_out *uiout, const solib &solib)
 {
-  struct gdbarch *gdbarch = target_gdbarch ();
+  gdbarch *gdbarch = current_inferior ()->arch ();
 
-  uiout->field_string ("id", solib->so_original_name);
-  uiout->field_string ("target-name", solib->so_original_name);
-  uiout->field_string ("host-name", solib->so_name);
-  uiout->field_signed ("symbols-loaded", solib->symbols_loaded);
-  if (!gdbarch_has_global_solist (target_gdbarch ()))
+  uiout->field_string ("id", solib.so_original_name);
+  uiout->field_string ("target-name", solib.so_original_name);
+  uiout->field_string ("host-name", solib.so_name);
+  uiout->field_signed ("symbols-loaded", solib.symbols_loaded);
+  if (!gdbarch_has_global_solist (current_inferior ()->arch ()))
       uiout->field_fmt ("thread-group", "i%d", current_inferior ()->num);
 
   ui_out_emit_list list_emitter (uiout, "ranges");
   ui_out_emit_tuple tuple_emitter (uiout, NULL);
-  if (solib->addr_high != 0)
+  if (solib.addr_high != 0)
     {
-      uiout->field_core_addr ("from", gdbarch, solib->addr_low);
-      uiout->field_core_addr ("to", gdbarch, solib->addr_high);
+      uiout->field_core_addr ("from", gdbarch, solib.addr_low);
+      uiout->field_core_addr ("to", gdbarch, solib.addr_high);
     }
 }
 
 void
-mi_interp::on_solib_loaded (so_list *solib)
+mi_interp::on_solib_loaded (const solib &solib)
 {
   ui_out *uiout = this->interp_ui_out ();
 
@@ -760,7 +760,7 @@ mi_interp::on_solib_loaded (so_list *solib)
 }
 
 void
-mi_interp::on_solib_unloaded (so_list *solib)
+mi_interp::on_solib_unloaded (const solib &solib)
 {
   ui_out *uiout = this->interp_ui_out ();
 
@@ -771,10 +771,10 @@ mi_interp::on_solib_unloaded (so_list *solib)
 
   ui_out_redirect_pop redir (uiout, this->event_channel);
 
-  uiout->field_string ("id", solib->so_original_name);
-  uiout->field_string ("target-name", solib->so_original_name);
-  uiout->field_string ("host-name", solib->so_name);
-  if (!gdbarch_has_global_solist (target_gdbarch ()))
+  uiout->field_string ("id", solib.so_original_name);
+  uiout->field_string ("target-name", solib.so_original_name);
+  uiout->field_string ("host-name", solib.so_name);
+  if (!gdbarch_has_global_solist (current_inferior ()->arch ()))
     uiout->field_fmt ("thread-group", "i%d", current_inferior ()->num);
 
   gdb_flush (this->event_channel);
@@ -819,7 +819,7 @@ mi_interp::on_memory_changed (inferior *inferior, CORE_ADDR memaddr,
   ui_out_redirect_pop redir (mi_uiout, this->event_channel);
 
   mi_uiout->field_fmt ("thread-group", "i%d", inferior->num);
-  mi_uiout->field_core_addr ("addr", target_gdbarch (), memaddr);
+  mi_uiout->field_core_addr ("addr", current_inferior ()->arch (), memaddr);
   mi_uiout->field_string ("len", hex_string (len));
 
   /* Append 'type=code' into notification if MEMADDR falls in the range of

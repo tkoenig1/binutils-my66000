@@ -1,6 +1,6 @@
 /* Everything about catch/throw catchpoints, for GDB.
 
-   Copyright (C) 1986-2023 Free Software Foundation, Inc.
+   Copyright (C) 1986-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,11 +17,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "arch-utils.h"
 #include <ctype.h>
 #include "breakpoint.h"
-#include "gdbcmd.h"
+#include "exceptions.h"
 #include "inferior.h"
 #include "annotate.h"
 #include "valprint.h"
@@ -82,10 +81,10 @@ struct exception_catchpoint : public code_breakpoint
 				     _("invalid type-matching regexp")))
   {
     pspace = current_program_space;
-    re_set ();
+    re_set (pspace);
   }
 
-  void re_set () override;
+  void re_set (program_space *pspace) override;
   enum print_stop_action print_it (const bpstat *bs) const override;
   bool print_one (const bp_location **) const override;
   void print_mention () const override;
@@ -198,7 +197,7 @@ exception_catchpoint::check_status (struct bpstat *bs)
 /* Implement the 're_set' method.  */
 
 void
-exception_catchpoint::re_set ()
+exception_catchpoint::re_set (program_space *pspace)
 {
   std::vector<symtab_and_line> sals;
   struct program_space *filter_pspace = current_program_space;

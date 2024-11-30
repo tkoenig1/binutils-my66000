@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl   Copyright (C) 2021-2023 Free Software Foundation, Inc.
+dnl   Copyright (C) 2021-2024 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@ dnl <http://www.gnu.org/licenses/>.
 
 m4_include([../bfd/version.m4])
 m4_include([../config/zlib.m4])
-AC_INIT([gprofng], BFD_VERSION)
+AC_INIT([gprofng], [BFD_VERSION])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([subdir-objects])
 AM_MAINTAINER_MODE
@@ -30,9 +30,6 @@ AC_PROG_INSTALL
 AC_PROG_RANLIB
 AM_PROG_AR
 gl_PROG_BISON([BISON],[3.0.4])
-if test x$BISON = "x:"; then
-  AC_MSG_ERROR([Building gprofng requires bison 3.0.4 or later.])
-fi
 
 AC_DISABLE_SHARED
 LT_INIT
@@ -63,6 +60,10 @@ build_src=
       build_collector=true
       ;;
     aarch64-*-linux*)
+      build_src=true
+      build_collector=true
+      ;;
+    riscv*-*-linux*)
       build_src=true
       build_collector=true
       ;;
@@ -130,19 +131,19 @@ if test "x$enable_gprofng_jp" = x; then
 else
     AC_DEFINE(GPROFNG_JAVA_PROFILING, 1, [Enable java profiling])
     if test "x$JAVAC" != x; then
-      cat > configtest.java << EOF
+      cat > Simple.java << EOF
 class Simple{
   public static void main(String args[]){
     System.out.println("Hello Java");
   }
 }
 EOF
-      if AC_TRY_COMMAND($JAVAC configtest.java >&AS_MESSAGE_LOG_FD 2>&AS_MESSAGE_LOG_FD); then
+      if AC_TRY_COMMAND($JAVAC Simple.java >&AS_MESSAGE_LOG_FD 2>&AS_MESSAGE_LOG_FD); then
 	GPROFNG_BROKEN_JAVAC=no
       else
 	GPROFNG_BROKEN_JAVAC=yes
       fi
-      rm -f configtest.*
+      rm -f Simple.*
     fi
 fi
 AC_SUBST(GPROFNG_BROKEN_JAVAC)
@@ -177,7 +178,7 @@ eval "$cc_set_libc"
 if test "$LIBC" = musl; then
   AC_DEFINE(__MUSL_LIBC, 1, [Build with musl-libc.])
 fi
-
+rm -f dummy.c
 
 # Check if linker supports --as-needed and --no-as-needed options.
 AC_CACHE_CHECK(linker --as-needed support, bfd_cv_ld_as_needed,
@@ -211,14 +212,6 @@ AM_ZLIB
 build_man=false
 build_doc=false
 if test $cross_compiling = no; then
-  AC_CHECK_PROGS([HELP2MAN], help2man, [$MISSING help2man])
-  case "x$HELP2MAN" in
-    x | */missing\ help2man* )
-      AC_MSG_WARN([gprofng: help2man is missing. Man pages will not be built.])
-      ;;
-    * ) build_man=true ;;
-    esac
-
   AC_CHECK_PROGS([MAKEINFO], makeinfo, [$MISSING makeinfo])
   case "x$MAKEINFO" in
     x | */missing\ makeinfo*)
@@ -238,6 +231,9 @@ if test $cross_compiling = no; then
 fi
 AM_CONDITIONAL([BUILD_MAN], [test x$build_man = xtrue])
 AM_CONDITIONAL([BUILD_DOC], [test x$build_doc = xtrue])
+
+AC_PATH_PROG([BASH], [bash])
+AC_SUBST([BASH])
 
 AC_SUBST(LD_NO_AS_NEEDED, [${no_as_needed}])
 AC_SUBST(GPROFNG_CFLAGS, [${gprofng_cflags}])

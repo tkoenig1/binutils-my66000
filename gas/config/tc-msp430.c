@@ -1,6 +1,6 @@
 /* tc-msp430.c -- Assembler code for the Texas Instruments MSP430
 
-  Copyright (C) 2002-2023 Free Software Foundation, Inc.
+  Copyright (C) 2002-2024 Free Software Foundation, Inc.
   Contributed by Dmitry Diky <diwil@mail.ru>
 
   This file is part of GAS, the GNU Assembler.
@@ -622,7 +622,7 @@ msp430_profiler (int dummy ATTRIBUTE_UNUSED)
   subseg = now_subseg;
 
   /* Now go to .profiler section.  */
-  obj_elf_change_section (".profiler", SHT_PROGBITS, 0, 0, 0, 0, 0);
+  obj_elf_change_section (".profiler", SHT_PROGBITS, 0, 0, 0, false);
 
   /* Save flags.  */
   emit_expr (& exp, 2);
@@ -1742,9 +1742,9 @@ const pseudo_typeS md_pseudo_table[] =
   {NULL, NULL, 0}
 };
 
-const char *md_shortopts = "mm:,mP,mQ,ml,mN,mn,my,mY,mu,mU";
+const char md_shortopts[] = "mm:,mP,mQ,ml,mN,mn,my,mY,mu,mU";
 
-struct option md_longopts[] =
+const struct option md_longopts[] =
 {
   {"msilicon-errata", required_argument, NULL, OPTION_SILICON_ERRATA},
   {"msilicon-errata-warn", required_argument, NULL, OPTION_SILICON_ERRATA_WARN},
@@ -1764,7 +1764,7 @@ struct option md_longopts[] =
   {NULL, no_argument, NULL, 0}
 };
 
-size_t md_longopts_size = sizeof (md_longopts);
+const size_t md_longopts_size = sizeof (md_longopts);
 
 void
 md_show_usage (FILE * stream)
@@ -5130,24 +5130,27 @@ msp430_md_finish (void)
   /* We have already emitted an error if any of the following attributes
      disagree with the attributes in the input assembly file.  See
      msp430_object_attribute.  */
-  bfd_elf_add_proc_attr_int (stdoutput, OFBA_MSPABI_Tag_ISA,
-			     target_is_430x () ? OFBA_MSPABI_Val_ISA_MSP430X
-			     : OFBA_MSPABI_Val_ISA_MSP430);
-
-  bfd_elf_add_proc_attr_int (stdoutput, OFBA_MSPABI_Tag_Code_Model,
-			     large_model ? OFBA_MSPABI_Val_Code_Model_LARGE
-			     : OFBA_MSPABI_Val_Code_Model_SMALL);
-
-  bfd_elf_add_proc_attr_int (stdoutput, OFBA_MSPABI_Tag_Data_Model,
-			     large_model ? OFBA_MSPABI_Val_Code_Model_LARGE
-			     : OFBA_MSPABI_Val_Code_Model_SMALL);
-
+  if (!bfd_elf_add_proc_attr_int (stdoutput, OFBA_MSPABI_Tag_ISA,
+				  target_is_430x ()
+				  ? OFBA_MSPABI_Val_ISA_MSP430X
+				  : OFBA_MSPABI_Val_ISA_MSP430)
+      || !bfd_elf_add_proc_attr_int (stdoutput, OFBA_MSPABI_Tag_Code_Model,
+				     large_model
+				     ? OFBA_MSPABI_Val_Code_Model_LARGE
+				     : OFBA_MSPABI_Val_Code_Model_SMALL)
+      || !bfd_elf_add_proc_attr_int (stdoutput, OFBA_MSPABI_Tag_Data_Model,
+				     large_model
+				     ? OFBA_MSPABI_Val_Code_Model_LARGE
+				     : OFBA_MSPABI_Val_Code_Model_SMALL)
   /* The data region GNU attribute is ignored for the small memory model.  */
-  if (large_model)
-    bfd_elf_add_obj_attr_int (stdoutput, OBJ_ATTR_GNU,
-			      Tag_GNU_MSP430_Data_Region, lower_data_region_only
-			      ? Val_GNU_MSP430_Data_Region_Lower
-			      : Val_GNU_MSP430_Data_Region_Any);
+      || (large_model
+	  && !bfd_elf_add_obj_attr_int (stdoutput, OBJ_ATTR_GNU,
+					Tag_GNU_MSP430_Data_Region,
+					lower_data_region_only
+					? Val_GNU_MSP430_Data_Region_Lower
+					: Val_GNU_MSP430_Data_Region_Any)))
+    as_fatal (_("error adding attribute: %s"),
+	      bfd_errmsg (bfd_get_error ()));
 }
 
 /* Returns FALSE if there is a msp430 specific reason why the

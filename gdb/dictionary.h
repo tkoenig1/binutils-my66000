@@ -1,6 +1,6 @@
 /* Routines for name->symbol lookups in GDB.
    
-   Copyright (C) 2003-2023 Free Software Foundation, Inc.
+   Copyright (C) 2003-2024 Free Software Foundation, Inc.
 
    Contributed by David Carlton <carlton@bactrian.org> and by Kealia,
    Inc.
@@ -113,7 +113,7 @@ struct dict_iterator
 
 struct mdict_iterator
 {
-  /* The multidictionary with whcih this iterator is associated.  */
+  /* The multidictionary with which this iterator is associated.  */
   const struct multidictionary *mdict;
 
   /* The iterator used to iterate through individual dictionaries.  */

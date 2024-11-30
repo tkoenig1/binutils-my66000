@@ -1,6 +1,6 @@
 /* Header only used inside opcodes library for disassemble.
 
-   Copyright (C) 2017-2023 Free Software Foundation, Inc.
+   Copyright (C) 2017-2024 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@ extern int print_insn_avr		(bfd_vma, disassemble_info *);
 extern int print_insn_bfin		(bfd_vma, disassemble_info *);
 extern int print_insn_big_arm		(bfd_vma, disassemble_info *);
 extern int print_insn_big_mips		(bfd_vma, disassemble_info *);
-extern int print_insn_big_nios2	(bfd_vma, disassemble_info *);
 extern int print_insn_big_powerpc	(bfd_vma, disassemble_info *);
 extern int print_insn_big_score         (bfd_vma, disassemble_info *);
 extern int print_insn_cr16              (bfd_vma, disassemble_info *);
@@ -51,8 +50,8 @@ extern int print_insn_i386_intel	(bfd_vma, disassemble_info *);
 extern int print_insn_ia64		(bfd_vma, disassemble_info *);
 extern int print_insn_ip2k		(bfd_vma, disassemble_info *);
 extern int print_insn_iq2000		(bfd_vma, disassemble_info *);
-extern int print_insn_little_nios2	(bfd_vma, disassemble_info *);
 extern int print_insn_riscv		(bfd_vma, disassemble_info *);
+extern int print_insn_kvx	        (bfd_vma, disassemble_info *);
 extern int print_insn_little_arm	(bfd_vma, disassemble_info *);
 extern int print_insn_little_mips	(bfd_vma, disassemble_info *);
 extern int print_insn_little_powerpc	(bfd_vma, disassemble_info *);

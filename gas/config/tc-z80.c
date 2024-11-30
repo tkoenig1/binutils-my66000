@@ -1,5 +1,5 @@
 /* tc-z80.c -- Assemble code for the Zilog Z80, Z180, EZ80 and ASCII R800
-   Copyright (C) 2005-2023 Free Software Foundation, Inc.
+   Copyright (C) 2005-2024 Free Software Foundation, Inc.
    Contributed by Arnold Metselaar <arnold_m@operamail.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -34,7 +34,7 @@ const char EXP_CHARS[] = "eE\0";
 const char FLT_CHARS[] = "RrDdFfSsHh\0";
 
 /* For machine specific options.  */
-const char * md_shortopts = ""; /* None yet.  */
+const char md_shortopts[] = ""; /* None yet.  */
 
 enum options
 {
@@ -80,7 +80,7 @@ enum options
 #define INS_UNDOC (INS_IDX_HALF | INS_IN_F_C)
 #define INS_UNPORT (INS_OUT_C_0 | INS_SLI | INS_ROT_II_LD)
 
-struct option md_longopts[] =
+const struct option md_longopts[] =
 {
   { "march",     required_argument, NULL, OPTION_MARCH},
   { "z80",       no_argument, NULL, OPTION_MACH_Z80},
@@ -115,7 +115,7 @@ struct option md_longopts[] =
   { NULL, no_argument, NULL, 0 }
 } ;
 
-size_t md_longopts_size = sizeof (md_longopts);
+const size_t md_longopts_size = sizeof (md_longopts);
 
 extern int coff_flags;
 /* Instruction classes that silently assembled.  */
@@ -3483,15 +3483,6 @@ area (int arg)
     psect (arg);
 }
 
-/* Handle the .bss pseudo-op.  */
-
-static void
-s_bss (int ignore ATTRIBUTE_UNUSED)
-{
-  subseg_set (bss_section, 0);
-  demand_empty_rest_of_line ();
-}
-
 /* Port specific pseudo ops.  */
 const pseudo_typeS md_pseudo_table[] =
 {
@@ -3507,7 +3498,6 @@ const pseudo_typeS md_pseudo_table[] =
   { ".hd64", set_inss, INS_Z180},
   { ".z80", set_inss, INS_Z80},
   { ".z80n", set_inss, INS_Z80N},
-  { "bss", s_bss, 0},
   { "db" , emit_data, 1},
   { "d24", z80_cons, 3},
   { "d32", z80_cons, 4},

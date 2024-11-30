@@ -1,5 +1,5 @@
 /* as.c - GAS main program.
-   Copyright (C) 1987-2023 Free Software Foundation, Inc.
+   Copyright (C) 1987-2024 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -45,6 +45,7 @@
 #include "codeview.h"
 #include "bfdver.h"
 #include "write.h"
+#include "ginsn.h"
 
 #ifdef HAVE_ITBL_CPU
 #include "itbl-ops.h"
@@ -129,10 +130,6 @@ static long start_time;
 #ifdef USE_EMULATIONS
 #define EMULATION_ENVIRON "AS_EMULATION"
 
-extern struct emulation mipsbelf, mipslelf, mipself;
-extern struct emulation i386coff, i386elf, i386aout;
-extern struct emulation crisaout, criself;
-
 static struct emulation *const emulations[] = { EMULATIONS };
 static const int n_emulations = sizeof (emulations) / sizeof (emulations[0]);
 
@@ -179,13 +176,6 @@ select_emulation_mode (int argc, char **argv)
     this_emulation = emulations[0];
 
   this_emulation->init ();
-}
-
-const char *
-default_emul_bfd_name (void)
-{
-  abort ();
-  return NULL;
 }
 
 void
@@ -245,6 +235,7 @@ Options:\n\
                       	  d      omit debugging directives\n\
                       	  g      include general info\n\
                       	  h      include high-level source\n\
+                      	  i      include ginsn and synthesized CFI info\n\
                       	  l      include assembly\n\
                       	  m      include macro expansions\n\
                       	  n      omit forms processing\n\
@@ -321,12 +312,17 @@ Options:\n\
                           generate GNU Build notes if none are present in the input\n"));
   fprintf (stream, _("\
   --gsframe               generate SFrame stack trace information\n"));
+# if defined (TARGET_USE_SCFI) && defined (TARGET_USE_GINSN)
+  fprintf (stream, _("\
+  --scfi=experimental     Synthesize DWARF CFI for hand-written asm\n\
+                          (experimental support)\n"));
+# endif
 #endif /* OBJ_ELF */
 
   fprintf (stream, _("\
   -f                      skip whitespace and comment preprocessing\n"));
   fprintf (stream, _("\
-  -g --gen-debug          generate debugging information\n"));
+  -g, --gen-debug         generate debugging information\n"));
   fprintf (stream, _("\
   --gstabs                generate STABS debugging information\n"));
   fprintf (stream, _("\
@@ -354,9 +350,9 @@ Options:\n\
   fprintf (stream, _("\
   -K                      warn when differences altered for long displacements\n"));
   fprintf (stream, _("\
-  -L,--keep-locals        keep local symbols (e.g. starting with `L')\n"));
+  -L, --keep-locals       keep local symbols (e.g. starting with `L')\n"));
   fprintf (stream, _("\
-  -M,--mri                assemble in MRI compatibility mode\n"));
+  -M, --mri               assemble in MRI compatibility mode\n"));
   fprintf (stream, _("\
   --MD FILE               write dependency information in FILE (default none)\n"));
   fprintf (stream, _("\
@@ -381,7 +377,7 @@ Options:\n\
   fprintf (stream, _("\
   --version               print assembler version number and exit\n"));
   fprintf (stream, _("\
-  -W  --no-warn           suppress warnings\n"));
+  -W, --no-warn           suppress warnings\n"));
   fprintf (stream, _("\
   --warn                  don't suppress warnings\n"));
   fprintf (stream, _("\
@@ -442,7 +438,6 @@ parse_args (int * pargc, char *** pargv)
      the ordering of the two.  We describe each non-option ARGV-element
      as if it were the argument of an option with character code 1.  */
   char *shortopts;
-  extern const char *md_shortopts;
   static const char std_shortopts[] =
   {
     '-', 'J',
@@ -450,13 +445,8 @@ parse_args (int * pargc, char *** pargv)
     /* -K is not meaningful if .word is not being hacked.  */
     'K',
 #endif
-    'L', 'M', 'R', 'W', 'Z', 'a', ':', ':', 'D', 'f', 'g', ':',':', 'I', ':', 'o', ':',
-#ifndef VMS
-    /* -v takes an argument on VMS, so we don't make it a generic
-       option.  */
-    'v',
-#endif
-    'w', 'X',
+    'L', 'M', 'R', 'W', 'Z', 'a', ':', ':', 'D', 'f', 'g', ':',':', 'I', ':',
+    'o', ':', 'v', 'w', 'X',
 #ifdef HAVE_ITBL_CPU
     /* New option for extending instruction set (see also --itbl below).  */
     't', ':',
@@ -464,8 +454,6 @@ parse_args (int * pargc, char *** pargv)
     '\0'
   };
   struct option *longopts;
-  extern struct option md_longopts[];
-  extern size_t md_longopts_size;
   /* Codes used for the long options with no short synonyms.  */
   enum option_values
     {
@@ -474,7 +462,6 @@ parse_args (int * pargc, char *** pargv)
       OPTION_STATISTICS,
       OPTION_VERSION,
       OPTION_DUMPCONFIG,
-      OPTION_VERBOSE,
       OPTION_EMULATION,
       OPTION_DEBUG_PREFIX_MAP,
       OPTION_DEFSYM,
@@ -511,7 +498,8 @@ parse_args (int * pargc, char *** pargv)
       OPTION_NOCOMPRESS_DEBUG,
       OPTION_NO_PAD_SECTIONS,
       OPTION_MULTIBYTE_HANDLING,  /* = STD_BASE + 40 */
-      OPTION_SFRAME
+      OPTION_SFRAME,
+      OPTION_SCFI
     /* When you add options here, check that they do
        not collide with OPTION_MD_BASE.  See as.h.  */
     };
@@ -543,7 +531,10 @@ parse_args (int * pargc, char *** pargv)
     ,{"sectname-subst", no_argument, NULL, OPTION_SECTNAME_SUBST}
     ,{"generate-missing-build-notes", required_argument, NULL, OPTION_ELF_BUILD_NOTES}
     ,{"gsframe", no_argument, NULL, OPTION_SFRAME}
-#endif
+# if defined (TARGET_USE_SCFI) && defined (TARGET_USE_GINSN)
+    ,{"scfi", required_argument, NULL, OPTION_SCFI}
+# endif
+#endif /* OBJ_ELF || OBJ_MAYBE_ELF.  */
     ,{"fatal-warnings", no_argument, NULL, OPTION_WARN_FATAL}
     ,{"gdwarf-2", no_argument, NULL, OPTION_GDWARF_2}
     ,{"gdwarf-3", no_argument, NULL, OPTION_GDWARF_3}
@@ -589,7 +580,7 @@ parse_args (int * pargc, char *** pargv)
     ,{"statistics", no_argument, NULL, OPTION_STATISTICS}
     ,{"strip-local-absolute", no_argument, NULL, OPTION_STRIP_LOCAL_ABSOLUTE}
     ,{"version", no_argument, NULL, OPTION_VERSION}
-    ,{"verbose", no_argument, NULL, OPTION_VERBOSE}
+    ,{"verbose", no_argument, NULL, 'v'}
     ,{"target-help", no_argument, NULL, OPTION_TARGET_HELP}
     ,{"traditional-format", no_argument, NULL, OPTION_TRADITIONAL_FORMAT}
     ,{"warn", no_argument, NULL, OPTION_WARN}
@@ -639,24 +630,17 @@ parse_args (int * pargc, char *** pargv)
 	     it explicitly here before deciding we've gotten a bad argument.  */
 	  if (optc == 'v')
 	    {
-#ifdef VMS
-	      /* Telling getopt to treat -v's value as optional can result
-		 in it picking up a following filename argument here.  The
-		 VMS code in md_parse_option can return 0 in that case,
-		 but it has no way of pushing the filename argument back.  */
-	      if (optarg && *optarg)
-		new_argv[new_argc++] = optarg, new_argv[new_argc] = NULL;
-	      else
-#else
-	      case 'v':
-#endif
-	      case OPTION_VERBOSE:
-		print_version_id ();
-		verbose = 1;
+	case 'v':
+	      print_version_id ();
+	      verbose = 1;
 	      break;
 	    }
+	  else if (is_a_char (optc))
+	    as_bad (_("unrecognized option `-%c%s'"), optc, optarg ? optarg : "");
+	  else if (optarg)
+	    as_bad (_("unrecognized option `--%s=%s'"), longopts[longind].name, optarg);
 	  else
-	    as_bad (_("unrecognized option -%c%s"), optc, optarg ? optarg : "");
+	    as_bad (_("unrecognized option `--%s'"), longopts[longind].name);
 	  /* Fall through.  */
 
 	case '?':
@@ -712,7 +696,7 @@ parse_args (int * pargc, char *** pargv)
 	case OPTION_VERSION:
 	  /* This output is intended to follow the GNU standards document.  */
 	  printf (_("GNU assembler %s\n"), BFD_VERSION_STRING);
-	  printf (_("Copyright (C) 2023 Free Software Foundation, Inc.\n"));
+	  printf (_("Copyright (C) 2024 Free Software Foundation, Inc.\n"));
 	  printf (_("\
 This program is free software; you may redistribute it under the terms of\n\
 the GNU General Public License version 3 or later.\n\
@@ -982,6 +966,16 @@ This program has absolutely no warranty.\n"));
 	  flag_execstack = 0;
 	  break;
 
+# if defined (TARGET_USE_SCFI) && defined (TARGET_USE_GINSN)
+	case OPTION_SCFI:
+	  if (optarg && strcasecmp (optarg, "experimental") == 0)
+	    flag_synth_cfi = SYNTH_CFI_EXPERIMENTAL;
+	  else
+	    as_fatal (_("Invalid --scfi= option: `%s'; suggested option: experimental"),
+		      optarg);
+	  break;
+# endif
+
 	case OPTION_SIZE_CHECK:
 	  if (strcasecmp (optarg, "error") == 0)
 	    flag_allow_nonconst_size = false;
@@ -1068,6 +1062,9 @@ This program has absolutely no warranty.\n"));
 		      break;
 		    case 'h':
 		      listing |= LISTING_HLL;
+		      break;
+		    case 'i':
+		      listing |= LISTING_GINSN_SCFI;
 		      break;
 		    case 'l':
 		      listing |= LISTING_LISTING;

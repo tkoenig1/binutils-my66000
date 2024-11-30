@@ -1,6 +1,6 @@
 /* CTF format support.
 
-   Copyright (C) 2012-2023 Free Software Foundation, Inc.
+   Copyright (C) 2012-2024 Free Software Foundation, Inc.
    Contributed by Hui Zhu <hui_zhu@mentor.com>
    Contributed by Yao Qi <yao@codesourcery.com>
 
@@ -19,7 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "tracectf.h"
 #include "tracepoint.h"
 #include "regcache.h"
@@ -1112,7 +1111,7 @@ ctf_read_tp (struct uploaded_tp **uploaded_tps)
    second packet which contains events on trace blocks.  */
 
 static void
-ctf_target_open (const char *dirname, int from_tty)
+ctf_target_open (const char *args, int from_tty)
 {
   struct bt_ctf_event *event;
   uint32_t event_id;
@@ -1120,10 +1119,11 @@ ctf_target_open (const char *dirname, int from_tty)
   struct uploaded_tsv *uploaded_tsvs = NULL;
   struct uploaded_tp *uploaded_tps = NULL;
 
-  if (!dirname)
+  std::string dirname = extract_single_filename_arg (args);
+  if (dirname.empty ())
     error (_("No CTF directory specified."));
 
-  ctf_open_dir (dirname);
+  ctf_open_dir (dirname.c_str ());
 
   target_preopen (from_tty);
 
@@ -1163,7 +1163,7 @@ ctf_target_open (const char *dirname, int from_tty)
   start_pos = bt_iter_get_pos (bt_ctf_get_iter (ctf_iter));
   gdb_assert (start_pos->type == BT_SEEK_RESTORE);
 
-  trace_dirname = make_unique_xstrdup (dirname);
+  trace_dirname = make_unique_xstrdup (dirname.c_str ());
   current_inferior ()->push_target (&ctf_ops);
 
   inferior_appeared (current_inferior (), CTF_PID);
@@ -1187,7 +1187,7 @@ ctf_target::close ()
   trace_dirname.reset ();
 
   switch_to_no_thread ();	/* Avoid confusion from thread stuff.  */
-  exit_inferior_silent (current_inferior ());
+  exit_inferior (current_inferior ());
 
   trace_reset_local_state ();
 }
@@ -1722,6 +1722,7 @@ void
 _initialize_ctf ()
 {
 #if HAVE_LIBBABELTRACE
-  add_target (ctf_target_info, ctf_target_open, filename_completer);
+  add_target (ctf_target_info, ctf_target_open,
+	      filename_maybe_quoted_completer);
 #endif
 }

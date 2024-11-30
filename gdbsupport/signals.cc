@@ -1,5 +1,5 @@
 /* Target signal translation functions for GDB.
-   Copyright (C) 1990-2023 Free Software Foundation, Inc.
+   Copyright (C) 1990-2024 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
    This file is part of GDB.
@@ -17,7 +17,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "common-defs.h"
 
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
@@ -31,14 +30,12 @@ struct gdbarch;
    _available_ realtime signal, not the lowest supported; glibc takes
    several for its own use.  */
 
-#ifndef REALTIME_LO
-# if defined(__SIGRTMIN)
-#  define REALTIME_LO __SIGRTMIN
-#  define REALTIME_HI (__SIGRTMAX + 1)
-# elif defined(SIGRTMIN)
-#  define REALTIME_LO SIGRTMIN
-#  define REALTIME_HI (SIGRTMAX + 1)
-# endif
+#if defined(__SIGRTMIN)
+# define REALTIME_LO __SIGRTMIN
+# define REALTIME_HI (__SIGRTMAX + 1)
+#elif defined(SIGRTMIN)
+# define REALTIME_LO SIGRTMIN
+# define REALTIME_HI (SIGRTMAX + 1)
 #endif
 
 /* This table must match in order and size the signals in enum

@@ -1,5 +1,5 @@
 /* tc-loongarch.h -- Header file for tc-loongarch.c.
-   Copyright (C) 2021-2023 Free Software Foundation, Inc.
+   Copyright (C) 2021-2024 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
 
    This file is part of GAS.
@@ -32,6 +32,9 @@ extern unsigned long loongarch_mach (void);
 #define WORKING_DOT_WORD 1
 #define REPEAT_CONS_EXPRESSIONS
 
+#define md_end loongarch_md_end
+extern void loongarch_md_end (void);
+
 /* Early than md_begin.  */
 #define md_after_parse_args loongarch_after_parse_args
 extern void loongarch_after_parse_args (void);
@@ -49,11 +52,11 @@ extern int loongarch_relax_frag (asection *, struct frag *, long);
 #define md_undefined_symbol(name) (0)
 #define md_operand(x)
 
-extern bool loongarch_frag_align_code (int);
+extern bool loongarch_frag_align_code (int, int);
 #define md_do_align(N, FILL, LEN, MAX, LABEL)				\
   if ((N) != 0 && !(FILL) && !need_pass_2 && subseg_text_p (now_seg))	\
     {									\
-      if (loongarch_frag_align_code (N))				\
+      if (loongarch_frag_align_code (N, MAX))				\
 	goto LABEL;							\
     }
 
@@ -71,8 +74,21 @@ extern bool loongarch_frag_align_code (int);
    relaxation, so do not resolve such expressions in the assembler.  */
 #define md_allow_local_subtract(l,r,s) 0
 
-/* Values passed to md_apply_fix don't include symbol values.  */
-#define TC_FORCE_RELOCATION_SUB_LOCAL(FIX, SEG) 1
+#define TC_FORCE_RELOCATION(FIX) loongarch_force_relocation (FIX)
+extern int loongarch_force_relocation (struct fix *);
+
+/* If subsy of BFD_RELOC32/64 and PC in same segment, and without relax
+   or PC at start of subsy or with relax but sub_symbol_segment not in
+   SEC_CODE, we generate 32/64_PCREL.  */
+#define TC_FORCE_RELOCATION_SUB_LOCAL(FIX, SEG) \
+  (!(LARCH_opts.thin_add_sub \
+     && ((FIX)->fx_r_type == BFD_RELOC_32 \
+	 ||(FIX)->fx_r_type == BFD_RELOC_64) \
+     && (!LARCH_opts.relax \
+	|| S_GET_VALUE (FIX->fx_subsy) \
+	   == FIX->fx_frag->fr_address + FIX->fx_where \
+	|| (LARCH_opts.relax \
+	   && ((S_GET_SEGMENT (FIX->fx_subsy)->flags & SEC_CODE) == 0)))))
 
 #define TC_VALIDATE_FIX_SUB(FIX, SEG) 1
 #define DIFF_EXPR_OK 1
@@ -82,9 +98,7 @@ extern bool loongarch_frag_align_code (int);
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEC)	\
   (LARCH_opts.relax ?  \
     (GENERIC_FORCE_RELOCATION_SUB_SAME (FIX, SEC)	\
-      || ((SEC)->flags & SEC_CODE) != 0		\
-      || ((SEC)->flags & SEC_DEBUGGING) != 0	\
-      || TC_FORCE_RELOCATION (FIX)) \
+      || ((SEC)->flags & SEC_CODE) != 0)		\
     : (GENERIC_FORCE_RELOCATION_SUB_SAME (FIX, SEC))) \
 
 #define TC_LINKRELAX_FIXUP(seg) ((seg->flags & SEC_CODE)  \
@@ -92,15 +106,19 @@ extern bool loongarch_frag_align_code (int);
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX) 1
 
-/* Adjust debug_line after relaxation.  */
-#define DWARF2_USE_FIXED_ADVANCE_PC 1
-
 /* Values passed to md_apply_fix don't include symbol values.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 #define TARGET_USE_CFIPOP 1
-#define DWARF2_DEFAULT_RETURN_COLUMN 1 /* $ra.  */
-#define DWARF2_CIE_DATA_ALIGNMENT -4
+/* Adjust debug_line after relaxation.  */
+#define DWARF2_USE_FIXED_ADVANCE_PC   1
+
+/* FDE Data Alignment Factor.
+   FDE Code Alignment Factor (DWARF2_LINE_MIN_INSN_LENGTH) should be 1
+   because DW_CFA_advance_loc need to be relocated in bytes
+   when linker relaxation.  */
+#define DWARF2_CIE_DATA_ALIGNMENT     (-8)
+#define DWARF2_DEFAULT_RETURN_COLUMN  1	    /* FDE Return Address Register.  */
 
 #define tc_cfi_frame_initial_instructions	\
   loongarch_cfi_frame_initial_instructions
@@ -115,6 +133,7 @@ extern void tc_loongarch_parse_to_dw2regnum (expressionS *);
 
 extern void loongarch_pre_output_hook (void);
 #define md_pre_output_hook loongarch_pre_output_hook ()
+#define GAS_SORT_RELOCS 1
 
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
 

@@ -1,6 +1,6 @@
 /* DWARF DIEs
 
-   Copyright (C) 1994-2023 Free Software Foundation, Inc.
+   Copyright (C) 1994-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,7 +17,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "dwarf2/die.h"
 #include "dwarf2/stringify.h"
 
@@ -34,27 +33,6 @@ die_info::allocate (struct obstack *obstack, int num_attrs)
   struct die_info *die = (struct die_info *) obstack_alloc (obstack, size);
   memset (die, 0, size);
   return die;
-}
-
-/* See die.h.  */
-
-hashval_t
-die_info::hash (const void *item)
-{
-  const struct die_info *die = (const struct die_info *) item;
-
-  return to_underlying (die->sect_off);
-}
-
-/* See die.h.  */
-
-int
-die_info::eq (const void *item_lhs, const void *item_rhs)
-{
-  const struct die_info *die_lhs = (const struct die_info *) item_lhs;
-  const struct die_info *die_rhs = (const struct die_info *) item_rhs;
-
-  return die_lhs->sect_off == die_rhs->sect_off;
 }
 
 static void

@@ -1,5 +1,5 @@
 /* Support for printing Ada types for GDB, the GNU debugger.
-   Copyright (C) 1986-2023 Free Software Foundation, Inc.
+   Copyright (C) 1986-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -16,14 +16,12 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
-#include "bfd.h"		/* Binary File Description */
+#include "event-top.h"
 #include "gdbtypes.h"
 #include "value.h"
 #include "c-lang.h"
 #include "cli/cli-style.h"
 #include "typeprint.h"
-#include "target-float.h"
 #include "ada-lang.h"
 #include <ctype.h>
 
@@ -383,8 +381,8 @@ print_array_type (struct type *type, struct ui_file *stream, int show,
 		gdb_printf (stream, ", ");
 	      print_range (arr_type->index_type (), stream,
 			   0 /* bounds_preferred_p */);
-	      if (TYPE_FIELD_BITSIZE (arr_type, 0) > 0)
-		bitsize = TYPE_FIELD_BITSIZE (arr_type, 0);
+	      if (arr_type->field (0).bitsize () > 0)
+		bitsize = arr_type->field (0).bitsize ();
 	      /* A multi-dimensional array is represented using a
 		 sequence of array types.  If one of these types has a
 		 name, then it is not another dimension of the outer
@@ -408,8 +406,8 @@ print_array_type (struct type *type, struct ui_file *stream, int show,
 		gdb_printf (stream, ", ");
 	      print_range_type (range_desc_type->field (k).type (),
 				stream, 0 /* bounds_preferred_p */);
-	      if (TYPE_FIELD_BITSIZE (arr_type, 0) > 0)
-		bitsize = TYPE_FIELD_BITSIZE (arr_type, 0);
+	      if (arr_type->field (0).bitsize () > 0)
+		bitsize = arr_type->field (0).bitsize ();
 	    }
 	}
     }

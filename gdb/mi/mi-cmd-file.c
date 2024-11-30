@@ -1,5 +1,5 @@
 /* MI Command Set - file commands.
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -17,7 +17,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "mi-cmds.h"
 #include "mi-getopt.h"
 #include "mi-interp.h"
@@ -25,7 +24,6 @@
 #include "symtab.h"
 #include "source.h"
 #include "objfiles.h"
-#include "psymtab.h"
 #include "solib.h"
 #include "solist.h"
 #include "gdbsupport/gdb_regex.h"
@@ -37,7 +35,6 @@ void
 mi_cmd_file_list_exec_source_file (const char *command,
 				   const char *const *argv, int argc)
 {
-  struct symtab_and_line st;
   struct ui_out *uiout = current_uiout;
   
   if (!mi_valid_noargs ("-file-list-exec-source-file", argc, argv))
@@ -45,7 +42,8 @@ mi_cmd_file_list_exec_source_file (const char *command,
 
   /* Set the default file and line, also get them.  */
   set_default_source_symtab_and_line ();
-  st = get_current_source_symtab_and_line ();
+  symtab_and_line st
+    = get_current_source_symtab_and_line (current_program_space);
 
   /* We should always get a symtab.  Apparently, filename does not
      need to be tested for NULL.  The documentation in symtab.h
@@ -164,11 +162,12 @@ mi_cmd_file_list_shared_libraries (const char *command,
   /* Print the table header.  */
   ui_out_emit_list list_emitter (uiout, "shared-libraries");
 
-  for (struct so_list *so : current_program_space->solibs ())
+  for (const solib &so : current_program_space->solibs ())
     {
-      if (so->so_name[0] == '\0')
+      if (so.so_name.empty ())
 	continue;
-      if (pattern != NULL && !re_exec (so->so_name))
+
+      if (pattern != nullptr && !re_exec (so.so_name.c_str ()))
 	continue;
 
       ui_out_emit_tuple tuple_emitter (uiout, NULL);

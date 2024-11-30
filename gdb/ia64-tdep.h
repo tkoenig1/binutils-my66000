@@ -1,6 +1,6 @@
 /* Target-dependent code for the ia64.
 
-   Copyright (C) 2004-2023 Free Software Foundation, Inc.
+   Copyright (C) 2004-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -156,7 +156,7 @@
 /* Predicate registers: There are 64 of these 1-bit registers.  We
    define a single register which is used to communicate these values
    to/from the target.  We will somehow contrive to make it appear
-   that IA64_PR0_REGNUM thru IA64_PR63_REGNUM hold the actual values.  */
+   that IA64_PR0_REGNUM through IA64_PR63_REGNUM hold the actual values.  */
 #define IA64_PR_REGNUM		330
 
 /* Instruction pointer: 64 bits wide.  */
@@ -240,7 +240,7 @@ struct ia64_gdbarch_tdep : gdbarch_tdep_base
 
      Normally, the size of the register frame is always obtained by
      extracting the lowest 7 bits ("cfm & 0x7f").  */
-  int (*size_of_register_frame) (frame_info_ptr this_frame, ULONGEST cfm)
+  int (*size_of_register_frame) (const frame_info_ptr &this_frame, ULONGEST cfm)
     = nullptr;
 
   /* Determine the function address FADDR belongs to a shared library.

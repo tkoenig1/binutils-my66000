@@ -1,5 +1,5 @@
 /* Remote target communications for serial-line targets in custom GDB protocol
-   Copyright (C) 1999-2023 Free Software Foundation, Inc.
+   Copyright (C) 1999-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -120,5 +120,10 @@ extern void send_remote_packet (gdb::array_view<const char> &buf,
    return false.  */
 
 extern bool is_remote_target (process_stratum_target *target);
+
+/* Return true if REGNUM was returned as an expedited register in the last
+   stop reply we received.  */
+
+extern bool remote_register_is_expedited (int regnum);
 
 #endif

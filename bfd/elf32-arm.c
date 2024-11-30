@@ -1,5 +1,5 @@
 /* 32-bit ELF support for ARM
-   Copyright (C) 1998-2023 Free Software Foundation, Inc.
+   Copyright (C) 1998-2024 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -4226,12 +4226,33 @@ arm_type_of_stub (struct bfd_link_info *info,
 
   r_type = ELF32_R_TYPE (rel->r_info);
 
+  /* Don't pretend we know what stub to use (if any) when we target a
+     Thumb-only target and we don't know the actual destination
+     type.  */
+  if (branch_type == ST_BRANCH_UNKNOWN && thumb_only)
+    return stub_type;
+
   /* ST_BRANCH_TO_ARM is nonsense to thumb-only targets when we
      are considering a function call relocation.  */
   if (thumb_only && (r_type == R_ARM_THM_CALL || r_type == R_ARM_THM_JUMP24
 		     || r_type == R_ARM_THM_JUMP19)
       && branch_type == ST_BRANCH_TO_ARM)
-    branch_type = ST_BRANCH_TO_THUMB;
+    {
+      if (sym_sec == bfd_abs_section_ptr)
+	/* As an exception, assume that absolute symbols are of the
+	   right kind (Thumb).  They are presumably defined in the
+	   linker script, where it is not possible to declare them as
+	   Thumb (and thus are seen as Arm mode). We'll inform the
+	   user with a warning, though, in
+	   elf32_arm_final_link_relocate. */
+	branch_type = ST_BRANCH_TO_THUMB;
+      else
+	/* Otherwise do not silently build a stub, and let the users
+	   know they have to fix their code.  Indeed, we could decide
+	   to insert a stub involving Arm code and/or BLX, leading to
+	   a run-time crash.  */
+	return stub_type;
+    }
 
   /* For TLS call relocs, it is the caller's responsibility to provide
      the address of the appropriate trampoline.  */
@@ -7351,7 +7372,6 @@ record_arm_to_thumb_glue (struct bfd_link_info * link_info,
   free (tmp_name);
 
   if (bfd_link_pic (link_info)
-      || globals->root.is_relocatable_executable
       || globals->pic_veneer)
     size = ARM2THUMB_PIC_GLUE_SIZE;
   else if (globals->use_blx)
@@ -9259,7 +9279,6 @@ elf32_arm_create_thumb_stub (struct bfd_link_info * info,
       myh->root.u.def.value = my_offset;
 
       if (bfd_link_pic (info)
-	  || globals->root.is_relocatable_executable
 	  || globals->pic_veneer)
 	{
 	  /* For relocatable objects we can't use absolute addresses,
@@ -10384,14 +10403,6 @@ elf32_arm_final_link_relocate (reloc_howto_type *	    howto,
   else
     addend = signed_addend = rel->r_addend;
 
-  /* ST_BRANCH_TO_ARM is nonsense to thumb-only targets when we
-     are resolving a function call relocation.  */
-  if (using_thumb_only (globals)
-      && (r_type == R_ARM_THM_CALL
-	  || r_type == R_ARM_THM_JUMP24)
-      && branch_type == ST_BRANCH_TO_ARM)
-    branch_type = ST_BRANCH_TO_THUMB;
-
   /* Record the symbol information that should be used in dynamic
      relocations.  */
   dynreloc_st_type = st_type;
@@ -10454,6 +10465,73 @@ elf32_arm_final_link_relocate (reloc_howto_type *	    howto,
       gotplt_offset = (bfd_vma) -1;
     }
 
+  /* ST_BRANCH_TO_ARM is nonsense to thumb-only targets when we are
+     resolving a function call relocation.  We want to inform the user
+     that something is wrong.  */
+  if (using_thumb_only (globals)
+      && (r_type == R_ARM_THM_CALL
+	  || r_type == R_ARM_THM_JUMP24)
+      && branch_type == ST_BRANCH_TO_ARM
+      /* Calls through a PLT are special: the assembly source code
+	 cannot be annotated with '.type foo(PLT), %function', and
+	 they handled specifically below anyway. */
+      && splt == NULL)
+    {
+      if (sym_sec == bfd_abs_section_ptr)
+	{
+	/* As an exception, assume that absolute symbols are of the
+	   right kind (Thumb).  They are presumably defined in the
+	   linker script, where it is not possible to declare them as
+	   Thumb (and thus are seen as Arm mode). Inform the user with
+	   a warning, though. */
+	  branch_type = ST_BRANCH_TO_THUMB;
+
+	  if (sym_sec->owner)
+	    _bfd_error_handler
+	      (_("warning: %pB(%s): Forcing bramch to absolute symbol in Thumb mode (Thumb-only CPU)"
+		 " in %pB"),
+	       sym_sec->owner, sym_name, input_bfd);
+	  else
+	    _bfd_error_handler
+	      (_("warning: (%s): Forcing branch to absolute symbol in Thumb mode (Thumb-only CPU)"
+		 " in %pB"),
+	       sym_name, input_bfd);
+	}
+      else
+	/* Otherwise do not silently build a stub, and let the users
+	   know they have to fix their code.  Indeed, we could decide
+	   to insert a stub involving Arm code and/or BLX, leading to
+	   a run-time crash.  */
+	branch_type = ST_BRANCH_UNKNOWN;
+    }
+
+  /* Fail early if branch_type is ST_BRANCH_UNKNOWN and we target a
+     Thumb-only CPU.  We could emit a warning on Arm-capable targets
+     too, but that would be too verbose (a lot of legacy code does not
+     use the .type foo, %function directive).  */
+  if (using_thumb_only (globals)
+      && (r_type == R_ARM_THM_CALL
+	  || r_type == R_ARM_THM_JUMP24)
+      && branch_type == ST_BRANCH_UNKNOWN
+      /* Exception to the rule above: a branch to an undefined weak
+	 symbol is turned into a jump to the next instruction unless a
+	 PLT entry will be created (see below).  */
+      && !(h && h->root.type == bfd_link_hash_undefweak
+	   && plt_offset == (bfd_vma) -1))
+    {
+      if (sym_sec != NULL
+	  && sym_sec->owner != NULL)
+	_bfd_error_handler
+	  (_("%pB(%s): Unknown destination type (ARM/Thumb) in %pB"),
+	   sym_sec->owner, sym_name, input_bfd);
+      else
+	_bfd_error_handler
+	  (_("(%s): Unknown destination type (ARM/Thumb) in %pB"),
+	   sym_name, input_bfd);
+
+      return bfd_reloc_notsupported;
+    }
+
   resolved_to_zero = (h != NULL
 		      && UNDEFWEAK_NO_DYNAMIC_RELOC (info, h));
 
@@ -10507,11 +10585,9 @@ elf32_arm_final_link_relocate (reloc_howto_type *	    howto,
 					   rel->r_addend);
 	}
 
-      /* When generating a shared object or relocatable executable, these
-	 relocations are copied into the output file to be resolved at
-	 run time.  */
+      /* When generating a shared library or PIE, these relocations
+	 are copied into the output file to be resolved at run time.  */
       if ((bfd_link_pic (info)
-	   || globals->root.is_relocatable_executable
 	   || globals->fdpic_p)
 	  && (input_section->flags & SEC_ALLOC)
 	  && !(globals->root.target_os == is_vxworks
@@ -13896,12 +13972,7 @@ elf32_arm_object_p (bfd *abfd)
   mach = bfd_arm_get_mach_from_notes (abfd, ARM_NOTE_SECTION);
 
   if (mach == bfd_mach_arm_unknown)
-    {
-      if (elf_elfheader (abfd)->e_flags & EF_ARM_MAVERICK_FLOAT)
-	mach = bfd_mach_arm_ep9312;
-      else
-	mach = bfd_arm_get_mach_from_attributes (abfd);
-    }
+    mach = bfd_arm_get_mach_from_attributes (abfd);
 
   bfd_default_set_arch_mach (abfd, bfd_arch_arm, mach);
   return true;
@@ -14119,7 +14190,7 @@ set_secondary_compatible_arch (bfd *abfd, int arch)
 
 static int
 tag_cpu_arch_combine (bfd *ibfd, int oldtag, int *secondary_compat_out,
-		      int newtag, int secondary_compat)
+		      int newtag, int secondary_compat, const char* name_table[])
 {
 #define T(X) TAG_CPU_ARCH_##X
   int tagl, tagh, result;
@@ -14436,8 +14507,8 @@ tag_cpu_arch_combine (bfd *ibfd, int oldtag, int *secondary_compat_out,
 
   if (result == -1)
     {
-      _bfd_error_handler (_("error: %pB: conflicting CPU architectures %d/%d"),
-			  ibfd, oldtag, newtag);
+      _bfd_error_handler (_("error: conflicting CPU architectures %s vs %s in %pB"),
+			  name_table[oldtag], name_table[newtag], ibfd);
       return -1;
     }
 
@@ -14632,7 +14703,8 @@ elf32_arm_merge_eabi_attributes (bfd *ibfd, struct bfd_link_info *info)
 	    arch_attr = tag_cpu_arch_combine (ibfd, out_attr[i].i,
 					      &secondary_compat_out,
 					      in_attr[i].i,
-					      secondary_compat);
+					      secondary_compat,
+					      name_table);
 
 	    /* Return with error if failed to merge.  */
 	    if (arch_attr == -1)
@@ -15139,8 +15211,6 @@ elf32_arm_print_private_bfd_data (bfd *abfd, void * ptr)
 
       if (flags & EF_ARM_VFP_FLOAT)
 	fprintf (file, _(" [VFP float format]"));
-      else if (flags & EF_ARM_MAVERICK_FLOAT)
-	fprintf (file, _(" [Maverick float format]"));
       else
 	fprintf (file, _(" [FPA float format]"));
 
@@ -15161,8 +15231,7 @@ elf32_arm_print_private_bfd_data (bfd *abfd, void * ptr)
 
       flags &= ~(EF_ARM_INTERWORK | EF_ARM_APCS_26 | EF_ARM_APCS_FLOAT
 		 | EF_ARM_PIC | EF_ARM_NEW_ABI | EF_ARM_OLD_ABI
-		 | EF_ARM_SOFT_FLOAT | EF_ARM_VFP_FLOAT
-		 | EF_ARM_MAVERICK_FLOAT);
+		 | EF_ARM_SOFT_FLOAT | EF_ARM_VFP_FLOAT);
       break;
 
     case EF_ARM_EABI_VER1:
@@ -15319,15 +15388,6 @@ elf32_arm_check_relocs (bfd *abfd, struct bfd_link_info *info,
     return false;
 
   sreloc = NULL;
-
-  /* Create dynamic sections for relocatable executables so that we can
-     copy relocations.  */
-  if (htab->root.is_relocatable_executable
-      && ! htab->root.dynamic_sections_created)
-    {
-      if (! _bfd_elf_link_create_dynamic_sections (abfd, info))
-	return false;
-    }
 
   if (htab->root.dynobj == NULL)
     htab->root.dynobj = abfd;
@@ -15600,7 +15660,7 @@ elf32_arm_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  case R_ARM_THM_MOVT_PREL:
 
 	    /* Should the interworking branches be listed here?  */
-	    if ((bfd_link_pic (info) || htab->root.is_relocatable_executable
+	    if ((bfd_link_pic (info)
 		 || htab->fdpic_p)
 		&& (sec->flags & SEC_ALLOC) != 0)
 	      {
@@ -16212,10 +16272,8 @@ elf32_arm_adjust_dynamic_symbol (struct bfd_link_info * info,
   /* If we are creating a shared library, we must presume that the
      only references to the symbol are via the global offset table.
      For such cases we need not do anything here; the relocations will
-     be handled correctly by relocate_section.  Relocatable executables
-     can reference data in shared objects directly, so we don't need to
-     do anything here.  */
-  if (bfd_link_pic (info) || globals->root.is_relocatable_executable)
+     be handled correctly by relocate_section.  */
+  if (bfd_link_pic (info))
     return true;
 
   /* We must allocate the symbol in our .dynbss section, which will
@@ -16614,7 +16672,6 @@ allocate_dynrelocs_for_symbol (struct elf_link_hash_entry *h, void * inf)
      visibility changes.  */
 
   if (bfd_link_pic (info)
-      || htab->root.is_relocatable_executable
       || htab->fdpic_p)
     {
       /* Relocs that use pc_count are PC-relative forms, which will appear
@@ -16669,17 +16726,6 @@ allocate_dynrelocs_for_symbol (struct elf_link_hash_entry *h, void * inf)
 		return false;
 	    }
 	}
-
-      else if (htab->root.is_relocatable_executable && h->dynindx == -1
-	       && h->root.type == bfd_link_hash_new)
-	{
-	  /* Output absolute symbols so that we can create relocations
-	     against them.  For normal symbols we output a relocation
-	     against the section that contains them.  */
-	  if (! bfd_elf_link_record_dynamic_symbol (info, h))
-	    return false;
-	}
-
     }
   else
     {
@@ -16751,8 +16797,8 @@ bfd_elf32_arm_set_byteswap_code (struct bfd_link_info *info,
 /* Set the sizes of the dynamic sections.  */
 
 static bool
-elf32_arm_size_dynamic_sections (bfd * output_bfd ATTRIBUTE_UNUSED,
-				 struct bfd_link_info * info)
+elf32_arm_late_size_sections (bfd * output_bfd ATTRIBUTE_UNUSED,
+			      struct bfd_link_info * info)
 {
   bfd * dynobj;
   asection * s;
@@ -16765,7 +16811,9 @@ elf32_arm_size_dynamic_sections (bfd * output_bfd ATTRIBUTE_UNUSED,
     return false;
 
   dynobj = elf_hash_table (info)->dynobj;
-  BFD_ASSERT (dynobj != NULL);
+  if (dynobj == NULL)
+    return true;
+
   check_use_blx (htab);
 
   if (elf_hash_table (info)->dynamic_sections_created)
@@ -17137,8 +17185,7 @@ elf32_arm_size_dynamic_sections (bfd * output_bfd ATTRIBUTE_UNUSED,
    _TLS_MODULE_BASE_, if needed.  */
 
 static bool
-elf32_arm_always_size_sections (bfd *output_bfd,
-				struct bfd_link_info *info)
+elf32_arm_early_size_sections (bfd *output_bfd, struct bfd_link_info *info)
 {
   asection *tls_sec;
   struct elf32_arm_link_hash_table *htab;
@@ -17198,8 +17245,6 @@ elf32_arm_finish_dynamic_symbol (bfd * output_bfd,
   struct elf32_arm_link_hash_entry *eh;
 
   htab = elf32_arm_hash_table (info);
-  if (htab == NULL)
-    return false;
 
   eh = (struct elf32_arm_link_hash_entry *) h;
 
@@ -17873,7 +17918,7 @@ elf32_arm_output_map_sym (output_arch_syminfo *osi,
   sym.st_other = 0;
   sym.st_info = ELF_ST_INFO (STB_LOCAL, STT_NOTYPE);
   sym.st_shndx = osi->sec_shndx;
-  sym.st_target_internal = 0;
+  sym.st_target_internal = ST_BRANCH_TO_ARM;
   elf32_arm_section_map_add (osi->sec, names[type][1], offset);
   return osi->func (osi->flaginfo, names[type], &sym, osi->sec, NULL) == 1;
 }
@@ -18030,7 +18075,7 @@ elf32_arm_output_stub_sym (output_arch_syminfo *osi, const char *name,
   sym.st_other = 0;
   sym.st_info = ELF_ST_INFO (STB_LOCAL, STT_FUNC);
   sym.st_shndx = osi->sec_shndx;
-  sym.st_target_internal = 0;
+  sym.st_target_internal = ST_BRANCH_TO_ARM;
   return osi->func (osi->flaginfo, name, &sym, osi->sec, NULL) == 1;
 }
 
@@ -18214,7 +18259,7 @@ elf32_arm_output_arch_local_syms (bfd *output_bfd,
 
       osi.sec_shndx = _bfd_elf_section_from_bfd_section
 	  (output_bfd, osi.sec->output_section);
-      if (bfd_link_pic (info) || htab->root.is_relocatable_executable
+      if (bfd_link_pic (info)
 	  || htab->pic_veneer)
 	size = ARM2THUMB_PIC_GLUE_SIZE;
       else if (htab->use_blx)
@@ -19778,7 +19823,7 @@ elf32_arm_swap_symbol_in (bfd * abfd,
 {
   if (!bfd_elf32_swap_symbol_in (abfd, psrc, pshn, dst))
     return false;
-  dst->st_target_internal = 0;
+  dst->st_target_internal = ST_BRANCH_TO_ARM;
 
   /* New EABI objects mark thumb function symbols by setting the low bit of
      the address.  */
@@ -19970,10 +20015,14 @@ read_code16 (const bfd *abfd, const bfd_byte *addr)
    or (bfd_vma) -1 if size can not be determined.  */
 
 static bfd_vma
-elf32_arm_plt0_size (const bfd *abfd, const bfd_byte *addr)
+elf32_arm_plt0_size (const bfd *abfd, const bfd_byte *addr,
+		     bfd_size_type data_size)
 {
   bfd_vma first_word;
   bfd_vma plt0_size;
+
+  if (data_size < 4)
+    return (bfd_vma) -1;
 
   first_word = read_code32 (abfd, addr);
 
@@ -19993,24 +20042,28 @@ elf32_arm_plt0_size (const bfd *abfd, const bfd_byte *addr)
    or (bfd_vma) -1 if size can not be determined.  */
 
 static bfd_vma
-elf32_arm_plt_size (const bfd *abfd, const bfd_byte *start, bfd_vma offset)
+elf32_arm_plt_size (const bfd *abfd, const bfd_byte *start, bfd_vma offset,
+		    bfd_size_type data_size)
 {
   bfd_vma first_insn;
   bfd_vma plt_size = 0;
-  const bfd_byte *addr = start + offset;
 
   /* PLT entry size if fixed on Thumb-only platforms.  */
   if (read_code32 (abfd, start) == elf32_thumb2_plt0_entry[0])
-      return 4 * ARRAY_SIZE (elf32_thumb2_plt_entry);
+    return 4 * ARRAY_SIZE (elf32_thumb2_plt_entry);
 
   /* Respect Thumb stub if necessary.  */
-  if (read_code16 (abfd, addr) == elf32_arm_plt_thumb_stub[0])
+  if (offset + 2 > data_size)
+    return (bfd_vma) -1;
+  if (read_code16 (abfd, start + offset) == elf32_arm_plt_thumb_stub[0])
     {
       plt_size += 2 * ARRAY_SIZE (elf32_arm_plt_thumb_stub);
     }
 
   /* Strip immediate from first add.  */
-  first_insn = read_code32 (abfd, addr + plt_size) & 0xffffff00;
+  if (offset + plt_size + 4 > data_size)
+    return (bfd_vma) -1;
+  first_insn = read_code32 (abfd, start + offset + plt_size) & 0xffffff00;
 
 #ifdef FOUR_WORD_PLT
   if (first_insn == elf32_arm_plt_entry[0])
@@ -20087,7 +20140,7 @@ elf32_arm_get_synthetic_symtab (bfd *abfd,
 	size += sizeof ("+0x") - 1 + 8;
     }
 
-  offset = elf32_arm_plt0_size (abfd, data);
+  offset = elf32_arm_plt0_size (abfd, data, plt->size);
   if (offset == (bfd_vma) -1
       || (s = *ret = (asymbol *) bfd_malloc (size)) == NULL)
     {
@@ -20102,7 +20155,7 @@ elf32_arm_get_synthetic_symtab (bfd *abfd,
     {
       size_t len;
 
-      bfd_vma plt_size = elf32_arm_plt_size (abfd, data, offset);
+      bfd_vma plt_size = elf32_arm_plt_size (abfd, data, offset, plt->size);
       if (plt_size == (bfd_vma) -1)
 	break;
 
@@ -20332,8 +20385,8 @@ elf32_arm_backend_symbol_processing (bfd *abfd, asymbol *sym)
 #define elf_backend_create_dynamic_sections	elf32_arm_create_dynamic_sections
 #define elf_backend_finish_dynamic_symbol	elf32_arm_finish_dynamic_symbol
 #define elf_backend_finish_dynamic_sections	elf32_arm_finish_dynamic_sections
-#define elf_backend_size_dynamic_sections	elf32_arm_size_dynamic_sections
-#define elf_backend_always_size_sections	elf32_arm_always_size_sections
+#define elf_backend_late_size_sections		elf32_arm_late_size_sections
+#define elf_backend_early_size_sections		elf32_arm_early_size_sections
 #define elf_backend_init_index_section		_bfd_elf_init_2_index_sections
 #define elf_backend_init_file_header		elf32_arm_init_file_header
 #define elf_backend_reloc_type_class		elf32_arm_reloc_type_class
@@ -20663,16 +20716,17 @@ elf32_arm_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 
   if (!elf_flags_init (obfd))
     {
-      /* If the input is the default architecture and had the default
-	 flags then do not bother setting the flags for the output
-	 architecture, instead allow future merges to do this.  If no
-	 future merges ever set these flags then they will retain their
-	 uninitialised values, which surprise surprise, correspond
-	 to the default values.  */
-      if (bfd_get_arch_info (ibfd)->the_default
-	  && elf_elfheader (ibfd)->e_flags == 0)
-	return true;
+      /* If the input has no flags set, then do not set the output flags.
+	 This will allow future bfds to determine the desired output flags.
+	 If no input bfds have any flags set, then neither will the output bfd.
 
+	 Note - we used to restrict this test to when the input architecture
+	 variant was the default variant, but this does not allow for
+	 linker scripts which override the default.  See PR 28910 for an
+	 example.  */
+      if (in_flags == 0)
+	return true;
+      
       elf_flags_init (obfd) = true;
       elf_elfheader (obfd)->e_flags = in_flags;
 
@@ -20777,20 +20831,6 @@ elf32_arm_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 	    _bfd_error_handler
 	      (_("error: %pB uses %s instructions, whereas %pB does not"),
 	       ibfd, "FPA", obfd);
-
-	  flags_compatible = false;
-	}
-
-      if ((in_flags & EF_ARM_MAVERICK_FLOAT) != (out_flags & EF_ARM_MAVERICK_FLOAT))
-	{
-	  if (in_flags & EF_ARM_MAVERICK_FLOAT)
-	    _bfd_error_handler
-	      (_("error: %pB uses %s instructions, whereas %pB does not"),
-	       ibfd, "Maverick", obfd);
-	  else
-	    _bfd_error_handler
-	      (_("error: %pB does not use %s instructions, whereas %pB does"),
-	       ibfd, "Maverick", obfd);
 
 	  flags_compatible = false;
 	}

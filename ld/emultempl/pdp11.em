@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2006-2023 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2024 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -101,7 +101,7 @@ then
 # Scripts compiled in.
 
 # sed commands to quote an ld script as a C string.
-sc="-f stringify.sed"
+sc="-f ${srcdir}/emultempl/stringify.sed"
 
 fragment <<EOF
 {

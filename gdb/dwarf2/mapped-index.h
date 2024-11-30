@@ -1,6 +1,6 @@
 /* Base class for mapped indices
 
-   Copyright (C) 2021-2023 Free Software Foundation, Inc.
+   Copyright (C) 2021-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,7 +20,9 @@
 #ifndef GDB_DWARF2_MAPPED_INDEX_H
 #define GDB_DWARF2_MAPPED_INDEX_H
 
+#include "dwarf2/index-common.h"
 #include "language.h"
+#include "quick-symbol.h"
 
 /* An index into a (C++) symbol name component in a symbol name as
    recorded in the mapped_index's symbol table.  For each C++ symbol
@@ -82,6 +84,11 @@ struct dwarf_scanner_base
   virtual void wait_completely ()
   {
   }
+
+  /* Look up ADDR, and return either the corresponding CU, or nullptr
+     if the address could not be found.  */
+  virtual dwarf2_per_cu_data *lookup (unrelocated_addr addr)
+  { return nullptr; }
 };
 
 /* Base class containing bits shared by both .gdb_index and
@@ -127,9 +134,7 @@ struct mapped_index_base : public dwarf_scanner_base
 				 dwarf2_per_objfile *per_objfile) const;
 
   cooked_index *index_for_writing () override
-  {
-    error (_("Cannot use an index to create the index"));
-  }
+  { return nullptr; }
 };
 
 #endif /* GDB_DWARF2_MAPPED_INDEX_H */

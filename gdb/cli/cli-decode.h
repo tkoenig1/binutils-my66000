@@ -1,6 +1,6 @@
 /* Header file for GDB command decoding library.
 
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 #include "completer.h"
 #include "gdbsupport/intrusive_list.h"
 #include "gdbsupport/buildargv.h"
+
+/* The allowed length of a line in a documentation string.  */
+constexpr int cli_help_line_length = 80;
 
 /* Not a set/show command.  Note that some commands which begin with
    "set" or "show" might be in this category, if their syntax does
@@ -233,7 +236,7 @@ struct cmd_list_element
   void (*destroyer) (struct cmd_list_element *self, void *context) = nullptr;
 
   /* Setting affected by "set" and "show".  Not used if type is not_set_cmd.  */
-  gdb::optional<setting> var;
+  std::optional<setting> var;
 
   /* Pointer to NULL terminated list of enumerated values (like
      argv).  */

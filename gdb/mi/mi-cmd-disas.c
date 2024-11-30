@@ -1,5 +1,5 @@
 /* MI Command Set - disassemble commands.
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -17,8 +17,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "arch-utils.h"
+#include "progspace.h"
 #include "target.h"
 #include "value.h"
 #include "mi-cmds.h"
@@ -246,7 +246,7 @@ mi_cmd_disassemble (const char *command, const char *const *argv, int argc)
 
   if (line_seen && file_seen)
     {
-      s = lookup_symtab (file_string);
+      s = lookup_symtab (current_program_space, file_string);
       if (s == NULL)
 	error (_("-data-disassemble: Invalid filename."));
       if (!find_line_pc (s, line_num, &start))

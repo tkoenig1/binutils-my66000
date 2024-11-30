@@ -1,6 +1,6 @@
 ## Process this file with automake to generate Makefile.in
 #
-#   Copyright (C) 2021-2023 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2024 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,12 +51,12 @@ AM_MAKEFLAGS = \
 	GPROFNG_CFLAGS="$(GPROFNG_CFLAGS)" \
 	GPROFNG_CPPFLAGS="$(GPROFNG_CPPFLAGS)"
 
-if TCL_TRY
 .PHONY: check-small check-extra check-install
 
 check-DEJAGNU: check-small
 
 check-small check-extra check-install: site.exp development.exp
+if TCL_TRY
 	srcroot=`cd $(srcdir) && pwd`; export srcroot; \
 	LC_ALL=C; export LC_ALL; \
 	EXPECT=$(EXPECT); export EXPECT; \
@@ -68,12 +68,14 @@ check-small check-extra check-install: site.exp development.exp
 		CLOCK_GETTIME_LINK="$(CLOCK_GETTIME_LINK)" \
 		CHECK_TARGET=$@ \
 		PREFIX="$(prefix)" \
+		BASH="$(BASH)" \
 		GPROFNG_BROKEN_JAVAC="$(GPROFNG_BROKEN_JAVAC)" \
 		MAKE="$(MAKE)" CC="$(CC)" CFLAGS="$(CFLAGS) $(PTHREAD_CFLAGS)" \
 		LDFLAGS="$(LDFLAGS)" LIBS="$(PTHREAD_LIBS) $(LIBS)" \
 		BUILDDIR="$(abs_top_builddir)" $(RUNTESTFLAGS); \
 	else echo "WARNING: could not find \`runtest'" 1>&2; :;\
 	fi
+endif
 
 development.exp: $(BFDDIR)/development.sh
 	$(EGREP) "(development|experimental)=" $(BFDDIR)/development.sh  \
@@ -85,5 +87,5 @@ CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/development.sh
 EXTRA_DEJAGNU_SITE_CONFIG = development.exp
 
 DISTCLEANFILES = site.exp development.exp
-endif
+
 

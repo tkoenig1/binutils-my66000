@@ -1,6 +1,6 @@
 /* TUI display source/assembly window.
 
-   Copyright (C) 1998-2023 Free Software Foundation, Inc.
+   Copyright (C) 1998-2024 Free Software Foundation, Inc.
 
    Contributed by Hewlett-Packard Company.
 
@@ -22,6 +22,7 @@
 #ifndef TUI_TUI_WINSOURCE_H
 #define TUI_TUI_WINSOURCE_H
 
+#include "gdbsupport/observable.h"
 #include "tui/tui-data.h"
 #include "symtab.h"
 
@@ -159,7 +160,7 @@ public:
 
   /* Update the window to display the given location.  Does nothing if
      the location is already displayed.  */
-  virtual void maybe_update (frame_info_ptr fi, symtab_and_line sal) = 0;
+  virtual void maybe_update (const frame_info_ptr &fi, symtab_and_line sal) = 0;
 
   void update_source_window_as_is  (struct gdbarch *gdbarch,
 				    const struct symtab_and_line &sal);
@@ -182,6 +183,16 @@ public:
   /* Return the start address and gdbarch.  */
   virtual void display_start_addr (struct gdbarch **gdbarch_p,
 				   CORE_ADDR *addr_p) = 0;
+
+  /* Function to ensure that the source or disassembly window
+     reflects the input address.  Single window variant of
+     update_source_windows_with_addr.  */
+  void update_source_window_with_addr (struct gdbarch *, CORE_ADDR);
+
+protected:
+
+  /* Called when a user style setting is changed.  */
+  void style_changed ();
 
 private:
 
@@ -206,13 +217,13 @@ private:
   /* Return the size of the left margin space, this is the space used to
      display things like breakpoint markers.  */
   int left_margin () const
-  { return 1 + TUI_EXECINFO_SIZE + extra_margin (); }
+  { return TUI_EXECINFO_SIZE + extra_margin (); }
 
   /* Return the width of the area that is available for window content.
      This is the window width minus the borders and the left margin, which
      is used for displaying things like breakpoint markers.  */
   int view_width () const
-  { return width - left_margin () - 1; }
+  { return width - left_margin () - box_size (); }
 
   void show_source_content ();
 
@@ -229,9 +240,6 @@ private:
 
      the initial escape that sets the color will still be applied.  */
   void puts_to_pad_with_skip (const char *string, int skip);
-
-  /* Called when the user "set style enabled" setting is changed.  */
-  void style_changed ();
 
   /* A token used to register and unregister an observer.  */
   gdb::observers::token m_observable;

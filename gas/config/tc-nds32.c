@@ -1,5 +1,5 @@
 /* tc-nds32.c -- Assemble for the nds32
-   Copyright (C) 2012-2023 Free Software Foundation, Inc.
+   Copyright (C) 2012-2024 Free Software Foundation, Inc.
    Contributed by Andes Technology Corporation.
 
    This file is part of GAS, the GNU Assembler.
@@ -2313,8 +2313,8 @@ enum options
   OPTION_OPTIMIZE_SPACE
 };
 
-const char *md_shortopts = "m:O:";
-struct option md_longopts[] =
+const char md_shortopts[] = "m:O:";
+const struct option md_longopts[] =
 {
   {"O1", no_argument, NULL, OPTION_OPTIMIZE},
   {"Os", no_argument, NULL, OPTION_OPTIMIZE_SPACE},
@@ -2334,7 +2334,7 @@ struct option md_longopts[] =
   {NULL, no_argument, NULL, 0}
 };
 
-size_t md_longopts_size = sizeof (md_longopts);
+const size_t md_longopts_size = sizeof (md_longopts);
 
 struct nds32_parse_option_table
 {

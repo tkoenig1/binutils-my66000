@@ -1,6 +1,6 @@
 /* CLI options framework, for GDB.
 
-   Copyright (C) 2017-2023 Free Software Foundation, Inc.
+   Copyright (C) 2017-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,7 +20,7 @@
 #ifndef CLI_OPTION_H
 #define CLI_OPTION_H 1
 
-#include "gdbsupport/gdb_optional.h"
+#include <optional>
 #include "gdbsupport/array-view.h"
 #include "completer.h"
 #include <string>
@@ -304,7 +304,27 @@ struct string_option_def : option_def
 		  show_cmd_cb_,
 		  set_doc_, show_doc_, help_doc_)
   {
-    var_address.enumeration = detail::get_var_address<const char *, Context>;
+    var_address.string = detail::get_var_address<std::string, Context>;
+  }
+};
+
+/* A var_filename command line option.  */
+
+template<typename Context>
+struct filename_option_def : option_def
+{
+  filename_option_def (const char *long_option_,
+		       std::string *(*get_var_address_cb_) (Context *),
+		       show_value_ftype *show_cmd_cb_,
+		       const char *set_doc_,
+		       const char *show_doc_ = nullptr,
+		       const char *help_doc_ = nullptr)
+    : option_def (long_option_, var_filename, nullptr,
+		  (erased_get_var_address_ftype *) get_var_address_cb_,
+		  show_cmd_cb_,
+		  set_doc_, show_doc_, help_doc_)
+  {
+    var_address.string = detail::get_var_address<std::string, Context>;
   }
 };
 

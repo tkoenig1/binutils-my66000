@@ -1,5 +1,5 @@
 /* gen-sframe.h - Support for generating SFrame.
-   Copyright (C) 2022-2023 Free Software Foundation, Inc.
+   Copyright (C) 2022-2024 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -23,6 +23,8 @@
 
 #define SFRAME_FRE_ELEM_LOC_REG		0
 #define SFRAME_FRE_ELEM_LOC_STACK	1
+
+#define SFRAME_FRE_BASE_REG_INVAL	((unsigned int)-1)
 
 /* SFrame Frame Row Entry (FRE).
 

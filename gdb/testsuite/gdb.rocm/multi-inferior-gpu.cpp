@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2023 Free Software Foundation, Inc.
+   Copyright 2023-2024 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ parent (int argc, char **argv)
       if (pid == 0)
 	{
 	  /* Exec to force the child to re-initialize the ROCm runtime.  */
-	  if (execl (argv[0], argv[0], n) == -1)
+	  if (execl (argv[0], argv[0], n, nullptr) == -1)
 	    {
 	      perror ("Failed to exec");
 	      return -1;
@@ -95,7 +95,7 @@ child (int argc, char **argv)
 
   CHECK (hipSetDevice (dev_number));
   kern<<<1, 1>>> ();
-  hipDeviceSynchronize ();
+  CHECK (hipDeviceSynchronize ());
   return 0;
 }
 

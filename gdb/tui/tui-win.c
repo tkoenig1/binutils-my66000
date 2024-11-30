@@ -1,6 +1,6 @@
 /* TUI window generic functions.
 
-   Copyright (C) 1998-2023 Free Software Foundation, Inc.
+   Copyright (C) 1998-2024 Free Software Foundation, Inc.
 
    Contributed by Hewlett-Packard Company.
 
@@ -24,18 +24,13 @@
 
    Author: Susan B. Macchia  */
 
-#include "defs.h"
+#include "async-event.h"
 #include "command.h"
 #include "symtab.h"
-#include "breakpoint.h"
 #include "frame.h"
 #include "cli/cli-cmds.h"
 #include "cli/cli-style.h"
-#include "top.h"
-#include "source.h"
-#include "gdbsupport/event-loop.h"
-#include "gdbcmd.h"
-#include "async-event.h"
+#include "ui-out.h"
 #include "utils.h"
 
 #include "tui/tui.h"
@@ -44,8 +39,6 @@
 #include "tui/tui-data.h"
 #include "tui/tui-layout.h"
 #include "tui/tui-wingeneral.h"
-#include "tui/tui-stack.h"
-#include "tui/tui-regs.h"
 #include "tui/tui-disasm.h"
 #include "tui/tui-source.h"
 #include "tui/tui-winsource.h"
@@ -54,9 +47,8 @@
 #include "gdb_curses.h"
 #include <ctype.h>
 #include "readline/readline.h"
-#include "gdbsupport/gdb_string_view.h"
-
 #include <signal.h>
+#include <string_view>
 
 static void tui_set_tab_width_command (const char *, int);
 static void tui_refresh_all_command (const char *, int);
@@ -204,10 +196,10 @@ static void
 set_style_tui_current_position (const char *ignore, int from_tty,
 				cmd_list_element *c)
 {
-  if (TUI_SRC_WIN != nullptr)
-    TUI_SRC_WIN->refill ();
-  if (TUI_DISASM_WIN != nullptr)
-    TUI_DISASM_WIN->refill ();
+  if (tui_src_win () != nullptr)
+    tui_src_win ()->refill ();
+  if (tui_disasm_win () != nullptr)
+    tui_disasm_win ()->refill ();
 }
 
 /* Tui internal configuration variables.  These variables are updated
@@ -425,8 +417,8 @@ tui_update_gdb_sizes (void)
 
   if (tui_active)
     {
-      width = TUI_CMD_WIN->width;
-      height = TUI_CMD_WIN->height;
+      width = tui_cmd_win ()->width;
+      height = tui_cmd_win ()->height;
     }
   else
     {
@@ -481,7 +473,7 @@ void
 tui_refresh_all_win (void)
 {
   clearok (curscr, TRUE);
-  tui_refresh_all ();
+  doupdate ();
 }
 
 void
@@ -510,7 +502,7 @@ tui_resize_all (void)
       resize_term (screenheight, screenwidth);
 #endif      
       /* Turn keypad off while we resize.  */
-      keypad (TUI_CMD_WIN->handle.get (), FALSE);
+      keypad (tui_cmd_win ()->handle.get (), FALSE);
       tui_update_gdb_sizes ();
       tui_set_term_height_to (screenheight);
       tui_set_term_width_to (screenwidth);
@@ -523,7 +515,7 @@ tui_resize_all (void)
 	 window to resize proportionately with containing terminal, rather
 	 than maintaining a fixed size.  */
       tui_apply_current_layout (false); /* Turn keypad back on.  */
-      keypad (TUI_CMD_WIN->handle.get (), TRUE);
+      keypad (tui_cmd_win ()->handle.get (), TRUE);
     }
 }
 
@@ -663,7 +655,7 @@ tui_scroll_right_command (const char *arg, int from_tty)
 
 /* Answer the window represented by name.  */
 static struct tui_win_info *
-tui_partial_win_by_name (gdb::string_view name)
+tui_partial_win_by_name (std::string_view name)
 {
   struct tui_win_info *best = nullptr;
 
@@ -859,8 +851,8 @@ static void
 tui_set_compact_source (const char *ignore, int from_tty,
 			struct cmd_list_element *c)
 {
-  if (TUI_SRC_WIN != nullptr)
-    TUI_SRC_WIN->refill ();
+  if (tui_src_win () != nullptr)
+    tui_src_win ()->refill ();
 }
 
 /* Callback for "show tui compact-source".  */
@@ -870,6 +862,17 @@ tui_show_compact_source (struct ui_file *file, int from_tty,
 			 struct cmd_list_element *c, const char *value)
 {
   gdb_printf (file, _("TUI source window compactness is %s.\n"), value);
+}
+
+bool tui_enable_mouse = true;
+
+/* Implement 'show tui mouse-events'.  */
+
+static void
+show_tui_mouse_events (struct ui_file *file, int from_tty,
+		       struct cmd_list_element *c, const char *value)
+{
+  gdb_printf (file, _("TUI mouse events are %s.\n"), value);
 }
 
 /* Set the tab width of the specified window.  */
@@ -924,7 +927,7 @@ tui_set_win_size (const char *arg, bool set_width_p)
   buf_ptr = skip_to_space (buf_ptr);
 
   /* Validate the window name.  */
-  gdb::string_view wname (buf, buf_ptr - buf);
+  std::string_view wname (buf, buf_ptr - buf);
   win_info = tui_partial_win_by_name (wname);
 
   if (win_info == NULL)
@@ -1067,7 +1070,7 @@ parse_scrolling_args (const char *arg,
 		error (_("Unrecognized window `%s'"), wname);
 	      if (!(*win_to_scroll)->is_visible ())
 		error (_("Window is not visible"));
-	      else if (*win_to_scroll == TUI_CMD_WIN)
+	      else if (*win_to_scroll == tui_cmd_win ())
 		*win_to_scroll = *(tui_source_windows ().begin ());
 	    }
 	}
@@ -1252,6 +1255,17 @@ Show whether the TUI source window is compact."), _("\
 This variable controls whether the TUI source window is shown\n\
 in a compact form.  The compact form uses less horizontal space."),
 			   tui_set_compact_source, tui_show_compact_source,
+			   &tui_setlist, &tui_showlist);
+
+  add_setshow_boolean_cmd ("mouse-events", class_tui,
+			   &tui_enable_mouse, _("\
+Set whether TUI mode handles mouse clicks."), _("\
+Show whether TUI mode handles mouse clicks."), _("\
+When on (default), mouse clicks control the TUI and can be accessed by Python\n\
+extensions.  When off, mouse clicks are handled by the terminal, enabling\n\
+terminal-native text selection."),
+			   nullptr,
+			   show_tui_mouse_events,
 			   &tui_setlist, &tui_showlist);
 
   add_setshow_boolean_cmd ("tui-current-position", class_maintenance,

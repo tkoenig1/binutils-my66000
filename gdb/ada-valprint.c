@@ -1,6 +1,6 @@
 /* Support for printing Ada values for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2023 Free Software Foundation, Inc.
+   Copyright (C) 1986-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,8 +17,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include <ctype.h>
+#include "event-top.h"
+#include "extract-store-integer.h"
 #include "gdbtypes.h"
 #include "expression.h"
 #include "value.h"
@@ -89,7 +90,7 @@ print_optional_low_bound (struct ui_file *stream, struct type *type,
       break;
     case TYPE_CODE_UNDEF:
       index_type = NULL;
-      /* FALL THROUGH */
+      [[fallthrough]];
     default:
       if (low_bound == 1)
 	return 0;
@@ -117,7 +118,7 @@ val_print_packed_array_elements (struct type *type, const gdb_byte *valaddr,
   unsigned int things_printed = 0;
   unsigned len;
   struct type *elttype, *index_type;
-  unsigned long bitsize = TYPE_FIELD_BITSIZE (type, 0);
+  unsigned long bitsize = type->field (0).bitsize ();
   LONGEST low = 0;
 
   scoped_value_mark mark;
@@ -150,6 +151,11 @@ val_print_packed_array_elements (struct type *type, const gdb_byte *valaddr,
 
   while (i < len && things_printed < options->print_max)
     {
+      /* Both this outer loop and the inner loop that checks for
+	 duplicates may allocate many values.  To avoid using too much
+	 memory, both spots release values as they work.  */
+      scoped_value_mark outer_free_values;
+
       struct value *v0, *v1;
       int i0;
 
@@ -180,6 +186,9 @@ val_print_packed_array_elements (struct type *type, const gdb_byte *valaddr,
 					   bitsize, elttype);
       while (1)
 	{
+	  /* Make sure to free any values in the inner loop.  */
+	  scoped_value_mark free_values;
+
 	  i += 1;
 	  if (i >= len)
 	    break;
@@ -377,7 +386,7 @@ ada_print_scalar (struct type *type, LONGEST val, struct ui_file *stream)
 
     case TYPE_CODE_ENUM:
       {
-	gdb::optional<LONGEST> posn = discrete_position (type, val);
+	std::optional<LONGEST> posn = discrete_position (type, val);
 	if (posn.has_value ())
 	  fputs_styled (ada_enum_name (type->field (*posn).name ()),
 			variable_name_style.style (), stream);
@@ -615,11 +624,11 @@ print_field_values (struct value *value, struct value *outer_value,
       gdb_puts (" => ", stream);
       annotate_field_value ();
 
-      if (TYPE_FIELD_PACKED (type, i))
+      if (type->field (i).is_packed ())
 	{
 	  /* Bitfields require special handling, especially due to byte
 	     order problems.  */
-	  if (HAVE_CPLUS_STRUCT (type) && TYPE_FIELD_IGNORE (type, i))
+	  if (type->field (i).is_ignored ())
 	    {
 	      fputs_styled (_("<optimized out or zero length>"),
 			    metadata_style.style (), stream);
@@ -628,7 +637,7 @@ print_field_values (struct value *value, struct value *outer_value,
 	    {
 	      struct value *v;
 	      int bit_pos = type->field (i).loc_bitpos ();
-	      int bit_size = TYPE_FIELD_BITSIZE (type, i);
+	      int bit_size = type->field (i).bitsize ();
 	      struct value_print_options opts;
 
 	      v = ada_value_primitive_packed_val
@@ -819,7 +828,7 @@ ada_val_print_enum (struct value *value, struct ui_file *stream, int recurse,
   int offset_aligned = ada_aligned_value_addr (type, valaddr) - valaddr;
 
   val = unpack_long (type, valaddr + offset_aligned);
-  gdb::optional<LONGEST> posn = discrete_position (type, val);
+  std::optional<LONGEST> posn = discrete_position (type, val);
   if (posn.has_value ())
     {
       const char *name = ada_enum_name (type->field (*posn).name ());
@@ -883,7 +892,7 @@ ada_value_print_array (struct value *val, struct ui_file *stream, int recurse,
 
   if (val->entirely_optimized_out ())
     val_print_optimized_out (val, stream);
-  else if (TYPE_FIELD_BITSIZE (type, 0) > 0)
+  else if (type->field (0).bitsize () > 0)
     {
       const gdb_byte *valaddr = val->contents_for_printing ().data ();
       int offset_aligned = ada_aligned_value_addr (type, valaddr) - valaddr;

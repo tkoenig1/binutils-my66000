@@ -1,6 +1,6 @@
 /* MI Command Set.
 
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
 
@@ -19,8 +19,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "arch-utils.h"
+#include "extract-store-integer.h"
 #include "target.h"
 #include "inferior.h"
 #include "infrun.h"
@@ -36,7 +36,7 @@
 #include "interps.h"
 #include "gdbsupport/event-loop.h"
 #include "event-top.h"
-#include "gdbcore.h"		/* For write_memory().  */
+#include "gdbcore.h"
 #include "value.h"
 #include "regcache.h"
 #include "frame.h"
@@ -50,9 +50,9 @@
 #include "ada-lang.h"
 #include "linespec.h"
 #include "extension.h"
-#include "gdbcmd.h"
+#include "cli/cli-cmds.h"
 #include "observable.h"
-#include "gdbsupport/gdb_optional.h"
+#include <optional>
 #include "gdbsupport/byte-vector.h"
 
 #include <ctype.h>
@@ -78,7 +78,6 @@ static struct mi_timestamp *current_command_ts;
 
 static int do_timings = 0;
 
-const char *current_token;
 /* Few commands would like to know if options like --thread-group were
    explicitly specified.  This variable keeps the current parsed
    command including all option, and make it possible.  */
@@ -90,7 +89,7 @@ static void mi_execute_async_cli_command (const char *cli_command,
 					  const char *const *argv, int argc);
 static bool register_changed_p (int regnum, readonly_detached_regcache *,
 			       readonly_detached_regcache *);
-static void output_register (frame_info_ptr, int regnum, int format,
+static void output_register (const frame_info_ptr &, int regnum, int format,
 			     int skip_unavailable);
 
 /* Controls whether the frontend wants MI in async mode.  */
@@ -153,8 +152,8 @@ mi_cmd_gdb_exit (const char *command, const char *const *argv, int argc)
   if (mi != nullptr)
     {
       /* We have to print everything right here because we never return.  */
-      if (current_token)
-	gdb_puts (current_token, mi->raw_stdout);
+      if (mi->current_token)
+	gdb_puts (mi->current_token, mi->raw_stdout);
       gdb_puts ("^exit\n", mi->raw_stdout);
       mi_out_put (current_uiout, mi->raw_stdout);
       gdb_flush (mi->raw_stdout);
@@ -652,11 +651,8 @@ print_one_inferior (struct inferior *inferior, bool recurse,
       if (inferior->pid != 0)
 	uiout->field_signed ("pid", inferior->pid);
 
-      if (inferior->pspace->exec_filename != nullptr)
-	{
-	  uiout->field_string ("executable",
-			       inferior->pspace->exec_filename.get ());
-	}
+      if (inferior->pspace->exec_filename () != nullptr)
+	uiout->field_string ("executable", inferior->pspace->exec_filename ());
 
       if (inferior->pid != 0)
 	{
@@ -1098,11 +1094,12 @@ mi_cmd_data_list_register_values (const char *command, const char *const *argv,
    unavailable.  */
 
 static void
-output_register (frame_info_ptr frame, int regnum, int format,
+output_register (const frame_info_ptr &frame, int regnum, int format,
 		 int skip_unavailable)
 {
   struct ui_out *uiout = current_uiout;
-  struct value *val = value_of_register (regnum, frame);
+  value *val
+    = value_of_register (regnum, get_next_frame_sentinel_okay (frame));
   struct value_print_options opts;
 
   if (skip_unavailable && !val->entirely_available ())
@@ -1133,7 +1130,6 @@ void
 mi_cmd_data_write_register_values (const char *command,
 				   const char *const *argv, int argc)
 {
-  struct regcache *regcache;
   struct gdbarch *gdbarch;
   int numregs, i;
 
@@ -1144,7 +1140,7 @@ mi_cmd_data_write_register_values (const char *command,
      will change depending upon the particular processor being
      debugged.  */
 
-  regcache = get_current_regcache ();
+  regcache *regcache = get_thread_regcache (inferior_thread ());
   gdbarch = regcache->arch ();
   numregs = gdbarch_num_cooked_regs (gdbarch);
 
@@ -1762,8 +1758,7 @@ mi_cmd_remove_inferior (const char *command, const char *const *argv, int argc)
   if (argc != 1)
     error (_("-remove-inferior should be passed a single argument"));
 
-  if (sscanf (argv[0], "i%d", &id) != 1)
-    error (_("the thread group id is syntactically invalid"));
+  id = mi_parse_thread_group_id (argv[0]);
 
   inf_to_remove = find_inferior_id (id);
   if (inf_to_remove == NULL)
@@ -1815,8 +1810,8 @@ captured_mi_execute_command (struct mi_interp *mi, struct ui_out *uiout,
   if (do_timings)
     current_command_ts = context->cmd_start;
 
-  scoped_restore save_token = make_scoped_restore (&current_token,
-						   context->token.c_str ());
+  scoped_restore save_token
+    = make_scoped_restore (&mi->current_token, context->token.c_str ());
 
   mi->running_result_record_printed = 0;
   mi->mi_proceeded = 0;
@@ -1935,7 +1930,7 @@ mi_execute_command (const char *cmd, int from_tty)
     = gdb::checked_static_cast<mi_interp *> (command_interp ());
   try
     {
-      command = mi_parse::make (cmd, &token);
+      command = std::make_unique<mi_parse> (cmd, &token);
     }
   catch (const gdb_exception &exception)
     {
@@ -1988,8 +1983,14 @@ mi_execute_command (mi_parse *context)
   if (context->op != MI_COMMAND)
     error (_("Command is not an MI command"));
 
-  scoped_restore save_token = make_scoped_restore (&current_token,
-						   context->token.c_str ());
+  mi_interp *mi = as_mi_interp (current_interpreter ());
+
+  /* The current interpreter may not be MI, for instance when using
+     the Python gdb.execute_mi function.  */
+  if (mi != nullptr)
+    scoped_restore save_token = make_scoped_restore (&mi->current_token,
+						     context->token.c_str ());
+
   scoped_restore save_debug = make_scoped_restore (&mi_debug_p, 0);
 
   mi_cmd_execute (context);
@@ -2076,7 +2077,7 @@ mi_cmd_execute (struct mi_parse *parse)
 	error (_("Invalid thread group for the --thread-group option"));
 
       set_current_inferior (inf);
-      /* This behaviour means that if --thread-group option identifies
+      /* This behavior means that if --thread-group option identifies
 	 an inferior with multiple threads, then a random one will be
 	 picked.  This is not a problem -- frontend should always
 	 provide --thread if it wishes to operate on a specific
@@ -2092,7 +2093,7 @@ mi_cmd_execute (struct mi_parse *parse)
 
   user_selected_context current_user_selected_context;
 
-  gdb::optional<scoped_restore_current_thread> thread_saver;
+  std::optional<scoped_restore_current_thread> thread_saver;
   if (parse->thread != -1)
     {
       thread_info *tp = find_thread_global_id (parse->thread);
@@ -2109,7 +2110,7 @@ mi_cmd_execute (struct mi_parse *parse)
       switch_to_thread (tp);
     }
 
-  gdb::optional<scoped_restore_selected_frame> frame_saver;
+  std::optional<scoped_restore_selected_frame> frame_saver;
   if (parse->frame != -1)
     {
       frame_info_ptr fid;
@@ -2127,18 +2128,15 @@ mi_cmd_execute (struct mi_parse *parse)
 	error (_("Invalid frame id: %d"), frame);
     }
 
-  gdb::optional<scoped_restore_current_language> lang_saver;
+  std::optional<scoped_restore_current_language> lang_saver;
   if (parse->language != language_unknown)
-    {
-      lang_saver.emplace ();
-      set_language (parse->language);
-    }
+    lang_saver.emplace (parse->language);
 
   current_context = parse;
 
   gdb_assert (parse->cmd != nullptr);
 
-  gdb::optional<scoped_restore_tmpl<int>> restore_suppress_notification
+  std::optional<scoped_restore_tmpl<int>> restore_suppress_notification
     = parse->cmd->do_suppress_notification ();
 
   parse->cmd->invoke (parse);
@@ -2207,7 +2205,7 @@ mi_load_progress (const char *section_name,
      which means uiout may not be correct.  Fix it for the duration
      of this function.  */
 
-  std::unique_ptr<ui_out> uiout (mi_out_new (current_interpreter ()->name ()));
+  auto uiout = mi_out_new (current_interpreter ()->name ());
   if (uiout == nullptr)
     return;
 
@@ -2221,8 +2219,8 @@ mi_load_progress (const char *section_name,
       xfree (previous_sect_name);
       previous_sect_name = xstrdup (section_name);
 
-      if (current_token)
-	gdb_puts (current_token, mi->raw_stdout);
+      if (mi->current_token)
+	gdb_puts (mi->current_token, mi->raw_stdout);
       gdb_puts ("+download", mi->raw_stdout);
       {
 	ui_out_emit_tuple tuple_emitter (uiout.get (), NULL);
@@ -2239,8 +2237,8 @@ mi_load_progress (const char *section_name,
   if (time_now - last_update > milliseconds (500))
     {
       last_update = time_now;
-      if (current_token)
-	gdb_puts (current_token, mi->raw_stdout);
+      if (mi->current_token)
+	gdb_puts (mi->current_token, mi->raw_stdout);
       gdb_puts ("+download", mi->raw_stdout);
       {
 	ui_out_emit_tuple tuple_emitter (uiout.get (), NULL);
@@ -2509,7 +2507,7 @@ print_variable_or_computed (const char *expression, enum print_values values)
   else
     val = expr->evaluate ();
 
-  gdb::optional<ui_out_emit_tuple> tuple_emitter;
+  std::optional<ui_out_emit_tuple> tuple_emitter;
   if (values != PRINT_NO_VALUES)
     tuple_emitter.emplace (uiout, nullptr);
   uiout->field_string ("name", expression);
@@ -2710,7 +2708,7 @@ mi_cmd_trace_frame_collected (const char *command, const char *const *argv,
 
     for (const mem_range &r : available_memory)
       {
-	struct gdbarch *gdbarch = target_gdbarch ();
+	gdbarch *gdbarch = current_inferior ()->arch ();
 
 	ui_out_emit_tuple tuple_emitter (uiout, NULL);
 
@@ -2796,6 +2794,21 @@ mi_cmd_complete (const char *command, const char *const *argv, int argc)
 		       result.number_matches == max_completions ? "1" : "0");
 }
 
+/* See mi-main.h.  */
+int
+mi_parse_thread_group_id (const char *id)
+{
+  if (*id != 'i')
+    error (_("thread group id should start with an 'i'"));
+
+  char *end;
+  long num = strtol (id + 1, &end, 10);
+
+  if (*end != '\0' || num > INT_MAX)
+    error (_("invalid thread group id '%s'"), id);
+
+  return (int) num;
+}
 
 void _initialize_mi_main ();
 void

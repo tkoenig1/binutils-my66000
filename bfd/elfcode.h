@@ -1,5 +1,5 @@
 /* ELF executable support for BFD.
-   Copyright (C) 1991-2023 Free Software Foundation, Inc.
+   Copyright (C) 1991-2024 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -529,7 +529,7 @@ elf_object_p (bfd *abfd)
 
   /* Read in the ELF header in external format.  */
 
-  if (bfd_bread (&x_ehdr, sizeof (x_ehdr), abfd) != sizeof (x_ehdr))
+  if (bfd_read (&x_ehdr, sizeof (x_ehdr), abfd) != sizeof (x_ehdr))
     {
       if (bfd_get_error () != bfd_error_system_call)
 	goto got_wrong_format_error;
@@ -642,7 +642,7 @@ elf_object_p (bfd *abfd)
 
       /* Read the first section header at index 0, and convert to internal
 	 form.  */
-      if (bfd_bread (&x_shdr, sizeof x_shdr, abfd) != sizeof (x_shdr))
+      if (bfd_read (&x_shdr, sizeof x_shdr, abfd) != sizeof (x_shdr))
 	goto got_no_match;
       elf_swap_shdr_in (abfd, &x_shdr, &i_shdr);
 
@@ -688,7 +688,7 @@ elf_object_p (bfd *abfd)
 
 	  if (bfd_seek (abfd, where, SEEK_SET) != 0)
 	    goto got_no_match;
-	  if (bfd_bread (&x_shdr, sizeof x_shdr, abfd) != sizeof (x_shdr))
+	  if (bfd_read (&x_shdr, sizeof x_shdr, abfd) != sizeof (x_shdr))
 	    goto got_no_match;
 
 	  /* Back to where we were.  */
@@ -730,7 +730,7 @@ elf_object_p (bfd *abfd)
 	 to internal form.  */
       for (shindex = 1; shindex < i_ehdrp->e_shnum; shindex++)
 	{
-	  if (bfd_bread (&x_shdr, sizeof x_shdr, abfd) != sizeof (x_shdr))
+	  if (bfd_read (&x_shdr, sizeof x_shdr, abfd) != sizeof (x_shdr))
 	    goto got_no_match;
 	  elf_swap_shdr_in (abfd, &x_shdr, i_shdrp + shindex);
 
@@ -817,7 +817,7 @@ elf_object_p (bfd *abfd)
 	= (Elf_Internal_Phdr *) bfd_alloc (abfd, amt);
       if (elf_tdata (abfd)->phdr == NULL)
 	goto got_no_match;
-      if (bfd_seek (abfd, (file_ptr) i_ehdrp->e_phoff, SEEK_SET) != 0)
+      if (bfd_seek (abfd, i_ehdrp->e_phoff, SEEK_SET) != 0)
 	goto got_no_match;
       bool eu_strip_broken_phdrs = false;
       i_phdr = elf_tdata (abfd)->phdr;
@@ -825,7 +825,7 @@ elf_object_p (bfd *abfd)
 	{
 	  Elf_External_Phdr x_phdr;
 
-	  if (bfd_bread (&x_phdr, sizeof x_phdr, abfd) != sizeof x_phdr)
+	  if (bfd_read (&x_phdr, sizeof x_phdr, abfd) != sizeof x_phdr)
 	    goto got_no_match;
 	  elf_swap_phdr_in (abfd, &x_phdr, i_phdr);
 	  /* Too much code in BFD relies on alignment being a power of
@@ -1014,7 +1014,13 @@ elf_write_relocs (bfd *abfd, asection *sec, void *data)
       sym = *ptr->sym_ptr_ptr;
       if (sym == last_sym)
 	n = last_sym_idx;
-      else if (bfd_is_abs_section (sym->section) && sym->value == 0)
+      /* If the relocation is against an absolute symbol whoes value is
+	 zero, then the symbol can be dropped, simplifying the reloc.
+	 PR 31106: Except for complex relocations where the symbols
+	 itself might be significant.  */
+      else if (bfd_is_abs_section (sym->section)
+	       && sym->value == 0
+	       && (sym->flags & BSF_RELC) == 0)
 	n = STN_UNDEF;
       else
 	{
@@ -1082,7 +1088,7 @@ elf_write_out_phdrs (bfd *abfd,
       Elf_External_Phdr extphdr;
 
       elf_swap_phdr_out (abfd, phdr, &extphdr);
-      if (bfd_bwrite (&extphdr, sizeof (Elf_External_Phdr), abfd)
+      if (bfd_write (&extphdr, sizeof (Elf_External_Phdr), abfd)
 	  != sizeof (Elf_External_Phdr))
 	return -1;
       phdr++;
@@ -1112,8 +1118,8 @@ elf_write_shdrs_and_ehdr (bfd *abfd)
 #endif
   elf_swap_ehdr_out (abfd, i_ehdrp, &x_ehdr);
   amt = sizeof (x_ehdr);
-  if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
-      || bfd_bwrite (&x_ehdr, amt, abfd) != amt)
+  if (bfd_seek (abfd, 0, SEEK_SET) != 0
+      || bfd_write (&x_ehdr, amt, abfd) != amt)
     return false;
 
   if ((abfd->flags & BFD_NO_SECTION_HEADER) != 0)
@@ -1146,8 +1152,8 @@ elf_write_shdrs_and_ehdr (bfd *abfd)
       elf_swap_shdr_out (abfd, *i_shdrp, x_shdrp + count);
     }
   amt = (bfd_size_type) i_ehdrp->e_shnum * sizeof (*x_shdrp);
-  if (bfd_seek (abfd, (file_ptr) i_ehdrp->e_shoff, SEEK_SET) != 0
-      || bfd_bwrite (x_shdrp, amt, abfd) != amt)
+  if (bfd_seek (abfd, i_ehdrp->e_shoff, SEEK_SET) != 0
+      || bfd_write (x_shdrp, amt, abfd) != amt)
     return false;
 
   /* need to dump the string table too...  */
@@ -1189,6 +1195,7 @@ elf_checksum_contents (bfd *abfd,
       Elf_Internal_Shdr i_shdr;
       Elf_External_Shdr x_shdr;
       bfd_byte *contents, *free_contents;
+      asection *sec = NULL;
 
       i_shdr = *i_shdrp[count];
       i_shdr.sh_offset = 0;
@@ -1204,8 +1211,6 @@ elf_checksum_contents (bfd *abfd,
       contents = i_shdr.contents;
       if (contents == NULL)
 	{
-	  asection *sec;
-
 	  sec = bfd_section_from_elf_index (abfd, count);
 	  if (sec != NULL)
 	    {
@@ -1214,7 +1219,7 @@ elf_checksum_contents (bfd *abfd,
 		{
 		  /* Force rereading from file.  */
 		  sec->flags &= ~SEC_IN_MEMORY;
-		  if (!bfd_malloc_and_get_section (abfd, sec, &free_contents))
+		  if (!_bfd_elf_mmap_section_contents (abfd, sec, &free_contents))
 		    continue;
 		  contents = free_contents;
 		}
@@ -1223,7 +1228,7 @@ elf_checksum_contents (bfd *abfd,
       if (contents != NULL)
 	{
 	  (*process) (contents, i_shdr.sh_size, arg);
-	  free (free_contents);
+	  _bfd_elf_munmap_section_contents (sec, free_contents);
 	}
     }
 
@@ -1255,11 +1260,13 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bool dynamic)
      symbols.  We actually use all the ELF symbols, so there will be no
      space left over at the end.  When we have all the symbols, we
      build the caller's pointer vector.  */
+  ebd = get_elf_backend_data (abfd);
 
   if (! dynamic)
     {
       hdr = &elf_tdata (abfd)->symtab_hdr;
       verhdr = NULL;
+      symcount = hdr->sh_size / ebd->s->sizeof_sym;
     }
   else
     {
@@ -1278,12 +1285,13 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bool dynamic)
 	  if (!_bfd_elf_slurp_version_tables (abfd, false))
 	    return -1;
 	}
+
+      symcount = elf_tdata (abfd)->dt_symtab_count;
     }
 
-  ebd = get_elf_backend_data (abfd);
-  symcount = elf_tdata (abfd)->dt_symtab_count;
   if (symcount == 0)
     symcount = hdr->sh_size / sizeof (Elf_External_Sym);
+
   if (symcount == 0)
     sym = symbase = NULL;
   else
@@ -1606,11 +1614,11 @@ elf_slurp_reloc_table_from_section (bfd *abfd,
 
       relent->addend = rela.r_addend;
 
-      if ((entsize == sizeof (Elf_External_Rela)
-	   && ebd->elf_info_to_howto != NULL)
-	  || ebd->elf_info_to_howto_rel == NULL)
+      res = false;
+      if (entsize == sizeof (Elf_External_Rela)
+	  && ebd->elf_info_to_howto != NULL)
 	res = ebd->elf_info_to_howto (abfd, relent, &rela);
-      else
+      else if (ebd->elf_info_to_howto_rel != NULL)
 	res = ebd->elf_info_to_howto_rel (abfd, relent, &rela);
 
       if (! res || relent->howto == NULL)

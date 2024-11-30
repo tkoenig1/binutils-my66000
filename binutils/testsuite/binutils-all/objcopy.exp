@@ -1,4 +1,4 @@
-#   Copyright (C) 1994-2023 Free Software Foundation, Inc.
+#   Copyright (C) 1994-2024 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -693,6 +693,7 @@ proc copy_setup { } {
     }
 
     if { [istarget *-*-linux*]
+	 || [istarget kvx-*-*]
 	 || [istarget *-*-gnu*] } {
 	foreach i $gcc_gas_flag {
 	    set flags "additional_flags=$i $flags"
@@ -1272,6 +1273,11 @@ if [is_elf_format] {
     run_dump_test "strip-7"
     run_dump_test "strip-8"
     run_dump_test "strip-9"
+    # This requires STB_GNU_UNIQUE support with OSABI set to GNU.
+    if { [supports_gnu_unique] } {
+	run_dump_test "strip-10"
+    }
+    run_dump_test "strip-11"
     run_dump_test "strip-12"
 
     if { [istarget "mips64*-*-openbsd*"] \
@@ -1307,12 +1313,7 @@ if [is_elf_format] {
     run_dump_test "strip-15" [list \
 				  [list source strip-15${reloc_format}.s] \
 				  [list as "${elf64} --defsym RELOC=${reloc}"]]
-
-    # This requires STB_GNU_UNIQUE support with OSABI set to GNU.
-    if { [supports_gnu_unique] } {
-	run_dump_test "strip-10"
-    }
-    run_dump_test "strip-11"
+    run_dump_test "strip-16"
 
     if { [istarget "i*86-*"] || [istarget "x86_64-*-*"] } {
 	# Check to make sure we don't strip a symbol named in relocations.
@@ -1462,6 +1463,7 @@ if [is_elf_format] {
 run_dump_test "pr23633"
 
 run_dump_test "set-section-alignment"
+run_dump_test "section-alignment"
 
 setup_xfail "hppa*-*-*"
 setup_xfail "spu-*-*"

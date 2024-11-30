@@ -1,6 +1,6 @@
 /* GDB-specific functions for operating on agent expressions.
 
-   Copyright (C) 1998-2023 Free Software Foundation, Inc.
+   Copyright (C) 1998-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,7 +17,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "symtab.h"
 #include "symfile.h"
 #include "gdbtypes.h"
@@ -25,7 +24,7 @@
 #include "value.h"
 #include "expression.h"
 #include "command.h"
-#include "gdbcmd.h"
+#include "cli/cli-cmds.h"
 #include "frame.h"
 #include "target.h"
 #include "ax.h"
@@ -521,11 +520,9 @@ gen_var_ref (struct agent_expr *ax, struct axs_value *value, struct symbol *var)
   value->type = check_typedef (var->type ());
   value->optimized_out = 0;
 
-  if (SYMBOL_COMPUTED_OPS (var) != NULL)
-    {
-      SYMBOL_COMPUTED_OPS (var)->tracepoint_var_ref (var, ax, value);
-      return;
-    }
+  if (const symbol_computed_ops *computed_ops = var->computed_ops ();
+      computed_ops != nullptr)
+    return computed_ops->tracepoint_var_ref (var, ax, value);
 
   /* I'm imitating the code in read_var_value.  */
   switch (var->aclass ())
@@ -587,8 +584,7 @@ gen_var_ref (struct agent_expr *ax, struct axs_value *value, struct symbol *var)
 	 this as an lvalue or rvalue, the caller will generate the
 	 right code.  */
       value->kind = axs_lvalue_register;
-      value->u.reg
-	= SYMBOL_REGISTER_OPS (var)->register_number (var, ax->gdbarch);
+      value->u.reg = var->register_ops ()->register_number (var, ax->gdbarch);
       break;
 
       /* A lot like LOC_REF_ARG, but the pointer lives directly in a
@@ -596,16 +592,15 @@ gen_var_ref (struct agent_expr *ax, struct axs_value *value, struct symbol *var)
 	 because it's just like any other case where the thing
 	 has a real address.  */
     case LOC_REGPARM_ADDR:
-      ax_reg (ax,
-	      SYMBOL_REGISTER_OPS (var)->register_number (var, ax->gdbarch));
+      ax_reg (ax, var->register_ops ()->register_number (var, ax->gdbarch));
       value->kind = axs_lvalue_memory;
       break;
 
     case LOC_UNRESOLVED:
       {
-	struct bound_minimal_symbol msym
-	  = lookup_minimal_symbol (var->linkage_name (), NULL, NULL);
-
+	bound_minimal_symbol msym
+	  = lookup_minimal_symbol (current_program_space,
+				   var->linkage_name ());
 	if (!msym.minsym)
 	  error (_("Couldn't resolve symbol `%s'."), var->print_name ());
 
@@ -1317,13 +1312,13 @@ gen_primitive_field (struct agent_expr *ax, struct axs_value *value,
 		     int offset, int fieldno, struct type *type)
 {
   /* Is this a bitfield?  */
-  if (TYPE_FIELD_PACKED (type, fieldno))
+  if (type->field (fieldno).is_packed ())
     gen_bitfield_ref (ax, value, type->field (fieldno).type (),
 		      (offset * TARGET_CHAR_BIT
 		       + type->field (fieldno).loc_bitpos ()),
 		      (offset * TARGET_CHAR_BIT
 		       + type->field (fieldno).loc_bitpos ()
-		       + TYPE_FIELD_BITSIZE (type, fieldno)));
+		       + type->field (fieldno).bitsize ()));
   else
     {
       gen_offset (ax, offset
@@ -1457,7 +1452,8 @@ gen_static_field (struct agent_expr *ax, struct axs_value *value,
   else
     {
       const char *phys_name = type->field (fieldno).loc_physname ();
-      struct symbol *sym = lookup_symbol (phys_name, 0, VAR_DOMAIN, 0).symbol;
+      struct symbol *sym = lookup_symbol (phys_name, 0,
+					  SEARCH_VAR_DOMAIN, 0).symbol;
 
       if (sym)
 	{
@@ -1502,7 +1498,7 @@ gen_struct_elt_for_reference (struct agent_expr *ax, struct axs_value *value,
 		       fieldname);
 	      return 1;
 	    }
-	  if (TYPE_FIELD_PACKED (t, i))
+	  if (t->field (i).is_packed ())
 	    error (_("pointers to bitfield members not allowed"));
 
 	  /* FIXME we need a way to do "want_address" equivalent */	  
@@ -1548,7 +1544,7 @@ gen_maybe_namespace_elt (struct agent_expr *ax, struct axs_value *value,
 
   sym = cp_lookup_symbol_namespace (namespace_name, name,
 				    block_for_pc (ax->scope),
-				    VAR_DOMAIN);
+				    SEARCH_VAR_DOMAIN);
 
   if (sym.symbol == NULL)
     return 0;
@@ -2659,7 +2655,9 @@ If not, generate remote agent bytecode for current frame pc address."),
 	   &maintenancelist);
 
   add_cmd ("agent-printf", class_maintenance, maint_agent_printf_command,
-	   _("Translate an expression into remote "
-	     "agent bytecode for evaluation and display the bytecodes."),
+	   _("\
+Translate a printf into remote agent bytecode and display the bytecodes.\n\
+Usage: maint agent-printf FORMAT, EXPR...\n\
+The expressions are translated for evaluation, not tracing."),
 	   &maintenancelist);
 }

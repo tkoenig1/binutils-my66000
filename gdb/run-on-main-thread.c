@@ -1,5 +1,5 @@
 /* Run a function on the main thread
-   Copyright (C) 2019-2023 Free Software Foundation, Inc.
+   Copyright (C) 2019-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -16,7 +16,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
 #include "run-on-main-thread.h"
 #include "ser-event.h"
 #if CXX_STD_THREAD
@@ -75,7 +74,20 @@ run_events (int error, gdb_client_data client_data)
 	{
 	  item ();
 	}
-      catch (...)
+      catch (const gdb_exception_forced_quit &e)
+	{
+	  /* GDB is terminating, so:
+	     - make sure this is propagated, and
+	     - no need to keep running things, so propagate immediately.  */
+	  throw;
+	}
+      catch (const gdb_exception_quit &e)
+	{
+	  /* Should cancelation of a runnable event cancel the execution of
+	     the following one?  The answer is not clear, so keep doing what
+	     we've done so far: ignore this exception.  */
+	}
+      catch (const gdb_exception &)
 	{
 	  /* Ignore exceptions in the callback.  */
 	}
@@ -133,4 +145,15 @@ _initialize_run_on_main_thread ()
   runnable_event = make_serial_event ();
   add_file_handler (serial_event_fd (runnable_event), run_events, nullptr,
 		    "run-on-main-thread");
+
+  /* A runnable may refer to an extension language.  So, we want to
+     make sure any pending ones have been deleted before the extension
+     languages are shut down.  */
+  add_final_cleanup ([] ()
+    {
+#if CXX_STD_THREAD
+      std::lock_guard lock (runnable_mutex);
+#endif
+      runnables.clear ();
+    });
 }

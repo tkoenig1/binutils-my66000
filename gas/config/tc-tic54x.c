@@ -1,5 +1,5 @@
 /* tc-tic54x.c -- Assembly code for the Texas Instruments TMS320C54X
-   Copyright (C) 1999-2023 Free Software Foundation, Inc.
+   Copyright (C) 1999-2024 Free Software Foundation, Inc.
    Contributed by Timothy Wall (twall@cygnus.com)
 
    This file is part of GAS, the GNU Assembler.
@@ -138,14 +138,14 @@ const char FLT_CHARS[] = "fF";
    nums.  */
 const char EXP_CHARS[] = "eE";
 
-const char *md_shortopts = "";
+const char md_shortopts[] = "";
 
 #define OPTION_ADDRESS_MODE     (OPTION_MD_BASE)
 #define OPTION_CPU_VERSION      (OPTION_ADDRESS_MODE + 1)
 #define OPTION_COFF_VERSION     (OPTION_CPU_VERSION + 1)
 #define OPTION_STDERR_TO_FILE   (OPTION_COFF_VERSION + 1)
 
-struct option md_longopts[] =
+const struct option md_longopts[] =
 {
   { "mfar-mode",       no_argument,	    NULL, OPTION_ADDRESS_MODE },
   { "mf",	       no_argument,	    NULL, OPTION_ADDRESS_MODE },
@@ -155,7 +155,7 @@ struct option md_longopts[] =
   { NULL,              no_argument,         NULL, 0},
 };
 
-size_t md_longopts_size = sizeof (md_longopts);
+const size_t md_longopts_size = sizeof (md_longopts);
 
 static int assembly_begun = 0;
 /* Addressing mode is not entirely implemented; the latest rev of the Other
@@ -2374,7 +2374,7 @@ tic54x_mlib (int ignore ATTRIBUTE_UNUSED)
       FILE *ftmp;
 
       /* We're not sure how big it is, but it will be smaller than "size".  */
-      size = bfd_bread (buf, size, mbfd);
+      size = bfd_read (buf, size, mbfd);
 
       /* Write to a temporary file, then use s_include to include it
 	 a bit of a hack.  */

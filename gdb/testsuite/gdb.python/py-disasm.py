@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2023 Free Software Foundation, Inc.
+# Copyright (C) 2021-2024 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,11 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import gdb
-import gdb.disassembler
 import struct
 import sys
 
+import gdb
+import gdb.disassembler
 from gdb.disassembler import Disassembler, DisassemblerResult
 
 # A global, holds the program-counter address at which we should
@@ -46,7 +46,7 @@ def check_building_disassemble_result():
 
 
 def is_nop(s):
-    return s == "nop" or s == "nop\t0"
+    return s == "nop" or s == "nop\t0" or s == "nop\t{0}"
 
 
 # Remove all currently registered disassemblers.
@@ -252,7 +252,7 @@ class MemoryErrorEarlyDisassembler(TestDisassembler):
     def disassemble(self, info):
         tag = "## FAIL"
         try:
-            info.read_memory(1, -info.address + 2)
+            info.read_memory(1, -info.address - 1)
         except gdb.MemoryError:
             tag = "## AFTER ERROR"
         result = builtin_disassemble_wrapper(info)
@@ -267,7 +267,7 @@ class MemoryErrorLateDisassembler(TestDisassembler):
     def disassemble(self, info):
         result = builtin_disassemble_wrapper(info)
         # The following read will throw an error.
-        info.read_memory(1, -info.address + 2)
+        info.read_memory(1, -info.address - 1)
         return DisassemblerResult(1, "BAD")
 
 
@@ -276,9 +276,9 @@ class RethrowMemoryErrorDisassembler(TestDisassembler):
 
     def disassemble(self, info):
         try:
-            info.read_memory(1, -info.address + 2)
+            info.read_memory(1, -info.address - 1)
         except gdb.MemoryError as e:
-            raise gdb.MemoryError("cannot read code at address 0x2")
+            raise gdb.MemoryError("cannot read code at address -1")
         return DisassemblerResult(1, "BAD")
 
 

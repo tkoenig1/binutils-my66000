@@ -1,5 +1,5 @@
 /* Simulator for BPF.
-   Copyright (C) 2020-2023 Free Software Foundation, Inc.
+   Copyright (C) 2020-2024 Free Software Foundation, Inc.
 
    Contributed by Oracle Inc.
 
@@ -154,7 +154,6 @@ bpf_write_u64 (SIM_CPU *cpu, bfd_vma address, uint64_t value)
 static int
 bpf_trace_printk (SIM_CPU *cpu)
 {
-  va_list ap;
   SIM_DESC sd = CPU_STATE (cpu);
 
   bfd_vma fmt_address;
@@ -730,10 +729,6 @@ execute (SIM_CPU *cpu, struct bpf_insn *insn)
       BPF_TRACE ("BPF_INSN_NEGR\n");
       bpf_regs[insn->dst] = - (int64_t) bpf_regs[insn->dst];
       break;
-    case BPF_INSN_NEGI:
-      BPF_TRACE ("BPF_INSN_NEGI\n");
-      bpf_regs[insn->dst] = - (int64_t) insn->imm32;
-      break;
     case BPF_INSN_LSHR:
       BPF_TRACE ("BPF_INSN_LSHR\n");
       bpf_regs[insn->dst] <<= bpf_regs[insn->src];
@@ -867,10 +862,6 @@ execute (SIM_CPU *cpu, struct bpf_insn *insn)
       BPF_TRACE ("BPF_INSN_NEG32R\n");
       bpf_regs[insn->dst] = (uint32_t) (- (int32_t) bpf_regs[insn->dst]);
       break;
-    case BPF_INSN_NEG32I:
-      BPF_TRACE ("BPF_INSN_NEG32I\n");
-      bpf_regs[insn->dst] = (uint32_t) - (int32_t) insn->imm32;
-      break;
     case BPF_INSN_LSH32R:
       BPF_TRACE ("BPF_INSN_LSH32R\n");
       bpf_regs[insn->dst] = (uint32_t) bpf_regs[insn->dst] << bpf_regs[insn->src];
@@ -952,13 +943,6 @@ execute (SIM_CPU *cpu, struct bpf_insn *insn)
                                        bpf_read_u64 (cpu, bpf_regs[BPF_R6] + skb_data_offset)
                                        + bpf_regs[insn->src] + insn->imm32);
       break;
-    case BPF_INSN_LDINDDW:
-      BPF_TRACE ("BPF_INSN_LDINDDW\n");
-      bpf_regs[BPF_R0] = bpf_read_u64 (cpu,
-                                       bpf_read_u64 (cpu, bpf_regs[BPF_R6] + skb_data_offset)
-                                       + bpf_regs[insn->src] + insn->imm32);
-      break;
-      /* Absolute load instructions.  */
     case BPF_INSN_LDABSB:
       BPF_TRACE ("BPF_INSN_LDABSB\n");
       bpf_regs[BPF_R0] = bpf_read_u8 (cpu,
@@ -974,12 +958,6 @@ execute (SIM_CPU *cpu, struct bpf_insn *insn)
     case BPF_INSN_LDABSW:
       BPF_TRACE ("BPF_INSN_LDABSW\n");
       bpf_regs[BPF_R0] = bpf_read_u32 (cpu,
-                                       bpf_read_u64 (cpu, bpf_regs[BPF_R6] + skb_data_offset)
-                                       + insn->imm32);
-      break;
-    case BPF_INSN_LDABSDW:
-      BPF_TRACE ("BPF_INSN_LDABSDW\n");
-      bpf_regs[BPF_R0] = bpf_read_u64 (cpu,
                                        bpf_read_u64 (cpu, bpf_regs[BPF_R6] + skb_data_offset)
                                        + insn->imm32);
       break;
@@ -1336,7 +1314,6 @@ sim_create_inferior (SIM_DESC sd, struct bfd *abfd,
                      char * const *argv, char * const *env)
 {
   SIM_CPU *cpu = STATE_CPU (sd, 0);
-  host_callback *cb = STATE_CALLBACK (sd);
   bfd_vma addr;
 
   /* Determine the start address.

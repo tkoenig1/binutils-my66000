@@ -1,5 +1,5 @@
 /* bpf-opc.c - BPF opcodes.
-   Copyright (C) 2023 Free Software Foundation, Inc.
+   Copyright (C) 2023-2024 Free Software Foundation, Inc.
 
    Contributed by Oracle Inc.
 
@@ -74,8 +74,6 @@ const struct bpf_opcode bpf_opcodes[] =
   {BPF_INSN_XORI, "xor%W%dr , %i32", "%dr ^= %i32",
    BPF_V1, BPF_CODE, BPF_CLASS_ALU64|BPF_CODE_XOR|BPF_SRC_K},
   {BPF_INSN_NEGR, "neg%W%dr", "%dr = - %dr",
-   BPF_V1, BPF_CODE, BPF_CLASS_ALU64|BPF_CODE_NEG|BPF_SRC_X},
-  {BPF_INSN_NEGI, "neg%W%dr , %i32", "%dr = -%W%i32",
    BPF_V1, BPF_CODE, BPF_CLASS_ALU64|BPF_CODE_NEG|BPF_SRC_K},
   {BPF_INSN_LSHR, "lsh%W%dr , %sr", "%dr <<= %sr",
    BPF_V1, BPF_CODE, BPF_CLASS_ALU64|BPF_CODE_LSH|BPF_SRC_X},
@@ -142,8 +140,6 @@ const struct bpf_opcode bpf_opcodes[] =
   {BPF_INSN_XOR32I, "xor32%W%dr , %i32", "%dw ^= %i32",
    BPF_V1, BPF_CODE, BPF_CLASS_ALU|BPF_CODE_XOR|BPF_SRC_K},
   {BPF_INSN_NEG32R, "neg32%W%dr", "%dw = - %dw",
-   BPF_V1, BPF_CODE, BPF_CLASS_ALU|BPF_CODE_NEG|BPF_SRC_X},
-  {BPF_INSN_NEG32I, "neg32%W%dr , %i32", "%dw = -%W%i32",
    BPF_V1, BPF_CODE, BPF_CLASS_ALU|BPF_CODE_NEG|BPF_SRC_K},
   {BPF_INSN_LSH32R, "lsh32%W%dr , %sr", "%dw <<= %sw",
    BPF_V1, BPF_CODE, BPF_CLASS_ALU|BPF_CODE_LSH|BPF_SRC_X},
@@ -202,8 +198,6 @@ const struct bpf_opcode bpf_opcodes[] =
    BPF_V1, BPF_CODE, BPF_CLASS_LD|BPF_SIZE_H|BPF_MODE_IND},
   {BPF_INSN_LDINDW, "ldindw%W%sr , %i32", "r0 = * ( u32 * ) skb [ %sr %I32 ]",
    BPF_V1, BPF_CODE, BPF_CLASS_LD|BPF_SIZE_W|BPF_MODE_IND},
-  {BPF_INSN_LDINDDW, "ldinddw%W%sr , %i32", "r0 = * ( u64 * ) skb [ %sr %I32 ]",
-   BPF_V1, BPF_CODE, BPF_CLASS_LD|BPF_SIZE_DW|BPF_MODE_IND},
 
   /* Absolute load instructions, designed to be used in socket filters.  */
   {BPF_INSN_LDABSB, "ldabsb%W%i32", "r0 = * ( u8 * ) skb [ %i32 ]",
@@ -212,8 +206,6 @@ const struct bpf_opcode bpf_opcodes[] =
    BPF_V1, BPF_CODE, BPF_CLASS_LD|BPF_SIZE_H|BPF_MODE_ABS},
   {BPF_INSN_LDABSW, "ldabsw%W%i32", "r0 = * ( u32 * ) skb [ %i32 ]",
    BPF_V1, BPF_CODE, BPF_CLASS_LD|BPF_SIZE_W|BPF_MODE_ABS},
-  {BPF_INSN_LDABSDW, "ldabsdw%W%i32", "r0 = * ( u64 * ) skb [ %i32 ]",
-   BPF_V1, BPF_CODE, BPF_CLASS_LD|BPF_SIZE_DW|BPF_MODE_ABS},
 
   /* Generic load instructions (to register.)  */
   {BPF_INSN_LDXB, "ldxb%W%dr , [ %sr %o16 ]", "%dr = * ( u8 * ) ( %sr %o16 )",
@@ -281,7 +273,7 @@ const struct bpf_opcode bpf_opcodes[] =
   {BPF_INSN_JNER, "jne%W%dr , %sr , %d16", "if%w%dr != %sr%wgoto%w%d16",
    BPF_V1, BPF_CODE, BPF_CLASS_JMP|BPF_CODE_JNE|BPF_SRC_X},
   {BPF_INSN_CALLR, "call%W%dr", "callx%w%dr",
-   BPF_XBPF, BPF_CODE, BPF_CLASS_JMP|BPF_CODE_CALL|BPF_SRC_X},
+   BPF_V1, BPF_CODE, BPF_CLASS_JMP|BPF_CODE_CALL|BPF_SRC_X},
   {BPF_INSN_CALL, "call%W%d32", "call%w%d32",
    BPF_V1, BPF_CODE, BPF_CLASS_JMP|BPF_CODE_CALL|BPF_SRC_K},
   {BPF_INSN_EXIT, "exit", "exit",
@@ -384,13 +376,13 @@ const struct bpf_opcode bpf_opcodes[] =
    BPF_V3, BPF_CODE|BPF_IMM32, BPF_CLASS_STX|BPF_SIZE_DW|BPF_MODE_ATOMIC|BPF_IMM32_AFXOR},
 
   /* Atomic instructions (32-bit.) */
-  {BPF_INSN_AADD32, "aadd32%W[ %dr %o16 ] , %sr", "lock%w* ( u32 * ) ( %dr %o16 ) += %sr",
+  {BPF_INSN_AADD32, "aadd32%W[ %dr %o16 ] , %sr", "lock%w* ( u32 * ) ( %dr %o16 ) += %sw",
    BPF_V3, BPF_CODE|BPF_IMM32, BPF_CLASS_STX|BPF_SIZE_W|BPF_MODE_ATOMIC|BPF_IMM32_AADD},
-  {BPF_INSN_AOR32, "aor32%W[ %dr %o16 ] , %sr", "lock%w* ( u32 * ) ( %dr %o16 ) |= %sr",
+  {BPF_INSN_AOR32, "aor32%W[ %dr %o16 ] , %sr", "lock%w* ( u32 * ) ( %dr %o16 ) |= %sw",
    BPF_V3, BPF_CODE|BPF_IMM32, BPF_CLASS_STX|BPF_SIZE_W|BPF_MODE_ATOMIC|BPF_IMM32_AOR},
-  {BPF_INSN_AAND32, "aand32%W[ %dr %o16 ] , %sr", "lock%w* ( u32 * ) ( %dr %o16 ) &= %sr",
+  {BPF_INSN_AAND32, "aand32%W[ %dr %o16 ] , %sr", "lock%w* ( u32 * ) ( %dr %o16 ) &= %sw",
    BPF_V3, BPF_CODE|BPF_IMM32, BPF_CLASS_STX|BPF_SIZE_W|BPF_MODE_ATOMIC|BPF_IMM32_AAND},
-  {BPF_INSN_AXOR32, "axor32%W[ %dr %o16 ] , %sr", "lock%w* ( u32 * ) ( %dr %o16 ) ^= %sr",
+  {BPF_INSN_AXOR32, "axor32%W[ %dr %o16 ] , %sr", "lock%w* ( u32 * ) ( %dr %o16 ) ^= %sw",
    BPF_V3, BPF_CODE|BPF_IMM32, BPF_CLASS_STX|BPF_SIZE_W|BPF_MODE_ATOMIC|BPF_IMM32_AXOR},
 
   /* Atomic instructions with fetching (32-bit.) */

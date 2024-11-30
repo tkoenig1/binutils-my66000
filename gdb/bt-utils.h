@@ -1,4 +1,4 @@
-/* Copyright (C) 2021-2023 Free Software Foundation, Inc.
+/* Copyright (C) 2021-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -70,5 +70,9 @@ extern void gdb_internal_backtrace ();
 
 extern void gdb_internal_backtrace_set_cmd (const char *args, int from_tty,
 					    cmd_list_element *c);
+
+/* Initialize language specific strings.  */
+
+extern void gdb_internal_backtrace_init_str ();
 
 #endif /* BT_UTILS_H */

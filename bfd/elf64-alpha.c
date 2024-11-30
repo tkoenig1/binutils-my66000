@@ -1,5 +1,5 @@
 /* Alpha specific support for 64-bit ELF
-   Copyright (C) 1996-2023 Free Software Foundation, Inc.
+   Copyright (C) 1996-2024 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@tamu.edu>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -1982,9 +1982,9 @@ elf64_alpha_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		{
 		  info->flags |= DF_TEXTREL;
 		  info->callbacks->minfo
-		    (_("%pB: dynamic relocation against `%pT' in "
+		    (_("%pB: dynamic relocation against a local symbol in "
 		       "read-only section `%pA'\n"),
-		     sec->owner, h->root.root.root.string, sec);
+		     sec->owner, sec);
 		}
 	    }
 	}
@@ -2562,8 +2562,8 @@ elf64_alpha_size_plt_section (struct bfd_link_info *info)
 }
 
 static bool
-elf64_alpha_always_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
-				  struct bfd_link_info *info)
+elf64_alpha_early_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
+				 struct bfd_link_info *info)
 {
   bfd *i;
   struct alpha_elf_link_hash_table * htab;
@@ -2789,8 +2789,8 @@ elf64_alpha_size_rela_got_section (struct bfd_link_info *info)
 /* Set the sizes of the dynamic sections.  */
 
 static bool
-elf64_alpha_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
-				   struct bfd_link_info *info)
+elf64_alpha_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
+				struct bfd_link_info *info)
 {
   bfd *dynobj;
   asection *s;
@@ -2802,7 +2802,8 @@ elf64_alpha_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
     return false;
 
   dynobj = elf_hash_table(info)->dynobj;
-  BFD_ASSERT(dynobj != NULL);
+  if (dynobj == NULL)
+    return true;
 
   if (elf_hash_table (info)->dynamic_sections_created)
     {
@@ -5448,10 +5449,10 @@ static const struct elf_size_info alpha_elf_size_info =
   elf64_alpha_merge_symbol_attribute
 #define elf_backend_copy_indirect_symbol \
   elf64_alpha_copy_indirect_symbol
-#define elf_backend_always_size_sections \
-  elf64_alpha_always_size_sections
-#define elf_backend_size_dynamic_sections \
-  elf64_alpha_size_dynamic_sections
+#define elf_backend_early_size_sections \
+  elf64_alpha_early_size_sections
+#define elf_backend_late_size_sections \
+  elf64_alpha_late_size_sections
 #define elf_backend_omit_section_dynsym \
   _bfd_elf_omit_section_dynsym_all
 #define elf_backend_relocate_section \

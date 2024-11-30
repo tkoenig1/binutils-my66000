@@ -1,6 +1,6 @@
 /* Machine independent support for Solaris /proc (process file system) for GDB.
 
-   Copyright (C) 1999-2023 Free Software Foundation, Inc.
+   Copyright (C) 1999-2024 Free Software Foundation, Inc.
 
    Written by Michael Snyder at Cygnus Solutions.
    Based on work by Fred Fish, Stu Grossman, Geoff Noer, and others.
@@ -20,13 +20,13 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "defs.h"
+#include "extract-store-integer.h"
 #include "inferior.h"
 #include "infrun.h"
 #include "target.h"
 #include "gdbcore.h"
-#include "elf-bfd.h"		/* for elfcore_write_* */
-#include "gdbcmd.h"
+#include "elf-bfd.h"
+#include "cli/cli-cmds.h"
 #include "gdbthread.h"
 #include "regcache.h"
 #include "inf-child.h"
@@ -46,6 +46,7 @@
 #include "gdbsupport/scoped_fd.h"
 #include "gdbsupport/pathstuff.h"
 #include "gdbsupport/buildargv.h"
+#include "cli/cli-style.h"
 
 /* This module provides the interface between GDB and the
    /proc file system, which is used on many versions of Unix
@@ -66,11 +67,11 @@
    interface.  */
 
 #include <sys/types.h>
-#include <dirent.h>	/* opendir/readdir, for listing the LWP's */
+#include <dirent.h>
 
-#include <fcntl.h>	/* for O_RDONLY */
-#include <unistd.h>	/* for "X_OK" */
-#include <sys/stat.h>	/* for struct stat */
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 /* Note: procfs-utils.h must be included after the above system header
    files, because it redefines various system calls using macros.
@@ -173,7 +174,7 @@ procfs_target::auxv_parse (const gdb_byte **readptr,
 			   const gdb_byte *endptr, CORE_ADDR *typep,
 			   CORE_ADDR *valp)
 {
-  enum bfd_endian byte_order = gdbarch_byte_order (target_gdbarch ());
+  bfd_endian byte_order = gdbarch_byte_order (current_inferior ()->arch ());
   const gdb_byte *ptr = *readptr;
 
   if (endptr == ptr)
@@ -204,7 +205,7 @@ procfs_target::auxv_parse (const gdb_byte **readptr,
    concerning a /proc process.  There should be exactly one procinfo
    for each process, and since GDB currently can debug only one
    process at a time, that means there should be only one procinfo.
-   All of the LWP's of a process can be accessed indirectly thru the
+   All of the LWP's of a process can be accessed indirectly through the
    single process procinfo.
 
    However, against the day when GDB may debug more than one process,
@@ -254,8 +255,6 @@ typedef struct procinfo {
   int fpregs_valid : 1;
   int threads_valid: 1;
 } procinfo;
-
-static char errmsg[128];	/* shared error msg buffer */
 
 /* Function prototypes for procinfo module: */
 
@@ -560,7 +559,7 @@ enum { NOKILL, KILL };
 static void
 dead_procinfo (procinfo *pi, const char *msg, int kill_p)
 {
-  print_sys_errmsg (pi->pathname, errno);
+  warning_filename_and_errno (pi->pathname, errno);
   if (kill_p == KILL)
     kill (pi->pid, SIGKILL);
 
@@ -595,17 +594,19 @@ static void proc_resume (procinfo *pi, ptid_t scope_ptid,
 static void
 proc_warn (procinfo *pi, const char *func, int line)
 {
-  xsnprintf (errmsg, sizeof (errmsg), "procfs: %s line %d, %s",
-	     func, line, pi->pathname);
-  print_sys_errmsg (errmsg, errno);
+  int saved_errno = errno;
+  warning ("procfs: %s line %d, %ps: %s",
+	   func, line, styled_string (file_name_style.style (),
+				      pi->pathname),
+	   safe_strerror (saved_errno));
 }
 
 static void
 proc_error (procinfo *pi, const char *func, int line)
 {
-  xsnprintf (errmsg, sizeof (errmsg), "procfs: %s line %d, %s",
-	     func, line, pi->pathname);
-  perror_with_name (errmsg);
+  int saved_errno = errno;
+  error ("procfs: %s line %d, %s: %s",
+	 func, line, pi->pathname, safe_strerror (saved_errno));
 }
 
 /* Updates the status struct in the procinfo.  There is a 'valid'
@@ -708,9 +709,10 @@ proc_watchpoint_address (procinfo *pi, CORE_ADDR *addr)
     if (!proc_get_status (pi))
       return 0;
 
-  *addr = (CORE_ADDR) gdbarch_pointer_to_address (target_gdbarch (),
-	    builtin_type (target_gdbarch ())->builtin_data_ptr,
-	    (gdb_byte *) &pi->prstatus.pr_lwp.pr_info.si_addr);
+  gdbarch *arch = current_inferior ()->arch ();
+  *addr = gdbarch_pointer_to_address
+	    (arch, builtin_type (arch)->builtin_data_ptr,
+	     (gdb_byte *) &pi->prstatus.pr_lwp.pr_info.si_addr);
   return 1;
 }
 
@@ -1514,12 +1516,12 @@ proc_parent_pid (procinfo *pi)
 static void *
 procfs_address_to_host_pointer (CORE_ADDR addr)
 {
-  struct type *ptr_type = builtin_type (target_gdbarch ())->builtin_data_ptr;
+  gdbarch *arch = current_inferior ()->arch ();
+  type *ptr_type = builtin_type (arch)->builtin_data_ptr;
   void *ptr;
 
   gdb_assert (sizeof (ptr) == ptr_type->length ());
-  gdbarch_address_to_pointer (target_gdbarch (), ptr_type,
-			      (gdb_byte *) &ptr, addr);
+  gdbarch_address_to_pointer (arch, ptr_type, (gdb_byte *) &ptr, addr);
   return ptr;
 }
 
@@ -1805,11 +1807,12 @@ do_attach (ptid_t ptid)
 
   if (!open_procinfo_files (pi, FD_CTL))
     {
-      gdb_printf (gdb_stderr, "procfs:%d -- ", __LINE__);
-      xsnprintf (errmsg, sizeof (errmsg),
-		 "do_attach: couldn't open /proc file for process %d",
-		 ptid.pid ());
-      dead_procinfo (pi, errmsg, NOKILL);
+      int saved_errno = errno;
+      std::string errmsg
+	= string_printf ("procfs:%d -- do_attach: couldn't open /proc "
+			 "file for process %d", __LINE__, ptid.pid ());
+      errno = saved_errno;
+      dead_procinfo (pi, errmsg.c_str (), NOKILL);
     }
 
   /* Stop the process (if it isn't already stopped).  */
@@ -2059,8 +2062,9 @@ wait_again:
 	    {
 	      int wait_retval;
 
-	      /* /proc file not found; presumably child has terminated.  */
-	      wait_retval = ::wait (&wstat); /* "wait" for the child's exit.  */
+	      /* /proc file not found; presumably child has terminated.  Wait
+		 for the child's exit.  */
+	      wait_retval = gdb::wait (&wstat);
 
 	      /* Wrong child?  */
 	      if (wait_retval != inf->pid)
@@ -2117,9 +2121,6 @@ wait_again:
 	      case PR_SYSENTRY:
 		if (what == SYS_lwp_exit)
 		  {
-		    if (print_thread_events)
-		      gdb_printf (_("[%s exited]\n"),
-				  target_pid_to_str (retval).c_str ());
 		    delete_thread (this->find_thread (retval));
 		    proc_resume (pi, ptid, 0, GDB_SIGNAL_0);
 		    goto wait_again;
@@ -2150,7 +2151,7 @@ wait_again:
 		      }
 		    else
 		      {
-			int temp = ::wait (&wstat);
+			int temp = gdb::wait (&wstat);
 
 			/* FIXME: shouldn't I make sure I get the right
 			   event from the right process?  If (for
@@ -2223,9 +2224,6 @@ wait_again:
 		  }
 		else if (what == SYS_lwp_exit)
 		  {
-		    if (print_thread_events)
-		      gdb_printf (_("[%s exited]\n"),
-				  target_pid_to_str (retval).c_str ());
 		    delete_thread (this->find_thread (retval));
 		    status->set_spurious ();
 		    return retval;
@@ -2563,9 +2561,9 @@ unconditionally_kill_inferior (procinfo *pi)
 #if 0
       int status, ret;
 
-      ret = waitpid (pi->pid, &status, 0);
+      ret = gdb::waitpid (pi->pid, &status, 0);
 #else
-      wait (NULL);
+      gdb::wait (NULL);
 #endif
     }
 }
@@ -2763,6 +2761,9 @@ procfs_target::create_inferior (const char *exec_file,
 				const std::string &allargs,
 				char **env, int from_tty)
 {
+  if (exec_file == nullptr)
+    no_executable_specified_error ();
+
   const char *shell_file = get_shell ();
   char *tryname;
   int pid;
@@ -3015,7 +3016,8 @@ procfs_target::can_use_hw_breakpoint (enum bptype type, int cnt, int othertype)
      procfs_address_to_host_pointer will reveal that an internal error
      will be generated when the host and target pointer sizes are
      different.  */
-  struct type *ptr_type = builtin_type (target_gdbarch ())->builtin_data_ptr;
+  struct type *ptr_type
+    = builtin_type (current_inferior ()->arch ())->builtin_data_ptr;
 
   if (sizeof (void *) != ptr_type->length ())
     return 0;
@@ -3063,7 +3065,7 @@ procfs_target::insert_watchpoint (CORE_ADDR addr, int len,
 				  struct expression *cond)
 {
   if (!target_have_steppable_watchpoint ()
-      && !gdbarch_have_nonsteppable_watchpoint (target_gdbarch ()))
+      && !gdbarch_have_nonsteppable_watchpoint (current_inferior ()->arch ()))
     /* When a hardware watchpoint fires off the PC will be left at
        the instruction following the one which caused the
        watchpoint.  It will *NOT* be necessary for GDB to step over
@@ -3226,7 +3228,7 @@ info_mappings_callback (struct prmap *map, find_memory_region_ftype ignore,
 
   pr_off = (unsigned int) map->pr_offset;
 
-  if (gdbarch_addr_bit (target_gdbarch ()) == 32)
+  if (gdbarch_addr_bit (current_inferior ()->arch ()) == 32)
     gdb_printf ("\t%#10lx %#10lx %#10lx %#10x %7s\n",
 		(unsigned long) map->pr_vaddr,
 		(unsigned long) map->pr_vaddr + map->pr_size - 1,
@@ -3253,7 +3255,7 @@ info_proc_mappings (procinfo *pi, int summary)
     return;	/* No output for summary mode.  */
 
   gdb_printf (_("Mapped address spaces:\n\n"));
-  if (gdbarch_ptr_bit (target_gdbarch ()) == 32)
+  if (gdbarch_ptr_bit (current_inferior ()->arch ()) == 32)
     gdb_printf ("\t%10s %10s %10s %10s %7s\n",
 		"Start Addr",
 		"  End Addr",
@@ -3579,11 +3581,12 @@ procfs_target::make_corefile_notes (bfd *obfd, int *note_size)
   gdb::unique_xmalloc_ptr<char> note_data;
   enum gdb_signal stop_signal;
 
-  if (get_exec_file (0))
+  if (const auto exec_filename = current_program_space->exec_filename ();
+      exec_filename != nullptr)
     {
-      strncpy (fname, lbasename (get_exec_file (0)), sizeof (fname));
+      strncpy (fname, lbasename (exec_filename), sizeof (fname));
       fname[sizeof (fname) - 1] = 0;
-      strncpy (psargs, get_exec_file (0), sizeof (psargs));
+      strncpy (psargs, exec_filename, sizeof (psargs));
       psargs[sizeof (psargs) - 1] = 0;
 
       const std::string &inf_args = current_inferior ()->args ();
@@ -3605,7 +3608,7 @@ procfs_target::make_corefile_notes (bfd *obfd, int *note_size)
 
   stop_signal = find_stop_signal ();
 
-  fill_gregset (get_current_regcache (), &gregs, -1);
+  fill_gregset (get_thread_regcache (inferior_thread ()), &gregs, -1);
   note_data.reset (elfcore_write_pstatus (obfd, note_data.release (), note_size,
 					  inferior_ptid.pid (),
 					  stop_signal, &gregs));
@@ -3615,7 +3618,7 @@ procfs_target::make_corefile_notes (bfd *obfd, int *note_size)
   proc_iterate_over_threads (pi, procfs_corefile_thread_callback,
 			     &thread_args);
 
-  gdb::optional<gdb::byte_vector> auxv =
+  std::optional<gdb::byte_vector> auxv =
     target_read_alloc (current_inferior ()->top_target (),
 		       TARGET_OBJECT_AUXV, NULL);
   if (auxv && !auxv->empty ())

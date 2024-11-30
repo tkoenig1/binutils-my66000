@@ -1,5 +1,5 @@
 /* BFD back-end for AMD 64 COFF files.
-   Copyright (C) 2006-2023 Free Software Foundation, Inc.
+   Copyright (C) 2006-2024 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -542,7 +542,8 @@ static reloc_howto_type howto_table[] =
       cache_ptr->addend = - coffsym->native->u.syment.n_value;	\
     else if (ptr && bfd_asymbol_bfd (ptr) == abfd		\
 	     && ptr->section != NULL)				\
-      cache_ptr->addend = - (ptr->section->vma + ptr->value);	\
+      cache_ptr->addend = - (ptr->section->vma			\
+			     + COFF_PE_ADDEND_BIAS (ptr));	\
     else							\
       cache_ptr->addend = 0;					\
     if (ptr && reloc.r_type < NUM_HOWTOS			\

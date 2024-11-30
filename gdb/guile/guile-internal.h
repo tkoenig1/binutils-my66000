@@ -1,6 +1,6 @@
 /* Internal header for GDB/Scheme code.
 
-   Copyright (C) 2014-2023 Free Software Foundation, Inc.
+   Copyright (C) 2014-2024 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -27,9 +27,16 @@
 #include "hashtab.h"
 #include "extension-priv.h"
 #include "symtab.h"
-#include "libguile.h"
 #include "objfiles.h"
-#include "top.h"		/* For quit_force().  */
+#include "top.h"
+
+#if __cplusplus >= 202002L
+/* Work around Werror=volatile in SCM_UNPACK for
+   SCM_DEBUG_TYPING_STRICTNESS == 1.  Reported upstream:
+   https://debbugs.gnu.org/cgi/bugreport.cgi?bug=65333 .  */
+#define SCM_DEBUG_TYPING_STRICTNESS 0
+#endif
+#include "libguile.h"
 
 struct block;
 struct frame_info;
@@ -326,32 +333,32 @@ extern SCM gdbscm_make_type_error (const char *subr, int arg_pos,
 extern SCM gdbscm_make_invalid_object_error (const char *subr, int arg_pos,
 					     SCM bad_value, const char *error);
 
-extern void gdbscm_invalid_object_error (const char *subr, int arg_pos,
-					 SCM bad_value, const char *error)
-   ATTRIBUTE_NORETURN;
+[[noreturn]] extern void gdbscm_invalid_object_error (const char *subr,
+						      int arg_pos,
+						      SCM bad_value,
+						      const char *error);
 
 extern SCM gdbscm_make_out_of_range_error (const char *subr, int arg_pos,
 					   SCM bad_value, const char *error);
 
-extern void gdbscm_out_of_range_error (const char *subr, int arg_pos,
-				       SCM bad_value, const char *error)
-   ATTRIBUTE_NORETURN;
+[[noreturn]] extern void gdbscm_out_of_range_error (const char *subr,
+						    int arg_pos, SCM bad_value,
+						    const char *error);
 
 extern SCM gdbscm_make_misc_error (const char *subr, int arg_pos,
 				   SCM bad_value, const char *error);
 
-extern void gdbscm_misc_error (const char *subr, int arg_pos,
-			       SCM bad_value, const char *error)
-   ATTRIBUTE_NORETURN;
+[[noreturn]] extern void gdbscm_misc_error (const char *subr, int arg_pos,
+					    SCM bad_value, const char *error);
 
-extern void gdbscm_throw (SCM exception) ATTRIBUTE_NORETURN;
+[[noreturn]] extern void gdbscm_throw (SCM exception);
 
 struct gdbscm_gdb_exception;
 extern SCM gdbscm_scm_from_gdb_exception
   (const gdbscm_gdb_exception &exception);
 
-extern void gdbscm_throw_gdb_exception (gdbscm_gdb_exception exception)
-  ATTRIBUTE_NORETURN;
+[[noreturn]] extern void gdbscm_throw_gdb_exception
+  (gdbscm_gdb_exception exception);
 
 extern void gdbscm_print_exception_with_stack (SCM port, SCM stack,
 					       SCM key, SCM args);
@@ -368,8 +375,8 @@ extern excp_matcher_func gdbscm_user_error_p;
 extern SCM gdbscm_make_memory_error (const char *subr, const char *msg,
 				     SCM args);
 
-extern void gdbscm_memory_error (const char *subr, const char *msg, SCM args)
-  ATTRIBUTE_NORETURN;
+[[noreturn]] extern void gdbscm_memory_error (const char *subr,
+					      const char *msg, SCM args);
 
 /* scm-safe-call.c */
 
@@ -596,7 +603,7 @@ extern bool gdbscm_auto_load_enabled (const struct extension_language_defn *);
 
 extern void gdbscm_preserve_values
   (const struct extension_language_defn *,
-   struct objfile *, htab_t copied_types);
+   struct objfile *, copied_types_hash_t &copied_types);
 
 extern enum ext_lang_rc gdbscm_apply_val_pretty_printer
   (const struct extension_language_defn *,

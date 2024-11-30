@@ -1,5 +1,5 @@
 /* Linker file opening and searching.
-   Copyright (C) 1991-2023 Free Software Foundation, Inc.
+   Copyright (C) 1991-2024 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -743,7 +743,10 @@ try_open (const char *name, bool *sysrooted)
   result = fopen (name, "r");
 
   if (result != NULL)
-    *sysrooted = is_sysrooted_pathname (name);
+    {
+      *sysrooted = is_sysrooted_pathname (name);
+      track_dependency_files (name);
+    }
 
   if (verbose)
     {
@@ -868,19 +871,7 @@ ldfile_find_command_file (const char *name,
   return result;
 }
 
-enum script_open_style {
-  script_nonT,
-  script_T,
-  script_defaultT
-};
-
-struct script_name_list
-{
-  struct script_name_list *next;
-  enum script_open_style open_how;
-  char name[1];
-};
-
+struct script_name_list *processed_scripts = NULL;
 /* Open command file NAME.  */
 
 static void
@@ -888,7 +879,6 @@ ldfile_open_command_file_1 (const char *name, enum script_open_style open_how)
 {
   FILE *ldlex_input_stack;
   bool sysrooted;
-  static struct script_name_list *processed_scripts = NULL;
   struct script_name_list *script;
   size_t len;
 
@@ -924,8 +914,6 @@ ldfile_open_command_file_1 (const char *name, enum script_open_style open_how)
       einfo (_("%F%P: cannot open linker script file %s: %E\n"), name);
       return;
     }
-
-  track_dependency_files (name);
 
   lex_push_file (ldlex_input_stack, name, sysrooted);
 

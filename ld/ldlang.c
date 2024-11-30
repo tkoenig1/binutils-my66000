@@ -1,5 +1,5 @@
 /* Linker command language support.
-   Copyright (C) 1991-2023 Free Software Foundation, Inc.
+   Copyright (C) 1991-2024 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -539,7 +539,7 @@ get_init_priority (const asection *sec)
 /* Compare sections ASEC and BSEC according to SORT.  */
 
 static int
-compare_section (sort_type sort, asection *asec, asection *bsec)
+compare_section (sort_type sort, asection *asec, asection *bsec, bool reversed)
 {
   int ret;
   int a_priority, b_priority;
@@ -554,7 +554,10 @@ compare_section (sort_type sort, asection *asec, asection *bsec)
       b_priority = get_init_priority (bsec);
       if (a_priority < 0 || b_priority < 0)
 	goto sort_by_name;
-      ret = a_priority - b_priority;
+      if (reversed)
+	ret = b_priority - a_priority;
+      else
+	ret = a_priority - b_priority;
       if (ret)
 	break;
       else
@@ -568,11 +571,17 @@ compare_section (sort_type sort, asection *asec, asection *bsec)
 
     case by_name:
     sort_by_name:
-      ret = strcmp (bfd_section_name (asec), bfd_section_name (bsec));
+      if (reversed)
+	ret = strcmp (bfd_section_name (bsec), bfd_section_name (asec));
+      else
+	ret = strcmp (bfd_section_name (asec), bfd_section_name (bsec));
       break;
 
     case by_name_alignment:
-      ret = strcmp (bfd_section_name (asec), bfd_section_name (bsec));
+      if (reversed)
+	ret = strcmp (bfd_section_name (bsec), bfd_section_name (asec));
+      else
+	ret = strcmp (bfd_section_name (asec), bfd_section_name (bsec));
       if (ret)
 	break;
       /* Fall through.  */
@@ -647,7 +656,11 @@ wild_sort (lang_wild_statement_type *wild,
 	  else
 	    ln = sort_filename (lsec->owner);
 
-	  i = filename_cmp (fn, ln);
+	  if (wild->filenames_reversed)
+	    i = filename_cmp (ln, fn);
+	  else
+	    i = filename_cmp (fn, ln);
+
 	  if (i > 0)
 	    { tree = &((*tree)->right); continue; }
 	  else if (i < 0)
@@ -660,7 +673,11 @@ wild_sort (lang_wild_statement_type *wild,
 	      if (la)
 		ln = sort_filename (lsec->owner);
 
-	      i = filename_cmp (fn, ln);
+	      if (wild->filenames_reversed)
+		i = filename_cmp (ln, fn);
+	      else
+		i = filename_cmp (fn, ln);
+	      
 	      if (i > 0)
 		{ tree = &((*tree)->right); continue; }
 	      else if (i < 0)
@@ -673,7 +690,7 @@ wild_sort (lang_wild_statement_type *wild,
 
       /* Find the correct node to append this section.  */
       if (sec && sec->spec.sorted != none && sec->spec.sorted != by_none
-	  && compare_section (sec->spec.sorted, section, (*tree)->section) < 0)
+	  && compare_section (sec->spec.sorted, section, (*tree)->section, sec->spec.reversed) < 0)
 	tree = &((*tree)->left);
       else
 	tree = &((*tree)->right);
@@ -1282,6 +1299,7 @@ output_section_statement_newfunc (struct bfd_hash_entry *entry,
   ret->s.output_section_statement.section_alignment = NULL;
   ret->s.output_section_statement.block_value = 1;
   lang_list_init (&ret->s.output_section_statement.children);
+  lang_list_init (&ret->s.output_section_statement.sort_children);
   lang_statement_append (stat_ptr, &ret->s, &ret->s.header.next);
 
   /* For every output section statement added to the list, except the
@@ -2029,13 +2047,25 @@ lang_insert_orphan (asection *s,
 		 place orphan note section after non-note sections.  */
 
 	      first_orphan_note = NULL;
+
+	      /* NB: When --rosegment is used, the .note.gnu.build-id
+		 section is placed before text sections.  Ignore the
+		 .note.gnu.build-id section if -z separate-code and
+		 --rosegment are used together to avoid putting any
+		 note sections between the .note.gnu.build-id section
+		 and text sections in the same PT_LOAD segment.  */
+	      bool ignore_build_id = (link_info.separate_code
+				      && link_info.one_rosegment);
+
 	      for (sec = link_info.output_bfd->sections;
 		   (sec != NULL
 		    && !bfd_is_abs_section (sec));
 		   sec = sec->next)
 		if (sec != snew
 		    && elf_section_type (sec) == SHT_NOTE
-		    && (sec->flags & SEC_LOAD) != 0)
+		    && (sec->flags & SEC_LOAD) != 0
+		    && (!ignore_build_id
+			|| strcmp (sec->name, ".note.gnu.build-id") != 0))
 		  {
 		    if (!first_orphan_note)
 		      first_orphan_note = sec;
@@ -2443,6 +2473,20 @@ init_os (lang_output_section_statement_type *s, flagword flags)
 						     "section alignment");
 }
 
+static flagword
+get_os_init_flag (lang_output_section_statement_type * os)
+{
+  if (os != NULL)
+    switch (os->sectype)
+      {
+      case readonly_section: return SEC_READONLY;
+      case noload_section:   return SEC_NEVER_LOAD;
+      default: break;
+      }
+
+  return 0;
+}
+
 /* Make sure that all output sections mentioned in an expression are
    initialized.  */
 
@@ -2486,7 +2530,7 @@ exp_init_os (etree_type *exp)
 
 	    os = lang_output_section_find (exp->name.name);
 	    if (os != NULL && os->bfd_section == NULL)
-	      init_os (os, 0);
+	      init_os (os, get_os_init_flag (os));
 	  }
 	}
       break;
@@ -4184,6 +4228,9 @@ map_input_to_output_sections
 					os);
 	  break;
 	case lang_data_statement_enum:
+	  if (os == NULL)
+	    /* This should never happen.  */
+	    FAIL ();
 	  /* Make sure that any sections mentioned in the expression
 	     are initialized.  */
 	  exp_init_os (s->data_statement.exp);
@@ -4262,14 +4309,16 @@ map_input_to_output_sections
 	  if (os != NULL && os->bfd_section == NULL)
 	    init_os (os, 0);
 	  break;
+
 	case lang_assignment_statement_enum:
 	  if (os != NULL && os->bfd_section == NULL)
-	    init_os (os, 0);
+	    init_os (os, get_os_init_flag (os));
 
 	  /* Make sure that any sections mentioned in the assignment
 	     are initialized.  */
 	  exp_init_os (s->assignment_statement.exp);
 	  break;
+
 	case lang_address_statement_enum:
 	  /* Mark the specified section with the supplied address.
 	     If this section was actually a segment marker, then the
@@ -4846,9 +4895,6 @@ ld_is_local_symbol (asymbol * sym)
   if (name == NULL || *name == 0)
     return false;
 
-  if (strcmp (name, "(null)") == 0)
-    return false;
-
   /* Skip .Lxxx and such like.  */
   if (bfd_is_local_label (link_info.output_bfd, sym))
     return false;
@@ -5132,10 +5178,14 @@ print_wild_statement (lang_wild_statement_type *w,
 
   if (w->filenames_sorted)
     minfo ("SORT_BY_NAME(");
+  if (w->filenames_reversed)
+    minfo ("REVERSE(");
   if (w->filename != NULL)
     minfo ("%s", w->filename);
   else
     minfo ("*");
+  if (w->filenames_reversed)
+    minfo (")");
   if (w->filenames_sorted)
     minfo (")");
 
@@ -5178,6 +5228,12 @@ print_wild_statement (lang_wild_statement_type *w,
 	  minfo ("SORT_BY_INIT_PRIORITY(");
 	  closing_paren = 1;
 	  break;
+	}
+
+      if (sec->spec.reversed)
+	{
+	  minfo ("REVERSE(");
+	  closing_paren++;
 	}
 
       if (sec->spec.exclude_name_list != NULL)
@@ -5422,13 +5478,16 @@ size_input_section
       /* Align this section first to the input sections requirement,
 	 then to the output section's requirement.  If this alignment
 	 is greater than any seen before, then record it too.  Perform
-	 the alignment by inserting a magic 'padding' statement.  */
+	 the alignment by inserting a magic 'padding' statement.
+         We can force input section alignment within an output section 
+         by using SUBALIGN.  The value specified overrides any alignment 
+         given by input sections, whether larger or smaller.  */
 
       if (output_section_statement->subsection_alignment != NULL)
-	i->alignment_power
-	  = exp_get_power (output_section_statement->subsection_alignment,
-			   output_section_statement,
-			   "subsection alignment");
+	o->alignment_power = i->alignment_power =
+	  exp_get_power (output_section_statement->subsection_alignment,
+			 output_section_statement,
+			 "subsection alignment");
 
       if (o->alignment_power < i->alignment_power)
 	o->alignment_power = i->alignment_power;
@@ -7564,13 +7623,22 @@ lang_enter_output_section_statement (const char *output_section_statement_name,
   lang_output_section_statement_type *os;
 
   os = lang_output_section_statement_lookup (output_section_statement_name,
-					     constraint, 2);
+					     constraint,
+					     in_section_ordering ? 0 : 2);
+  if (os == NULL) /* && in_section_ordering */
+    einfo (_("%F%P:%pS: error: output section '%s' must already exist\n"),
+	   NULL, output_section_statement_name);
   current_section = os;
 
+  /* Make next things chain into subchain of this.  */
+  push_stat_ptr (in_section_ordering ? &os->sort_children : &os->children);
+
+  if (in_section_ordering)
+    return os;
+
   if (os->addr_tree == NULL)
-    {
-      os->addr_tree = address_exp;
-    }
+    os->addr_tree = address_exp;
+
   os->sectype = sectype;
   if (sectype == type_section || sectype == typed_readonly_section)
     os->sectype_value = sectype_value;
@@ -7579,9 +7647,6 @@ lang_enter_output_section_statement (const char *output_section_statement_name,
   else
     os->flags = SEC_NO_FLAGS;
   os->block_value = 1;
-
-  /* Make next things chain into subchain of this.  */
-  push_stat_ptr (&os->children);
 
   os->align_lma_with_input = align_with_input == ALIGN_WITH_INPUT;
   if (os->align_lma_with_input && align != NULL)
@@ -7922,21 +7987,6 @@ find_rescan_insertion (lang_input_statement_type *add)
   return iter;
 }
 
-/* Insert SRCLIST into DESTLIST after given element by chaining
-   on FIELD as the next-pointer.  (Counterintuitively does not need
-   a pointer to the actual after-node itself, just its chain field.)  */
-
-static void
-lang_list_insert_after (lang_statement_list_type *destlist,
-			lang_statement_list_type *srclist,
-			lang_statement_union_type **field)
-{
-  *(srclist->tail) = *field;
-  *field = srclist->head;
-  if (destlist->tail == field)
-    destlist->tail = srclist->tail;
-}
-
 /* Detach new nodes added to DESTLIST since the time ORIGLIST
    was taken as a copy of it and leave them in ORIGLIST.  */
 
@@ -7983,6 +8033,21 @@ find_next_input_statement (lang_statement_union_type **s)
   return s;
 }
 #endif /* BFD_SUPPORTS_PLUGINS */
+
+/* Insert SRCLIST into DESTLIST after given element by chaining
+   on FIELD as the next-pointer.  (Counterintuitively does not need
+   a pointer to the actual after-node itself, just its chain field.)  */
+
+static void
+lang_list_insert_after (lang_statement_list_type *destlist,
+			lang_statement_list_type *srclist,
+			lang_statement_union_type **field)
+{
+  *(srclist->tail) = *field;
+  *field = srclist->head;
+  if (destlist->tail == field)
+    destlist->tail = srclist->tail;
+}
 
 /* Add NAME to the list of garbage collection entry points.  */
 
@@ -8078,9 +8143,34 @@ reset_resolved_wilds (void)
   lang_for_each_statement (reset_one_wild);
 }
 
+/* For each output section statement, splice any entries on the
+   sort_children list before the first wild statement on the children
+   list.  */
+
+static void
+lang_os_merge_sort_children (void)
+{
+  lang_output_section_statement_type *os;
+  for (os = (void *) lang_os_list.head; os != NULL; os = os->next)
+    {
+      if (os->sort_children.head != NULL)
+	{
+	  lang_statement_union_type **where;
+	  for (where = &os->children.head;
+	       *where != NULL;
+	       where = &(*where)->header.next)
+	    if ((*where)->header.type == lang_wild_statement_enum)
+	      break;
+	  lang_list_insert_after (&os->children, &os->sort_children, where);
+	}
+    }
+}
+
 void
 lang_process (void)
 {
+  lang_os_merge_sort_children ();
+
   /* Finalize dynamic list.  */
   if (link_info.dynamic_list)
     lang_finalize_version_expr_head (&link_info.dynamic_list->head);
@@ -8336,7 +8426,8 @@ lang_process (void)
 	 sections, so that GCed sections are not merged, but before
 	 assigning dynamic symbols, since removing whole input sections
 	 is hard then.  */
-      bfd_merge_sections (link_info.output_bfd, &link_info);
+      if (!bfd_merge_sections (link_info.output_bfd, &link_info))
+	einfo (_("%F%P: bfd_merge_sections failed: %E\n"));
 
       /* Look for a text section and set the readonly attribute in it.  */
       found = bfd_get_section_by_name (link_info.output_bfd, ".text");
@@ -8481,9 +8572,10 @@ lang_add_wild (struct wildcard_spec *filespec,
   if (filespec != NULL)
     {
       new_stmt->filename = filespec->name;
-      new_stmt->filenames_sorted = filespec->sorted == by_name;
+      new_stmt->filenames_sorted = (filespec->sorted == by_name || filespec->reversed);
       new_stmt->section_flag_list = filespec->section_flag_list;
       new_stmt->exclude_name_list = filespec->exclude_name_list;
+      new_stmt->filenames_reversed = filespec->reversed;
     }
   new_stmt->section_list = section_list;
   new_stmt->keep_sections = keep_sections;
@@ -8767,6 +8859,10 @@ lang_leave_output_section_statement (fill_type *fill, const char *memspec,
 				     lang_output_section_phdr_list *phdrs,
 				     const char *lma_memspec)
 {
+  pop_stat_ptr ();
+  if (in_section_ordering)
+    return;
+
   lang_get_regions (&current_section->region,
 		    &current_section->lma_region,
 		    memspec, lma_memspec,
@@ -8775,7 +8871,6 @@ lang_leave_output_section_statement (fill_type *fill, const char *memspec,
 
   current_section->fill = fill;
   current_section->phdrs = phdrs;
-  pop_stat_ptr ();
 }
 
 /* Set the output format type.  -oformat overrides scripts.  */
@@ -8915,7 +9010,7 @@ lang_record_phdrs (void)
 		continue;
 
 	      /* Don't add orphans to PT_INTERP header.  */
-	      if (l->type == 3)
+	      if (l->type == PT_INTERP)
 		continue;
 
 	      if (last == NULL)
@@ -9100,12 +9195,7 @@ void
 lang_leave_overlay_section (fill_type *fill,
 			    lang_output_section_phdr_list *phdrs)
 {
-  const char *name;
-  char *clean, *s2;
-  const char *s1;
-  char *buf;
-
-  name = current_section->name;
+  const char *name = current_section->name;;
 
   /* For now, assume that DEFAULT_MEMORY_REGION is the run-time memory
      region and that no load-time region has been specified.  It doesn't
@@ -9115,21 +9205,19 @@ lang_leave_overlay_section (fill_type *fill,
 
   /* Define the magic symbols.  */
 
-  clean = (char *) xmalloc (strlen (name) + 1);
-  s2 = clean;
-  for (s1 = name; *s1 != '\0'; s1++)
+  char *clean = xmalloc (strlen (name) + 1);
+  char *s2 = clean;
+  for (const char *s1 = name; *s1 != '\0'; s1++)
     if (ISALNUM (*s1) || *s1 == '_')
       *s2++ = *s1;
   *s2 = '\0';
 
-  buf = (char *) xmalloc (strlen (clean) + sizeof "__load_start_");
-  sprintf (buf, "__load_start_%s", clean);
+  char *buf = xasprintf ("__load_start_%s", clean);
   lang_add_assignment (exp_provide (buf,
 				    exp_nameop (LOADADDR, name),
 				    false));
 
-  buf = (char *) xmalloc (strlen (clean) + sizeof "__load_stop_");
-  sprintf (buf, "__load_stop_%s", clean);
+  buf = xasprintf ("__load_stop_%s", clean);
   lang_add_assignment (exp_provide (buf,
 				    exp_binop ('+',
 					       exp_nameop (LOADADDR, name),
@@ -9874,7 +9962,9 @@ lang_ld_feature (char *str)
 static void
 lang_print_memory_size (uint64_t sz)
 {
-  if ((sz & 0x3fffffff) == 0)
+  if (sz == 0)
+    printf (" %10" PRIu64 " B", sz);
+  else if ((sz & 0x3fffffff) == 0)
     printf ("%10" PRIu64 " GB", sz >> 30);
   else if ((sz & 0xfffff) == 0)
     printf ("%10" PRIu64 " MB", sz >> 20);

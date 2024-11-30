@@ -1,5 +1,5 @@
 /* Print mips instructions for GDB, the GNU debugger, or for objdump.
-   Copyright (C) 1989-2023 Free Software Foundation, Inc.
+   Copyright (C) 1989-2024 Free Software Foundation, Inc.
    Contributed by Nobuyuki Hikichi(hikichi@sra.co.jp).
 
    This file is part of the GNU opcodes library.
@@ -1924,7 +1924,7 @@ print_insn_args (struct disassemble_info *info,
 	    }
 	  else if (operand->type == OP_REG
 		   && s[1] == ','
-		   && s[2] == 'H'
+		   && (s[2] == 'H' || s[2] == 'J')
 		   && opcode->name[strlen (opcode->name) - 1] == '0')
 	    {
 	      /* Coprocessor register 0 with sel field.  */

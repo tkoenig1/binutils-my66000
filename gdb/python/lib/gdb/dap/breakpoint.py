@@ -1,4 +1,4 @@
-# Copyright 2022, 2023 Free Software Foundation, Inc.
+# Copyright 2022-2024 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,31 +13,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import gdb
-import os
 import re
-
 from contextlib import contextmanager
 
 # These are deprecated in 3.9, but required in older versions.
 from typing import Optional, Sequence
 
-from .server import request, capability, send_event
+import gdb
+
+from .server import capability, request, send_event
 from .sources import make_source
-from .startup import send_gdb_with_response, in_gdb_thread, log_stack
+from .startup import (
+    DAPException,
+    LogLevel,
+    exec_mi_and_log,
+    in_gdb_thread,
+    log_stack,
+    parse_and_eval,
+)
 from .typecheck import type_check
-
-
-@in_gdb_thread
-def _bp_modified(event):
-    send_event(
-        "breakpoint",
-        {
-            "reason": "changed",
-            "breakpoint": _breakpoint_descriptor(event),
-        },
-    )
-
 
 # True when suppressing new breakpoint events.
 _suppress_bp = False
@@ -47,11 +41,25 @@ _suppress_bp = False
 def suppress_new_breakpoint_event():
     """Return a new context manager that suppresses new breakpoint events."""
     global _suppress_bp
+    saved = _suppress_bp
     _suppress_bp = True
     try:
         yield None
     finally:
-        _suppress_bp = False
+        _suppress_bp = saved
+
+
+@in_gdb_thread
+def _bp_modified(event):
+    global _suppress_bp
+    if not _suppress_bp:
+        send_event(
+            "breakpoint",
+            {
+                "reason": "changed",
+                "breakpoint": _breakpoint_descriptor(event),
+            },
+        )
 
 
 @in_gdb_thread
@@ -69,13 +77,15 @@ def _bp_created(event):
 
 @in_gdb_thread
 def _bp_deleted(event):
-    send_event(
-        "breakpoint",
-        {
-            "reason": "removed",
-            "breakpoint": _breakpoint_descriptor(event),
-        },
-    )
+    global _suppress_bp
+    if not _suppress_bp:
+        send_event(
+            "breakpoint",
+            {
+                "reason": "removed",
+                "breakpoint": _breakpoint_descriptor(event),
+            },
+        )
 
 
 gdb.events.breakpoint_created.connect(_bp_created)
@@ -94,29 +104,37 @@ breakpoint_map = {}
 @in_gdb_thread
 def _breakpoint_descriptor(bp):
     "Return the Breakpoint object descriptor given a gdb Breakpoint."
+    # If there are no objfiles (that is, before the launch request),
+    # we consider all breakpoints to be pending.  This is done to work
+    # around the gdb oddity that setting a breakpoint by address will
+    # always succeed.
+    pending = bp.pending or len(gdb.objfiles()) == 0
     result = {
         "id": bp.number,
-        # We always use True here, because this field just indicates
-        # that breakpoint creation was successful -- and if we have a
-        # breakpoint, the creation succeeded.
-        "verified": True,
+        "verified": not pending,
     }
+    if pending:
+        result["reason"] = "pending"
     if bp.locations:
         # Just choose the first location, because DAP doesn't allow
         # multiple locations.  See
         # https://github.com/microsoft/debug-adapter-protocol/issues/13
         loc = bp.locations[0]
-        (filename, line) = loc.source
-        result.update(
-            {
-                "source": make_source(filename, os.path.basename(filename)),
-                "line": line,
-                "instructionReference": hex(loc.address),
-            }
-        )
-        path = loc.fullname
-        if path is not None:
-            result["source"]["path"] = path
+        if loc.source:
+            (filename, line) = loc.source
+            if loc.fullname is not None:
+                filename = loc.fullname
+
+            result.update(
+                {
+                    "source": make_source(filename),
+                    "line": line,
+                }
+            )
+
+        if loc.address:
+            result["instructionReference"] = hex(loc.address)
+
     return result
 
 
@@ -141,53 +159,58 @@ def _set_breakpoints_callback(kind, specs, creator):
         saved_map = {}
     breakpoint_map[kind] = {}
     result = []
-    for spec in specs:
-        # It makes sense to reuse a breakpoint even if the condition
-        # or ignore count differs, so remove these entries from the
-        # spec first.
-        (condition, hit_condition) = _remove_entries(spec, "condition", "hitCondition")
-        keyspec = frozenset(spec.items())
+    with suppress_new_breakpoint_event():
+        for spec in specs:
+            # It makes sense to reuse a breakpoint even if the condition
+            # or ignore count differs, so remove these entries from the
+            # spec first.
+            (condition, hit_condition) = _remove_entries(
+                spec, "condition", "hitCondition"
+            )
+            keyspec = frozenset(spec.items())
 
-        # Create or reuse a breakpoint.  If asked, set the condition
-        # or the ignore count.  Catch errors coming from gdb and
-        # report these as an "unverified" breakpoint.
-        bp = None
-        try:
-            if keyspec in saved_map:
-                bp = saved_map.pop(keyspec)
-            else:
-                with suppress_new_breakpoint_event():
+            # Create or reuse a breakpoint.  If asked, set the condition
+            # or the ignore count.  Catch errors coming from gdb and
+            # report these as an "unverified" breakpoint.
+            bp = None
+            try:
+                if keyspec in saved_map:
+                    bp = saved_map.pop(keyspec)
+                else:
                     bp = creator(**spec)
 
-            bp.condition = condition
-            if hit_condition is None:
-                bp.ignore_count = 0
-            else:
-                bp.ignore_count = int(
-                    gdb.parse_and_eval(hit_condition, global_context=True)
+                bp.condition = condition
+                if hit_condition is None:
+                    bp.ignore_count = 0
+                else:
+                    bp.ignore_count = int(
+                        parse_and_eval(hit_condition, global_context=True)
+                    )
+
+                # Reaching this spot means success.
+                breakpoint_map[kind][keyspec] = bp
+                result.append(_breakpoint_descriptor(bp))
+            # Exceptions other than gdb.error are possible here.
+            except Exception as e:
+                # Don't normally want to see this, as it interferes with
+                # the test suite.
+                log_stack(LogLevel.FULL)
+                # Maybe the breakpoint was made but setting an attribute
+                # failed.  We still want this to fail.
+                if bp is not None:
+                    bp.delete()
+                # Breakpoint creation failed.
+                result.append(
+                    {
+                        "verified": False,
+                        "reason": "failed",
+                        "message": str(e),
+                    }
                 )
 
-            # Reaching this spot means success.
-            breakpoint_map[kind][keyspec] = bp
-            result.append(_breakpoint_descriptor(bp))
-        # Exceptions other than gdb.error are possible here.
-        except Exception as e:
-            log_stack()
-            # Maybe the breakpoint was made but setting an attribute
-            # failed.  We still want this to fail.
-            if bp is not None:
-                bp.delete()
-            # Breakpoint creation failed.
-            result.append(
-                {
-                    "verified": False,
-                    "message": str(e),
-                }
-            )
-
-    # Delete any breakpoints that were not reused.
-    for entry in saved_map.values():
-        entry.delete()
+        # Delete any breakpoints that were not reused.
+        for entry in saved_map.values():
+            entry.delete()
     return result
 
 
@@ -208,6 +231,7 @@ class _PrintBreakpoint(gdb.Breakpoint):
                 # have already been stripped by the placement of the
                 # regex capture in the 'split' call.
                 try:
+                    # No real need to use the DAP parse_and_eval here.
                     val = gdb.parse_and_eval(item)
                     output += str(val)
                 except Exception as e:
@@ -264,7 +288,6 @@ def _rewrite_src_breakpoint(
     }
 
 
-# FIXME we do not specify a type for 'source'.
 @request("setBreakpoints")
 @capability("supportsHitConditionalBreakpoints")
 @capability("supportsConditionalBreakpoints")
@@ -273,11 +296,17 @@ def set_breakpoint(*, source, breakpoints: Sequence = (), **args):
     if "path" not in source:
         result = []
     else:
-        specs = [_rewrite_src_breakpoint(source=source, **bp) for bp in breakpoints]
+        # Setting 'source' in BP avoids any Python error if BP already
+        # has a 'source' parameter.  Setting this isn't in the spec,
+        # but it is better to be safe.  See PR dap/30820.
+        specs = []
+        for bp in breakpoints:
+            bp["source"] = source
+            specs.append(_rewrite_src_breakpoint(**bp))
         # Be sure to include the path in the key, so that we only
         # clear out breakpoints coming from this same source.
         key = "source:" + source["path"]
-        result = send_gdb_with_response(lambda: _set_breakpoints(key, specs))
+        result = _set_breakpoints(key, specs)
     return {
         "breakpoints": result,
     }
@@ -305,9 +334,8 @@ def _rewrite_fn_breakpoint(
 @capability("supportsFunctionBreakpoints")
 def set_fn_breakpoint(*, breakpoints: Sequence, **args):
     specs = [_rewrite_fn_breakpoint(**bp) for bp in breakpoints]
-    result = send_gdb_with_response(lambda: _set_breakpoints("function", specs))
     return {
-        "breakpoints": result,
+        "breakpoints": _set_breakpoints("function", specs),
     }
 
 
@@ -341,9 +369,8 @@ def set_insn_breakpoints(
     *, breakpoints: Sequence, offset: Optional[int] = None, **args
 ):
     specs = [_rewrite_insn_breakpoint(**bp) for bp in breakpoints]
-    result = send_gdb_with_response(lambda: _set_breakpoints("instruction", specs))
     return {
-        "breakpoints": result,
+        "breakpoints": _set_breakpoints("instruction", specs),
     }
 
 
@@ -352,12 +379,16 @@ def _catch_exception(filterId, **args):
     if filterId in ("assert", "exception", "throw", "rethrow", "catch"):
         cmd = "-catch-" + filterId
     else:
-        raise Exception("Invalid exception filterID: " + str(filterId))
-    result = gdb.execute_mi(cmd)
+        raise DAPException("Invalid exception filterID: " + str(filterId))
+    result = exec_mi_and_log(cmd)
+    # While the Ada catchpoints emit a "bkptno" field here, the C++
+    # ones do not.  So, instead we look at the "number" field.
+    num = result["bkpt"]["number"]
     # A little lame that there's no more direct way.
     for bp in gdb.breakpoints():
-        if bp.number == result["bkptno"]:
+        if bp.number == num:
             return bp
+    # Not a DAPException because this is definitely unexpected.
     raise Exception("Could not find catchpoint after creating")
 
 
@@ -422,7 +453,6 @@ def set_exception_breakpoints(
     options = [{"filterId": filter} for filter in filters]
     options.extend(filterOptions)
     options = [_rewrite_exception_breakpoint(**bp) for bp in options]
-    result = send_gdb_with_response(lambda: _set_exception_catchpoints(options))
     return {
-        "breakpoints": result,
+        "breakpoints": _set_exception_catchpoints(options),
     }
