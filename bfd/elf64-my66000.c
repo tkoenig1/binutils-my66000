@@ -135,7 +135,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 0,			/* bitpos  */
 	 complain_overflow_bitfield, /* complain on overflow */
 	 bfd_elf_generic_reloc, /* special function  */
-	 "R_MY66000_PCREL8",	/* name  */
+	 "R_MY66000_8",		/* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xff,			/* dst_mask  */
@@ -165,7 +165,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 0,			/* bitpos  */
 	 complain_overflow_bitfield, /* complain on overflow */
 	 bfd_elf_generic_reloc, /* special function  */
-	 "R_MY66000_PCREL32",	/* name  */
+	 "R_MY66000_32",	/* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xffffffff,		/* dst_mask  */
@@ -180,7 +180,7 @@ static reloc_howto_type my66000_elf_howto_table [] =
 	 0,			/* bitpos  */
 	 complain_overflow_dont, /* complain on overflow */
 	 bfd_elf_generic_reloc, /* special function  */
-	 "R_MY66000_PCREL64",	/* name  */
+	 "R_MY66000_64",	/* name  */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask  */
 	 0xffffffffffffffff,	/* dst_mask  */

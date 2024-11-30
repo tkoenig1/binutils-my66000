@@ -963,8 +963,8 @@ const struct relax_tabS relax_tab[RELAX_LAST+1] =
   {RELAX_BR_32,	       BFD_RELOC_32_PCREL_S2, 32, 8, RELAX_BR_26,   1, my66000_set_branch, SMALL},
   {RELAX_BR_64,	       BFD_RELOC_64_PCREL_S2, 64, 12, RELAX_BR_26,  1, my66000_set_branch, LARGE},
   {RELAX_BR_16,	       BFD_RELOC_16_PCREL_S2, 18, 4, 0,		    1, NULL, TINY},
-  {RELAX_IMM_32,       BFD_RELOC_32,	      32, 4, RELAX_IMM_32,  0, NULL, SMALL},
-  {RELAX_IMM_64,       BFD_RELOC_64,	       0, 8, 0,		    0, NULL, LARGE},
+  {RELAX_IMM_32,       BFD_RELOC_32,	      32, 8, RELAX_IMM_32,  0, NULL, SMALL},
+  {RELAX_IMM_64,       BFD_RELOC_64,	       0, 12, 0,		    0, NULL, LARGE},
   {RELAX_IMM_32_PCREL, BFD_RELOC_32_PCREL,    32, 8, RELAX_IMM_32_PCREL, 1, my66000_set_imm, SMALL},
   {RELAX_IMM_64_PCREL, BFD_RELOC_64_PCREL,     0, 12, 0,       		 1, my66000_set_imm, LARGE},
   {RELAX_LAST,	       BFD_RELOC_NONE,	       0, 1, 0, 		 0, NULL, TINY},
@@ -1192,10 +1192,17 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	case MY66000_OPS_I32_PCREL:
 	  relax_imm = RELAX_IMM_32_PCREL;
+	  match_32_bit_or_label (&sp, errmsg, &imm);
+	  if (*errmsg)
+	    break;
+	  imm_size = 4;
+	  bits = 0;
+	  break;
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I32_1:
 	  match_32_bit_or_label (&sp, errmsg, &imm);
+	  relax_imm = RELAX_IMM_32;
 	  if (*errmsg)
 	    break;
 	  imm_size = 4;
@@ -1283,13 +1290,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 						  "-mcmodel=large")));
 	      break;
 	    }
-	  relax_imm = RELAX_IMM_32_PCREL;
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I64_1:
 	  val_tmp = match_64_bit_or_label (&sp, errmsg, &imm);
 	  if (*errmsg)
 	    break;
+	  relax_imm = RELAX_IMM_64;
 	  imm.X_op = O_constant;
 	  imm.X_add_number = val_tmp;
 	  imm_size = 8;
