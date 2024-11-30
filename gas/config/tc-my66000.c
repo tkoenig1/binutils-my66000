@@ -45,15 +45,15 @@ enum options
   OPTION_MCMODEL = OPTION_MD_BASE,
 };
 
-struct option md_longopts[] =
+const struct option md_longopts[] =
 {
   {"mcmodel", required_argument, NULL, OPTION_MCMODEL},
   {NULL, no_argument, NULL, 0}
 };
 
-size_t md_longopts_size = sizeof (md_longopts);
+const size_t md_longopts_size = sizeof (md_longopts);
 
-const char *md_shortopts = "";
+const char md_shortopts[1];
 
 enum memory_model
   {
