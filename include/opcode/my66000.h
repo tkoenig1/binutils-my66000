@@ -259,5 +259,7 @@ void my66000_opc_sanity_check(void);
 
 extern int my66000_set_call (char *, int);
 extern int my66000_set_branch (char *, int);
+extern int my66000_set_bcnd (char *, int);
+
 typedef int (*my66000_set_opc) (char *, int);
 #endif

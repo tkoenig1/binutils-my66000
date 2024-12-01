@@ -919,7 +919,10 @@ typedef enum {
   RELAX_BR_26,
   RELAX_BR_32,
   RELAX_BR_64,
-  RELAX_BR_16,
+  RELAX_BCND_16,
+  RELAX_BCND_26,
+  RELAX_BCND_32,
+  RELAX_BCND_64,
   RELAX_IMM_32,
   RELAX_IMM_64,
   RELAX_IMM_32_PCREL,
@@ -932,7 +935,7 @@ typedef enum {
 
 struct relax_tabS
 {
-  int relax_num;	/* Our very own relaxation number.  */
+  relax_type relax_num;	/* Our very own relaxation number.  */
   int reloc_num;	/* The corresponding BFD relocation number.  */
   int bits;		/* Signed bits of range.  */
   unsigned size_var;		/* Length of variable frag.  */
@@ -950,21 +953,24 @@ struct relax_tabS
 
 const struct relax_tabS relax_tab[RELAX_LAST+1] =
 {
-  {RELAX_NONE,	       BFD_RELOC_NONE,	  0,   0, RELAX_NONE,       0, NULL, TINY},
-  {RELAX_TT_FIRST,     BFD_RELOC_NONE,	  0,   1, RELAX_TT_FIRST,   1, NULL, TINY},
+  {RELAX_NONE,	       BFD_RELOC_NONE,	       0, 0, RELAX_NONE,       0, NULL, TINY},
+  {RELAX_TT_FIRST,     BFD_RELOC_NONE,	       0, 1, RELAX_TT_FIRST,   1, NULL, TINY},
   {RELAX_TT_8_S2,      BFD_RELOC_8_PCREL_S2,  10, 1, RELAX_TT_8_S2, 1, my66000_set_tt, TINY},
   {RELAX_TT_16_S2,     BFD_RELOC_16_PCREL_S2, 18, 2, RELAX_TT_8_S2, 1, my66000_set_tt, TINY},
-  {RELAX_TT_32_S2,     BFD_RELOC_32_PCREL_S2, 34, 4, RELAX_TT_8_S2, 1, my66000_set_tt, SMALL},
+  {RELAX_TT_32_S2,     BFD_RELOC_32_PCREL_S2, 34, 4, RELAX_TT_8_S2, 1, my66000_set_tt, TINY},
   {RELAX_TT_64_S2,     BFD_RELOC_64_PCREL_S2, 64, 8, 0,		    1, my66000_set_tt, LARGE},
   {RELAX_CALL_26,      BFD_RELOC_26_PCREL_S2, 28, 4, RELAX_CALL_26, 1, my66000_set_call, TINY},
   {RELAX_CALL_32,      BFD_RELOC_32_PCREL,    32, 8, RELAX_CALL_26, 1, my66000_set_call, SMALL},
   {RELAX_CALL_64,      BFD_RELOC_64_PCREL,    64, 12, 0,	    1, my66000_set_call, LARGE},
   {RELAX_BR_26,	       BFD_RELOC_26_PCREL_S2, 28, 4, RELAX_BR_26,   1, my66000_set_branch, TINY},
-  {RELAX_BR_32,	       BFD_RELOC_32_PCREL_S2, 32, 8, RELAX_BR_26,   1, my66000_set_branch, SMALL},
+  {RELAX_BR_32,	       BFD_RELOC_32_PCREL_S2, 34, 8, RELAX_BR_26,   1, my66000_set_branch, SMALL},
   {RELAX_BR_64,	       BFD_RELOC_64_PCREL_S2, 64, 12, RELAX_BR_26,  1, my66000_set_branch, LARGE},
-  {RELAX_BR_16,	       BFD_RELOC_16_PCREL_S2, 18, 4, 0,		    1, NULL, TINY},
+  {RELAX_BCND_16,      BFD_RELOC_16_PCREL_S2, 18, 4, RELAX_BCND_16, 1, my66000_set_bcnd, TINY},
+  {RELAX_BCND_26,      BFD_RELOC_26_PCREL_S2, 28, 8, RELAX_BCND_16, 1, my66000_set_bcnd, TINY},
+  {RELAX_BCND_32,      BFD_RELOC_32_PCREL_S2, 34,12, RELAX_BCND_16, 1, my66000_set_bcnd, SMALL},
+  {RELAX_BCND_64,      BFD_RELOC_64_PCREL_S2, 64,16, 0,		    1, my66000_set_bcnd, LARGE},
   {RELAX_IMM_32,       BFD_RELOC_32,	      32, 8, RELAX_IMM_32,  0, NULL, SMALL},
-  {RELAX_IMM_64,       BFD_RELOC_64,	       0, 12, 0,		    0, NULL, LARGE},
+  {RELAX_IMM_64,       BFD_RELOC_64,	       0, 12, 0,	    0, NULL, LARGE},
   {RELAX_IMM_32_PCREL, BFD_RELOC_32_PCREL,    32, 8, RELAX_IMM_32_PCREL, 1, my66000_set_imm, SMALL},
   {RELAX_IMM_64_PCREL, BFD_RELOC_64_PCREL,     0, 12, 0,       		 1, my66000_set_imm, LARGE},
   {RELAX_LAST,	       BFD_RELOC_NONE,	       0, 1, 0, 		 0, NULL, TINY},
@@ -1175,7 +1181,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	    if (*errmsg)
 	      break;
 	    if (imm.X_op == O_symbol)
-	      relax_imm = RELAX_BR_16;
+	      relax_imm = RELAX_BCND_16;
 	  }
 	  break;
 
@@ -1840,11 +1846,12 @@ find_smallest_relaxation (fragS *fragP, segT segment)
   if (smallest == 0)
     return relax;
 
+  gas_assert (relax_tab[relax].relax_num == relax);
   if (!known_frag_symbol (fragP, segment))
     {
       for (i = smallest; relax_tab[i].smallest != 0; i++)
 	{
-	  if (relax_tab[i].mcmodel >= mcmodel)
+	  if (relax_tab[i+1].mcmodel > mcmodel)
 	    return i;
 	}
       return i;
@@ -1985,7 +1992,14 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 		  fragP->fr_offset,
 		  relax_tab[relax].pcrel,
 		  relax_tab[relax].reloc_num);
+  // print_fixup(fixp);
   fixp->fx_addnumber += offset;
+  /* Special casing because these are, in fact, two instructions.  Should
+     ideally be done via a table, but well... */
+
+  if (relax == RELAX_BCND_32 || relax == RELAX_BCND_64)
+    fixp->fx_addnumber -= 4;
+
   fragP->fr_fix += fragP->fr_var;
 }
 

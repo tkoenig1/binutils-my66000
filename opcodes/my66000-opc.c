@@ -2690,6 +2690,44 @@ my66000_set_branch (char *p, int var)
   return ret;
 }
 
+#define BITNUM_MASK (63 << 21)
+
+int
+my66000_set_bcnd (char *p, int var)
+{
+  uint32_t *ip = (uint32_t * ) p;
+  uint32_t iword, major, iw1, iw2;
+  uint32_t *p2;
+  _Bool is_bcnd, is_bb1;
+  int retm4;
+
+  iword = *ip;
+  major = (iword & MY66000_MAJOR_MASK) >> MY66000_MAJOR_SHIFT;
+  is_bcnd = major == 26;
+  is_bb1 = major == 24 || major == 25;
+  assert (is_bcnd ^ is_bb1);
+  if  (var == 4)
+    return 0;
+
+  if (is_bb1)
+    {
+      uint32_t bitnum = iword & BITNUM_MASK;
+      iw1 = MAJOR(6) | SHFT_MINOR (0) | bitnum | 1;
+    }
+
+  if (is_bcnd)
+    {
+      uint32_t cnd = iword & CND_MASK;
+      iw1 = MAJOR (6) | SHFT_MINOR(1) | cnd | 1;
+    }
+  *ip = iw1;
+  retm4 = my66000_set_branch ((char *) &iw2, var - 4);
+  iw2 |= iword & 0xffff;
+  p2 = (uint32_t *) (p + 4);
+  *p2 = iw2;
+  return retm4 + 4;
+}
+
 /* Auxiliary routine for opc_mask_test.  Loop through the format
    strings for an instruction, checking masks.  */
 
