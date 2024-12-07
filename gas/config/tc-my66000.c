@@ -977,11 +977,13 @@ const struct relax_tabS relax_tab[RELAX_LAST+1] =
 };
 
 /* Count commas in a string, for returning early if the number of
-   arguments does not match.  Ignore anything between curly
-   braces.  */
+   arguments does not match.  Ignore anything between curly braces,
+   and if a letter occurs in *except, pretend it's an extra comma.
+   Yes, this is a hack.
+*/
 
 static int
-n_commas (const char *p)
+n_commas (const char *p, const char *except)
 {
   int ret = 0;
   int n_curly = 0;
@@ -993,7 +995,11 @@ n_commas (const char *p)
 	n_curly --;
 
       if (n_curly == 0)
-	ret += *p == ',';
+	{
+	  ret += *p == ',';
+	  if (except)
+	    ret += strchr (except, *p) != NULL;
+	}
       p++;
     }
   return ret;
@@ -1029,7 +1035,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
   // fprintf (stderr,"match_arglist : iword = %8.8x '%s' '%s'\n", iword, str, spec->fmt);
   /* Early check - if the number of commas do not agree, this cannot match.  */
-  if (n_commas (str) != n_commas (spec->fmt))
+  if (n_commas (str,NULL) != n_commas (spec->fmt,"g"))
     {
       snprintf (errbuf, sizeof(errbuf),(_("Wrong number of operands")));
       *errmsg = errbuf;
