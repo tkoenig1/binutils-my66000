@@ -2696,7 +2696,7 @@ int
 my66000_set_bcnd (char *p, int var)
 {
   uint32_t *ip = (uint32_t * ) p;
-  uint32_t iword, major, iw1, iw2;
+  uint32_t iword, major, iw1 = 0, iw2 = 0;
   uint32_t *p2;
   _Bool is_bcnd, is_bb1;
   int retm4;
