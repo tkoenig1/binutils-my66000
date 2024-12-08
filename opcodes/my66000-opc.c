@@ -1717,15 +1717,15 @@ static const my66000_fmt_spec_t mrr_fmt_list [] =
 
  /* IP-relative, with offset and index register.  */
 
- { "A,[K,D,M]",    XOP1_BITS(1,0), MRR_FMT_MASK | XOP1_SCALE_MASK},
- { "A,[K,D,Q]",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK},
- { "A,[K,D<<k,M]", XOP1_BITS(1,0), MRR_FMT_MASK},
- { "A,[K,D<<k,Q]", XOP1_BITS(1,1), MRR_FMT_MASK},
+ { "A,[t,D,M]",    XOP1_BITS(1,0), MRR_FMT_MASK | XOP1_SCALE_MASK},
+ { "A,[t,D,Q]",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK},
+ { "A,[t,D<<k,M]", XOP1_BITS(1,0), MRR_FMT_MASK},
+ { "A,[t,D<<k,Q]", XOP1_BITS(1,1), MRR_FMT_MASK},
 
- { "A,[t,D,L]",    XOP1_BITS(1,0), MRR_FMT_MASK | XOP1_SCALE_MASK},
- { "A,[t,D,P]",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK},
- { "A,[t,D<<k,L]", XOP1_BITS(1,0), MRR_FMT_MASK},
- { "A,[t,D<<k,P]", XOP1_BITS(1,1), MRR_FMT_MASK},
+ { "A,[K,D,L]",    XOP1_BITS(1,0), MRR_FMT_MASK | XOP1_SCALE_MASK},
+ { "A,[K,D,P]",    XOP1_BITS(1,1), MRR_FMT_MASK | XOP1_SCALE_MASK},
+ { "A,[K,D<<k,L]", XOP1_BITS(1,0), MRR_FMT_MASK},
+ { "A,[K,D<<k,P]", XOP1_BITS(1,1), MRR_FMT_MASK},
 
  { NULL, 0, 0},
 };
@@ -1754,15 +1754,15 @@ static const my66000_fmt_spec_t mrrl0_fmt_list [] =
 
  /* IP-relative, with offset and index register.  */
 
- { "A,[K,D,M]",    XOP1_BITS(1,0), MRRL0_FMT_MASK | XOP1_SCALE_MASK},
- { "A,[K,D,Q]",    XOP1_BITS(1,1), MRRL0_FMT_MASK | XOP1_SCALE_MASK},
- { "A,[K,D<<k,M]", XOP1_BITS(1,0), MRRL0_FMT_MASK},
- { "A,[K,D<<k,Q]", XOP1_BITS(1,1), MRRL0_FMT_MASK},
+ { "A,[t,D,M]",    XOP1_BITS(1,0), MRRL0_FMT_MASK | XOP1_SCALE_MASK},
+ { "A,[t,D,Q]",    XOP1_BITS(1,1), MRRL0_FMT_MASK | XOP1_SCALE_MASK},
+ { "A,[t,D<<k,M]", XOP1_BITS(1,0), MRRL0_FMT_MASK},
+ { "A,[t,D<<k,Q]", XOP1_BITS(1,1), MRRL0_FMT_MASK},
 
- { "A,[t,D,L]",    XOP1_BITS(1,0), MRRL0_FMT_MASK | XOP1_SCALE_MASK},
- { "A,[t,D,P]",    XOP1_BITS(1,1), MRRL0_FMT_MASK | XOP1_SCALE_MASK},
- { "A,[t,D<<k,L]", XOP1_BITS(1,0), MRRL0_FMT_MASK},
- { "A,[t,D<<k,P]", XOP1_BITS(1,1), MRRL0_FMT_MASK},
+ { "A,[K,D,L]",    XOP1_BITS(1,0), MRRL0_FMT_MASK | XOP1_SCALE_MASK},
+ { "A,[K,D,P]",    XOP1_BITS(1,1), MRRL0_FMT_MASK | XOP1_SCALE_MASK},
+ { "A,[K,D<<k,L]", XOP1_BITS(1,0), MRRL0_FMT_MASK},
+ { "A,[K,D<<k,P]", XOP1_BITS(1,1), MRRL0_FMT_MASK},
 
  { NULL, 0, 0},
 };
