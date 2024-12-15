@@ -678,10 +678,10 @@ static const my66000_opc_info_t opc_float[] =
  {"csgnf", MAJOR(10) | MINOR(57) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
  {"eadd",  MAJOR(10) | MINOR(58) | SIGNED(0), MY66000_EADD,  NULL, 0, 0}, // + 14
  {"eaddf", MAJOR(10) | MINOR(58) | SIGNED(1), MY66000_EADD,  NULL, 0, 0},
- {"pow",   MAJOR(10) | MINOR(61) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 16
- {"powf" , MAJOR(10) | MINOR(61) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
- {"atan2", MAJOR(10) | MINOR(62) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 18
- {"atan2f",MAJOR(10) | MINOR(62) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"fpow",   MAJOR(10) | MINOR(61) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 16
+ {"fpowf" , MAJOR(10) | MINOR(61) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
+ {"fatan2", MAJOR(10) | MINOR(62) | SIGNED(0), MY66000_FLOAT, NULL, 0, 0}, // + 18
+ {"fatan2f",MAJOR(10) | MINOR(62) | SIGNED(1), MY66000_FLOAT, NULL, 0, 0},
   { NULL,   0,        MY66000_END, NULL, 0, 0}
 };
 
