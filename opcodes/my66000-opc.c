@@ -2111,7 +2111,9 @@ static const my66000_fmt_spec_t ms_60_fmt_list[] =
 
 static const my66000_fmt_spec_t ldm_fmt_list [] =
 {
-  { "A,B,C", 0, XOP1_FLAGS_MASK},
+  { "A,B,[C]",   0, XOP1_FLAGS_MASK},
+  { "A,B,[C,L]", XOP1_BITS(1,0), XOP1_FLAGS_MASK},
+  { "A,B,[C,L]", XOP1_BITS(1,1), XOP1_FLAGS_MASK},
   { NULL, 0, 0},
 };
 
