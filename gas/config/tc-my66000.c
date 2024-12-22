@@ -1214,6 +1214,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 
 	case MY66000_OPS_I32_1:
 	  match_32_bit_or_label (&sp, errmsg, &imm);
+	  if (imm.X_op == O_symbol && mcmodel > SMALL)
+	    {
+	      sprintf(errbuf, "32-bit symbol for 64-bit constant");
+	      *errmsg = errbuf;
+	      break;
+	    }
+
 	  relax_imm = RELAX_IMM_32;
 	  if (*errmsg)
 	    break;
@@ -1302,6 +1309,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 						  "-mcmodel=large")));
 	      break;
 	    }
+
 	  /* Fallthrough.  */
 
 	case MY66000_OPS_I64_1:
@@ -1309,7 +1317,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  if (*errmsg)
 	    break;
 	  relax_imm = RELAX_IMM_64;
-	  imm.X_op = O_constant;
 	  imm.X_add_number = val_tmp;
 	  imm_size = 8;
 	  bits = 0;
