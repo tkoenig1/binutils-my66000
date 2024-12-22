@@ -166,6 +166,7 @@ md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
 static htab_t s_opc_map[N_MAP];
 
 #define COUNT_VARIANTS 0
+#define DUMP_INSTRUCTIONS 0
 
 long int num_instr;
 

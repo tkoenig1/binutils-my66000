@@ -996,6 +996,38 @@ static const my66000_opc_info_t opc_op5[] =
  { "vec", MAJOR(13) | MINOR(29), MY66000_VEC32, NULL, 0, 0},
  { NULL,  MAJOR(13) | MINOR(30), MY66000_BAD, NULL, 0, 0},
  { NULL,  MAJOR(13) | MINOR(31), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(32), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(33), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(34), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(35), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(36), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(37), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(38), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(39), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(40), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(41), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(42), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(43), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(44), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(45), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(46), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(47), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(48), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(49), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(50), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(51), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(52), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(53), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(54), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(55), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(56), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(57), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(58), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(59), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(60), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(61), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(62), MY66000_BAD, NULL, 0, 0},
+ { NULL,  MAJOR(13) | MINOR(63), MY66000_BAD, NULL, 0, 0},
  { NULL,   0,                  MY66000_END,   NULL, 0, 0}
 };
 
@@ -1430,6 +1462,12 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I16_HI,  0, 0, 2, 2,            "high 16 bit of 32-bit constant", 'r' },
  {MY66000_OPS_SVC16,   OPERAND_ENTRY (16, 0), "16-bit SVC immediate",     's' },
  {MY66000_OPS_IP_BASE, OPERAND_ENTRY ( 5,16), "IP as base register",      't' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'u' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'v' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'w' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'x' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'y' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'z' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
@@ -2824,7 +2862,44 @@ opc_mask_test (uint32_t mask, const my66000_opc_info_t *info)
     }
 }
 
+/* Static test - all patterns of reachable instructions should match.  */
+
+static int patt_level;
+
+static void
+opc_patt_test (uint32_t shift, uint32_t mask, const my66000_opc_info_t *info)
+{
+  const my66000_opc_info_t *p;
+  uint32_t i, n;
+  uint32_t opcode;
+
+  patt_level ++;
+  p = info;
+  n = (1 << __builtin_popcount (mask)) - 1;
+  for (i = 0; i<n; i++)
+    {
+      if (p[i].enc == MY66000_END)
+	fprintf (stderr,"%x %d\n", mask, n);
+      if (p[i].name != NULL && p[i].enc != MY66000_BAD)
+	{
+	  opcode = (p[i].patt_opc & mask) >> shift;
+	  if (opcode != i)
+	    {
+	      opcodes_error_handler ("Internal error: inconsistent bit pattern "
+				     "for %s opcode=%u i = %u level = %d",
+				     p[i].name, opcode, i, patt_level);
+	      exit(EXIT_FAILURE);
+	    }
+	}
+
+      if (p[i].sub)
+	opc_patt_test (p[i].shift, p[i].patt_mask, p[i].sub);
+    }
+  patt_level --;
+}
+
 void my66000_opc_sanity_check(void)
 {
-  opc_mask_test(MY66000_MAJOR_MASK, my66000_opc_info);
+  opc_mask_test (MY66000_MAJOR_MASK, my66000_opc_info);
+  opc_patt_test (MY66000_MAJOR_SHIFT, MY66000_MAJOR_MASK, my66000_opc_info);
 }
