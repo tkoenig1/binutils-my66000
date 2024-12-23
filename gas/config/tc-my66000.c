@@ -1004,8 +1004,8 @@ const struct relax_tabS relax_tab[RELAX_LAST+1] =
   {RELAX_BCND_26,      BFD_RELOC_26_PCREL_S2, 28, 8, RELAX_BCND_16, 1, my66000_set_bcnd, TINY},
   {RELAX_BCND_32,      BFD_RELOC_32_PCREL_S2, 34,12, RELAX_BCND_16, 1, my66000_set_bcnd, SMALL},
   {RELAX_BCND_64,      BFD_RELOC_64_PCREL_S2, 64,16, 0,		    1, my66000_set_bcnd, LARGE},
-  {RELAX_IMM_32,       BFD_RELOC_32,	      32, 8, RELAX_IMM_32,  0, NULL, SMALL},
-  {RELAX_IMM_64,       BFD_RELOC_64,	       0, 12, 0,	    0, NULL, LARGE},
+  {RELAX_IMM_32,       BFD_RELOC_32,	      32, 8, RELAX_IMM_32,  0, my66000_set_imm, SMALL},
+  {RELAX_IMM_64,       BFD_RELOC_64,	       0, 12, 0,	    0, my66000_set_imm, LARGE},
   {RELAX_IMM_32_PCREL, BFD_RELOC_32_PCREL,    32, 8, RELAX_IMM_32_PCREL, 1, my66000_set_imm, SMALL},
   {RELAX_IMM_64_PCREL, BFD_RELOC_64_PCREL,     0, 12, 0,       		 1, my66000_set_imm, LARGE},
   {RELAX_LAST,	       BFD_RELOC_NONE,	       0, 1, 0, 		 0, NULL, TINY},
@@ -2045,7 +2045,8 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
   /* Special casing because these are, in fact, two instructions.  Should
      ideally be done via a table, but well... */
 
-  if (relax == RELAX_BCND_32 || relax == RELAX_BCND_64)
+  if (relax == RELAX_BCND_32 || relax == RELAX_BCND_64 || relax == RELAX_IMM_32
+      || RELAX_IMM_64)
     fixp->fx_addnumber -= 4;
 
   fragP->fr_fix += fragP->fr_var;
