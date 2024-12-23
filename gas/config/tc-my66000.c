@@ -2046,7 +2046,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
      ideally be done via a table, but well... */
 
   if (relax == RELAX_BCND_32 || relax == RELAX_BCND_64 || relax == RELAX_IMM_32
-      || RELAX_IMM_64)
+      || relax == RELAX_IMM_64)
     fixp->fx_addnumber -= 4;
 
   fragP->fr_fix += fragP->fr_var;
