@@ -181,13 +181,30 @@ count_instruction_variants (const my66000_opc_info_t *opc)
   fmtlist = &my66000_opcode_fmt[enc];
   spec = fmtlist->spec;
 
-  if (spec == NULL || spec->fmt == NULL || spec->fmt[0] == '\0')
-    {
-      num_instr ++;
-      return;
-    }
+  if (spec == NULL || spec->fmt == NULL)
+    return;
+
   for (spec = fmtlist->spec; spec->fmt; spec++)
     num_instr ++;
+}
+
+static void
+dump_instruction_variants (const my66000_opc_info_t *opc)
+{
+  my66000_encoding enc;
+  const my66000_opcode_fmt_t *fmtlist;
+  const my66000_fmt_spec_t *spec;
+
+  enc = opc->enc;
+  fmtlist = &my66000_opcode_fmt[enc];
+  spec = fmtlist->spec;
+
+  if (spec == NULL || spec->fmt == NULL)
+    return;
+
+  for (spec = fmtlist->spec; spec->fmt; spec++)
+    printf ("%s\t%8.8x\t%s\n", opc->name, opc->patt_opc | spec->patt,
+	    spec->fmt);
 }
 
 static void
@@ -209,6 +226,9 @@ build_opc_hashes (const my66000_opc_info_t * table)
 
 	  if (COUNT_VARIANTS)
 	    count_instruction_variants (&table[i]);
+
+	  if (DUMP_INSTRUCTIONS)
+	    dump_instruction_variants (&table[i]);
 
 	  for (j = 0; j < N_MAP; j++)
 	    {
@@ -235,12 +255,26 @@ static htab_t loop_u_map, loop_s_map;
 
 #define MAX_REG_STR_LEN 10
 
+static void
+dump_operands(void)
+{
+  const my66000_operand_info_t *tab = my66000_operand_table;
+  for (int i=0; tab[i].letter < '{'; i++)
+    {
+      if (tab[i].oper != MY66000_OPS_INVALID)
+	printf ("#\t%u\t%u\t%u\t%u\t%s\t%c\n", tab[i].mask, tab[i].shift,
+		tab[i].size, tab[i].seq, tab[i].desc, tab[i].letter);
+    }
+}
 
 void
 md_begin (void)
 {
    /* Build hashes for looking up the instructions.  */
   const my66000_opc_info_t **lst = my66000_opc_info_list;
+
+  if (DUMP_INSTRUCTIONS)
+    dump_operands();
 
   for (int j=0; j<N_MAP; j++)
     s_opc_map[j] = str_htab_create ();

@@ -1468,6 +1468,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'x' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'y' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'z' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  '{' },
 };
 
 /* My 66000 has instructions for which modifiers depend on the
