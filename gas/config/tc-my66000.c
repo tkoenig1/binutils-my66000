@@ -170,6 +170,48 @@ static htab_t s_opc_map[N_MAP];
 
 long int num_instr;
 
+/* This does not strictly belong in the assembler, but for
+   an experimental architecture, it is nice to gather some
+   statistics.  */
+
+static const char *
+instruction_type (my66000_encoding enc)
+{
+  switch (enc)
+    {
+    case MY66000_MRR:
+    case MY66000_CALX:
+    case MY66000_MRRL0:
+    case MY66000_SI5:
+    case MY66000_SI:
+    case MY66000_SI_STD:
+      return "mem";
+    case MY66000_MM:
+    case MY66000_MS_55:
+    case MY66000_MS_56:
+    case MY66000_MS_60:
+      return "mm";
+    case MY66000_ARITH:
+    case MY66000_ARITHS0:
+    case MY66000_FLOAT:
+    case MY66000_CVTS:
+    case MY66000_CVTU:
+    case MY66000_EADD:
+      return "arith";
+    case MY66000_MUX:
+    case MY66000_FMAC:
+    case MY66000_INS:
+    case MY66000_MUX32:
+    case MY66000_MUX64:
+      return "mux";
+    case MY66000_TRANS:
+    case MY66000_FF1:
+      return "sop";
+    default:
+      return "std";
+    }
+}
+
 static void
 count_instruction_variants (const my66000_opc_info_t *opc)
 {
@@ -203,7 +245,8 @@ dump_instruction_variants (const my66000_opc_info_t *opc)
     return;
 
   for (spec = fmtlist->spec; spec->fmt; spec++)
-    printf ("%s\t%8.8x\t%s\n", opc->name, opc->patt_opc | spec->patt,
+    printf ("%s\t%s\t%8.8x\t%s\n", opc->name, instruction_type (opc->enc),
+	    opc->patt_opc | spec->patt,
 	    spec->fmt);
 }
 
@@ -262,7 +305,7 @@ dump_operands(void)
   for (int i=0; tab[i].letter < '{'; i++)
     {
       if (tab[i].oper != MY66000_OPS_INVALID)
-	printf ("#\t%u\t%u\t%u\t%u\t%s\t%c\n", tab[i].mask, tab[i].shift,
+	printf ("#\t%u\t%u\t%u\t%u\t%s\t%c\n", __builtin_popcount(tab[i].mask), tab[i].shift,
 		tab[i].size, tab[i].seq, tab[i].desc, tab[i].letter);
     }
 }
