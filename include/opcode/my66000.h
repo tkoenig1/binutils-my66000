@@ -179,7 +179,7 @@ typedef enum my66000_operands
   MY66000_OPS_UNUSED,	 /* Unused.  */
   MY66000_OPS_INVALID,	 /* Invalid, used for non-letters.  */
   MY66000_OPS_CARRY,	 /* Instruction modification list.  */
-  MY66000_OPS_TF,	 /* True/false list for predicates.  */
+  MY66000_OPS_P_THEN,	 /* THEN list for predicates.  */
   MY66000_OPS_HRFCN,	 /* HR function.  */
   MY66000_OPS_INS,	 /* A 32-bit INS specifier.  */
   MY66000_OPS_VEC,	 /* A vector bitmap.  */
@@ -197,6 +197,7 @@ typedef enum my66000_operands
   MY66000_OPS_I16_HI,    /* High 16-bit of 32-bit immediate. */
   MY66000_OPS_SVC16,     /* SVC immediate 16.  */
   MY66000_OPS_IP_BASE,   /* IP as base register.  */
+  MY66000_OPS_P_ELSE,    /* ELSE list for predicats.  */
   MY66000_OPS_END
 } my66000_operands;
 

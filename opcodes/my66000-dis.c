@@ -105,24 +105,10 @@ print_vec (uint32_t ins, bool use_vec)
 /* Print out a true/false list for predicates.  */
 
 static void
-print_tf (uint32_t v)
+print_tf (uint32_t v, char c)
 {
-  unsigned int n_then = v & 63;
-  unsigned int n_else = v >> 6;
-
-  if (n_then + n_else > 8)
-    {
-      fpr (stream, "<invalid>");
-    }
-  else
-    {
-      for (unsigned int i=0; i<n_then; i++)
-	fpr (stream, "%c", 'T');
-
-      for (unsigned int i=0; i<n_else; i++)
-	fpr (stream, "%c", 'F');
-    }
-
+  for (unsigned int i=0; i<v; i++)
+    fpr (stream, "%c", c);
 }
 
 /* Get the first vaild format string for the iword, return it
@@ -356,8 +342,12 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	    fpr (stream, "%d", v);
 	    break;
 
-	  case MY66000_OPS_TF:
-	    print_tf(val);
+	  case MY66000_OPS_P_THEN:
+	    print_tf(val,'T');
+	    break;
+
+	  case MY66000_OPS_P_ELSE:
+	    print_tf(val,'F');
 	    break;
 
 	  case MY66000_OPS_I1:

@@ -492,13 +492,6 @@ static const my66000_opc_info_t opc_op0[] =
 
 */
 
-#define THEN_FMT_MASK_7 (((1u<<6)-1) ^ 7)
-#define THEN_FMT_MASK_8 (((1u<<6)-1) ^ 8)
-#define ELSE_FMT_MASK_7 (THEN_FMT_MASK_7 << 6)
-#define ELSE_FMT_MASK_8 (THEN_FMT_MASK_8 << 6)
-
-#define PRED_FMT_MASK ((1<<12)-1)
-
 /* We use a single table here and index in here from opc_op1.  It would
    be too many tables otherwise.  This would be easier if the L bit
    was adjacent to the opcode.
@@ -1445,7 +1438,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_FL_EXIT, OPERAND_ENTRY (3, 0),  "Exit flags",               'a' },
  {MY66000_OPS_I32_2 ,  0, 0, 4, 2,            "32-bit immediate pos 2",   'b' },
  {MY66000_OPS_CARRY,   OPERAND_ENTRY (16, 0), "carry list",               'c' },
- {MY66000_OPS_TF,      OPERAND_ENTRY (12, 0), "true-false predicate list",'d' },
+ {MY66000_OPS_P_THEN,  OPERAND_ENTRY ( 4, 0), "THEN clause for predicate" ,'d' },
  {MY66000_OPS_HRFCN,   OPERAND_ENTRY ( 5, 0), "HR function",              'e' },
  {MY66000_OPS_I16_LO,  0, 0, 2, 1,            "low 16 bit of 32-bit constant", 'f' },
  {MY66000_OPS_INS,     0, 0, 4, 1,            "INS specifier",            'g' },
@@ -1462,7 +1455,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I16_HI,  0, 0, 2, 2,            "high 16 bit of 32-bit constant", 'r' },
  {MY66000_OPS_SVC16,   OPERAND_ENTRY (16, 0), "16-bit SVC immediate",     's' },
  {MY66000_OPS_IP_BASE, OPERAND_ENTRY ( 5,16), "IP as base register",      't' },
- {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'u' },
+ {MY66000_OPS_P_ELSE,  OPERAND_ENTRY ( 4, 6), "ELSE clause for predicate",'u' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'v' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'w' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'x' },
@@ -1983,17 +1976,19 @@ static const my66000_fmt_spec_t xop0_fmt_list[] =
   { NULL,        0, 0}
 };
 
+#define PRED_MASK (3<<4 | 3 << 10)
+
 /* Prediate on bit set, bits 0-31  */
 static const my66000_fmt_spec_t pb1a_fmt_list[] =
 {
-  { "H,B,d", 0, 0},
+  { "H,B,du", 0, PRED_MASK},
  { NULL,        0, 0},
 };
 
 /* Prediate on bit set, bits 32-64  XXX */
 static const my66000_fmt_spec_t pb1b_fmt_list[] =
 {
-  { "Z,B,d", 0, 0},
+  { "Z,B,du", 0, PRED_MASK},
  { NULL,        0, 0},
 };
 
@@ -2001,10 +1996,7 @@ static const my66000_fmt_spec_t pb1b_fmt_list[] =
 
 static const my66000_fmt_spec_t pcnd_fmt_list[] =
 {
-  { "H,B,d", 0, THEN_FMT_MASK_7 | ELSE_FMT_MASK_7},
-  { "H,B,d", 0, THEN_FMT_MASK_8 | ELSE_FMT_MASK_7},
-  { "H,B,d", 0, THEN_FMT_MASK_7 | ELSE_FMT_MASK_8},
-  { "H,B,d", 0, THEN_FMT_MASK_8 | ELSE_FMT_MASK_8},
+  { "H,B,du", 0, PRED_MASK },
  { NULL,     0, 0},
 };
 
@@ -2018,7 +2010,7 @@ static const my66000_fmt_spec_t bcnd_fmt_list[] =
 
 static const my66000_fmt_spec_t pc_fmt_list[] =
 {
- { "B,d",       0, 0},
+ { "B,du",     0, PRED_MASK},
  { NULL,        0, 0},
 };
 

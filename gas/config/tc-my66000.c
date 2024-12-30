@@ -207,6 +207,9 @@ instruction_type (my66000_encoding enc)
     case MY66000_TRANS:
     case MY66000_FF1:
       return "sop";
+    case MY66000_SHIFT:
+    case MY66000_XOP0:
+      return "shift";
     default:
       return "std";
     }
@@ -700,10 +703,10 @@ match_carry_list (char **ptr, char **errmsg)
   return 0;
 }
 
-static uint16_t
-match_tf_list (char **ptr, char **errmsg)
+static uint8_t
+match_tf_list (char **ptr, char **errmsg, char ch)
 {
-  int num_true, num_false;
+  int num = 0;
   char *str;
 
   str = *ptr;
@@ -712,34 +715,19 @@ match_tf_list (char **ptr, char **errmsg)
   while (ISSPACE (*str))
     str++;
 
-  num_true = 0;
-
-  while (TOUPPER (*str) == 'T')
+  while (TOUPPER (*str) == ch)
     {
-      num_true++;
+      num++;
       str++;
     }
-  if (num_true > 8)
+  if (num > 8)
     {
-      strcpy (errbuf, "Too many true values");
-      *errmsg = errbuf;
-      return 0;
-    }
-
-  num_false = 0;
-  while (TOUPPER (*str) == 'F')
-    {
-      num_false++;
-      str++;
-    }
-  if (num_false > 8)
-    {
-      strcpy (errbuf, "Too many false values");
+      sprintf (errbuf, "Too many %c values", ch);
       *errmsg = errbuf;
       return 0;
     }
   *ptr = str;
-  return num_true | (num_false << 6);
+  return num;
 }
 
 /* Match a register name from map and return its number, or, on
@@ -1236,8 +1224,12 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = match_carry_list (&sp, errmsg);
 	  break;
 
-	case MY66000_OPS_TF:
-	  bits = match_tf_list (&sp, errmsg);
+	case MY66000_OPS_P_THEN:
+	  bits = match_tf_list (&sp, errmsg, 'T');
+	  break;
+
+	case MY66000_OPS_P_ELSE:
+	  bits = match_tf_list (&sp, errmsg, 'F');
 	  break;
 
 	case MY66000_OPS_LOOP_U:
