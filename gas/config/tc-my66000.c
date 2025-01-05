@@ -210,6 +210,13 @@ instruction_type (my66000_encoding enc)
     case MY66000_SHIFT:
     case MY66000_XOP0:
       return "shift";
+    case MY66000_LOOPU:
+    case MY66000_LOOPS:
+      return "loop";
+    case MY66000_ENTER:
+      return "enter";
+    case MY66000_EXIT:
+      return "exit";
     default:
       return "std";
     }
@@ -935,7 +942,7 @@ match_ins_width (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, 1, 64);
 }
 
-/* Match an INS pattern, o,#w.  Dept. of dirty tricks: This breaks
+/* Match an INS pattern, #o,#w.  Dept. of dirty tricks: This breaks
    only matching single operands, but anything else would be too
    complicated for now.  */
 

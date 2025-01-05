@@ -2018,7 +2018,6 @@ static const my66000_fmt_spec_t enter_fmt_list[] =
 {
  { "A,B,S",   0, ENTER_7_MASK},
  { "A,B,S,Y", 0, ENTER_4_MASK},
- { "A,B,Y,S", 0, ENTER_4_MASK},  /* FIXME: This needs to be removed.  */
  { NULL,      0, 0},
 };
 
@@ -2026,7 +2025,6 @@ static const my66000_fmt_spec_t exit_fmt_list[] =
 {
  { "A,B,S",   0, ENTER_7_MASK},
  { "A,B,S,a", 0, 0},
- { "A,B,a,S", 0, 0},  /* FIXME: This needs to be removed.  */
  { NULL,      0, 0},
 };
 
@@ -2308,11 +2306,11 @@ static const my66000_fmt_spec_t loopu_fmt_list[] =
   { "m,B,N,#G",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
   { "m,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
 
-  { "m,B,#L,C",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
+  { "m,B,#b,C",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
   { "m,B,N,#L",  XOP4_BITS (1, 0, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
   { "m,B,#r,#f", XOP4_BITS (1, 0, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
   { "m,B,#P,C",  XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
-  { "m,B,N,#P",  XOP4_BITS (1, 1, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
+  { "m,B,N,#U",  XOP4_BITS (1, 1, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
   { "m,B,#b,#L", XOP4_BITS (1, 1, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
   { NULL, 0, 0},
 };
@@ -2324,11 +2322,11 @@ static const my66000_fmt_spec_t loops_fmt_list[] =
   { "n,B,N,#G",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
   { "n,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
 
-  { "n,B,#L,C",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
+  { "n,B,#b,C",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
   { "n,B,N,#L",  XOP4_BITS (1, 0, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
   { "n,B,#r,#f", XOP4_BITS (1, 0, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
   { "n,B,#P,C",  XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
-  { "n,B,N,#P",  XOP4_BITS (1, 1, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
+  { "n,B,N,#U",  XOP4_BITS (1, 1, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
   { "n,B,#b,#L", XOP4_BITS (1, 1, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
 
    { NULL, 0, 0},
