@@ -1313,6 +1313,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = 0;
 	  break;
 
+	  /* FIXME: Ideally, this should also be included in the fixups.
+	     Right now, we don't do that.  */
+
+	case MY66000_OPS_PCREL16:
+	  bits = match_16bit (&sp, errmsg);
+	  break;
+
 	case MY66000_OPS_I16_HI:
 	  {
 	    uint16_t hi;

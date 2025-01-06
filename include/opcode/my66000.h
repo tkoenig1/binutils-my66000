@@ -198,6 +198,7 @@ typedef enum my66000_operands
   MY66000_OPS_SVC16,     /* SVC immediate 16.  */
   MY66000_OPS_IP_BASE,   /* IP as base register.  */
   MY66000_OPS_P_ELSE,    /* ELSE list for predicats.  */
+  MY66000_OPS_PCREL16,   /* 16-bit PC-relative offset.  */
   MY66000_OPS_END
 } my66000_operands;
 

@@ -326,6 +326,7 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	  case MY66000_OPS_FL_ENTER:
 	  case MY66000_OPS_FL_EXIT:
 	  case MY66000_OPS_MSCALE:
+	  case MY66000_OPS_PCREL16:
 
 	    v = val;
 	    fpr (stream, "%d", v);
