@@ -1,5 +1,5 @@
 /* Linker file opening and searching.
-   Copyright (C) 1991-2024 Free Software Foundation, Inc.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -710,6 +710,12 @@ ldfile_open_file (lang_input_statement_type *entry)
 #endif
 	  else
 	    einfo (_("%P: cannot find %s: %E\n"), entry->local_sym_name);
+
+	  /* Be kind to users who are creating static executables, but
+	     have forgotten to install the necessary static libraries.  */
+	  if (entry->flags.dynamic == false && startswith (entry->local_sym_name, "-l"))
+	    einfo (_("%P: have you installed the static version of the %s library ?\n"),
+		     entry->local_sym_name + 2);
 
 	  /* PR 25747: Be kind to users who forgot to add the
 	     "lib" prefix to their library when it was created.  */

@@ -1,5 +1,5 @@
 /* BFD backend for Extended Tektronix Hex Format  objects.
-   Copyright (C) 1992-2024 Free Software Foundation, Inc.
+   Copyright (C) 1992-2025 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -616,10 +616,14 @@ tekhex_object_p (bfd *abfd)
   if (b[0] != '%' || !ISHEX (b[1]) || !ISHEX (b[2]) || !ISHEX (b[3]))
     return NULL;
 
-  tekhex_mkobject (abfd);
+  if (!tekhex_mkobject (abfd))
+    return NULL;
 
   if (!pass_over (abfd, first_phase))
-    return NULL;
+    {
+      bfd_release (abfd, abfd->tdata.tekhex_data);
+      return NULL;
+    }
 
   return _bfd_no_cleanup;
 }
@@ -1008,13 +1012,13 @@ const bfd_target tekhex_vec =
   {
     _bfd_bool_bfd_false_error,
     tekhex_mkobject,
-    _bfd_generic_mkarchive,
+    _bfd_bool_bfd_false_error,
     _bfd_bool_bfd_false_error,
   },
   {				/* bfd_write_contents.  */
     _bfd_bool_bfd_false_error,
     tekhex_write_object_contents,
-    _bfd_write_archive_contents,
+    _bfd_bool_bfd_false_error,
     _bfd_bool_bfd_false_error,
   },
 

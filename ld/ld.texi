@@ -1,6 +1,6 @@
 \input texinfo
 @setfilename ld.info
-@c Copyright (C) 1991-2024 Free Software Foundation, Inc.
+@c Copyright (C) 1991-2025 Free Software Foundation, Inc.
 @syncodeindex ky cp
 @c man begin INCLUDE
 @include configdoc.texi
@@ -56,7 +56,7 @@ This file documents the @sc{gnu} linker LD
 @end ifset
 version @value{VERSION}.
 
-Copyright @copyright{} 1991-2024 Free Software Foundation, Inc.
+Copyright @copyright{} 1991-2025 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3
@@ -93,7 +93,7 @@ section entitled ``GNU Free Documentation License''.
 
 @vskip 0pt plus 1filll
 @c man begin COPYRIGHT
-Copyright @copyright{} 1991-2024 Free Software Foundation, Inc.
+Copyright @copyright{} 1991-2025 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3
@@ -5970,19 +5970,19 @@ special requirements of the section type are met.
 Note - the TYPE only is used if some or all of the contents of the
 section do not have an implicit type of their own.  So for example:
 @smallexample
-  .foo . TYPE = SHT_PROGBITS @{ *(.bar) @}
+  .foo . (TYPE = SHT_PROGBITS) : @{ *(.bar) @}
 @end smallexample
 will set the type of section @samp{.foo} to the type of the section
 @samp{.bar} in the input files, which may not be the SHT_PROGBITS
 type.  Whereas:
 @smallexample
-  .foo . TYPE = SHT_PROGBITS @{ BYTE(1) @}
+  .foo . (TYPE = SHT_PROGBITS) : @{ BYTE(1) @}
 @end smallexample
 will set the type of @samp{.foo} to SHT_PROGBBITS.  If it is necessary
 to override the type of incoming sections and force the output section
 type then an extra piece of untyped data will be needed:
 @smallexample
-  .foo . TYPE = SHT_PROGBITS @{ BYTE(1); *(.bar) @}
+  .foo . (TYPE = SHT_PROGBITS) : @{ BYTE(1); *(.bar) @}
 @end smallexample
 
 @item READONLY ( TYPE = @var{type} )
@@ -8190,6 +8190,64 @@ library.  A warning is also given if some symbols present in the input import
 library have disappeared from the executable.  This option is only effective
 for Secure Gateway import libraries, ie. when @samp{--cmse-implib} is
 specified.
+
+@kindex -z force-bti
+@cindex Protect PLTs with Branch Target Identification
+The @samp{-z force-bti} option turns on the verification of Branch Target
+Identification (BTI) in input objects, generates PLTs with BTI, and marks the
+output with BTI.  If this option is omitted, but all input objects belonging to
+the link unit have the BTI marking, the linker implicitly generates PLTs with
+BTI, and marks the output with BTI.
+
+@kindex -z bti-report[=none|warning|error]
+@cindex Control warnings for missing BTI markings.
+The @samp{-z bti-report[=none|warning|error]} option specifies how to report
+missing BTI markings on inputs, i.e. the GNU_PROPERTY_AARCH64_FEATURE_1_BTI
+property.
+By default, if the option is omitted and @samp{-z force-bti} is provided,
+warnings are emitted.
+@itemize
+@item @samp{none} disables any warning messages.
+@item @samp{warning} (the default value) emits warning messages when input objects
+composing the link unit are missing BTI markings.
+@item @samp{error} turns the warning messages into errors.
+@end itemize
+If issues are found, a maximum of 20 messages will be emitted, and then a summary
+with the total number of issues will be displayed at the end.
+
+@kindex -z pac-plt
+@cindex Protect PLTs with Returned Pointer Authentication
+The @samp{-z pac-plt} option enables the usage of pointer authentication in PLTs.
+
+@kindex -z gcs=[always|never|implicit]
+@cindex Controls whether the output object supports the Guarded Control Stack (GCS) mechanism.
+The @samp{-z gcs} option controls the verification of Guarded Control Stack (GCS)
+markings on input objects and marks the output with GCS if all conditions are
+validated.
+@itemize
+@item @samp{implicit} (default if @samp{-z gcs} is omitted) enables GCS marking
+on the output if, and only if, all input objects composing the link unit are
+marked with GCS.
+@item @samp{always} forces the marking of the output with GCS.
+@item @samp{never} ignores any GCS marking on the input objects, and does not
+mark the output with GCS.
+@end itemize
+
+@kindex -z gcs-report[=none|warning|error]
+@cindex Control warnings for missing GCS markings.
+The @samp{-z gcs-report[=none|warning|error]} specifies how to report the missing
+GCS markings on inputs, i.e. the GNU_PROPERTY_AARCH64_FEATURE_1_GCS property.
+By default, if the option is omitted and @samp{-z gcs} is provided, warnings are
+emitted.
+@itemize
+@item @samp{none} disables any warning messages.
+@item @samp{warning} (the default value) emits warning messages when input objects
+composing the link unit are missing GCS markings, or dynamic objects containing
+external symbols used in the link unit.
+@item @samp{error} turns the warning messages into errors.
+@end itemize
+If issues are found, a maximum of 20 messages will be emitted, and then a summary
+with the total number of issues will be displayed at the end.
 
 @ifclear GENERIC
 @lowersections

@@ -1,5 +1,5 @@
 /* BFD back-end for s-record objects.
-   Copyright (C) 1990-2024 Free Software Foundation, Inc.
+   Copyright (C) 1990-2025 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -642,7 +642,6 @@ srec_scan (bfd *abfd)
 static bfd_cleanup
 srec_object_p (bfd *abfd)
 {
-  void * tdata_save;
   bfd_byte b[4];
 
   srec_init ();
@@ -657,12 +656,12 @@ srec_object_p (bfd *abfd)
       return NULL;
     }
 
-  tdata_save = abfd->tdata.any;
-  if (! srec_mkobject (abfd) || ! srec_scan (abfd))
+  if (!srec_mkobject (abfd))
+    return NULL;
+
+  if (!srec_scan (abfd))
     {
-      if (abfd->tdata.any != tdata_save && abfd->tdata.any != NULL)
-	bfd_release (abfd, abfd->tdata.any);
-      abfd->tdata.any = tdata_save;
+      bfd_release (abfd, abfd->tdata.any);
       return NULL;
     }
 
@@ -677,7 +676,6 @@ srec_object_p (bfd *abfd)
 static bfd_cleanup
 symbolsrec_object_p (bfd *abfd)
 {
-  void * tdata_save;
   char b[2];
 
   srec_init ();
@@ -692,12 +690,12 @@ symbolsrec_object_p (bfd *abfd)
       return NULL;
     }
 
-  tdata_save = abfd->tdata.any;
-  if (! srec_mkobject (abfd) || ! srec_scan (abfd))
+  if (!srec_mkobject (abfd))
+    return NULL;
+
+  if (!srec_scan (abfd))
     {
-      if (abfd->tdata.any != tdata_save && abfd->tdata.any != NULL)
-	bfd_release (abfd, abfd->tdata.any);
-      abfd->tdata.any = tdata_save;
+      bfd_release (abfd, abfd->tdata.any);
       return NULL;
     }
 
@@ -1309,13 +1307,13 @@ const bfd_target srec_vec =
   {
     _bfd_bool_bfd_false_error,
     srec_mkobject,
-    _bfd_generic_mkarchive,
+    _bfd_bool_bfd_false_error,
     _bfd_bool_bfd_false_error,
   },
   {				/* bfd_write_contents.  */
     _bfd_bool_bfd_false_error,
     srec_write_object_contents,
-    _bfd_write_archive_contents,
+    _bfd_bool_bfd_false_error,
     _bfd_bool_bfd_false_error,
   },
 
@@ -1366,13 +1364,13 @@ const bfd_target symbolsrec_vec =
   {
     _bfd_bool_bfd_false_error,
     srec_mkobject,
-    _bfd_generic_mkarchive,
+    _bfd_bool_bfd_false_error,
     _bfd_bool_bfd_false_error,
   },
   {				/* bfd_write_contents.  */
     _bfd_bool_bfd_false_error,
     symbolsrec_write_object_contents,
-    _bfd_write_archive_contents,
+    _bfd_bool_bfd_false_error,
     _bfd_bool_bfd_false_error,
   },
 

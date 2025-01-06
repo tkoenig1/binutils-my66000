@@ -1,5 +1,5 @@
 /* tc-i386.h -- Header file for tc-i386.c
-   Copyright (C) 1989-2024 Free Software Foundation, Inc.
+   Copyright (C) 1989-2025 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -191,8 +191,8 @@ extern bool i386_check_label (void);
 extern int i386_unrecognized_line (int);
 #define tc_unrecognized_line i386_unrecognized_line
 
-extern int i386_parse_name (char *, expressionS *, char *);
-#define md_parse_name(s, e, m, c) i386_parse_name (s, e, c)
+extern int i386_parse_name (char *, expressionS *, enum expr_mode, char *);
+#define md_parse_name(s, e, m, c) i386_parse_name (s, e, m, c)
 
 extern operatorT i386_operator (const char *name, unsigned int operands, char *);
 #define md_operator i386_operator

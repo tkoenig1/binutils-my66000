@@ -1,5 +1,5 @@
 /* LoongArch-specific support for NN-bit ELF.
-   Copyright (C) 2021-2024 Free Software Foundation, Inc.
+   Copyright (C) 2021-2025 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -88,8 +88,7 @@ static bool
 elfNN_loongarch_object (bfd *abfd)
 {
   return bfd_elf_allocate_object (abfd,
-				  sizeof (struct _bfd_loongarch_elf_obj_tdata),
-				  LARCH_ELF_DATA);
+				  sizeof (struct _bfd_loongarch_elf_obj_tdata));
 }
 
 struct relr_entry
@@ -152,16 +151,12 @@ struct loongarch_elf_section_data
 static bool
 loongarch_elf_new_section_hook (bfd *abfd, asection *sec)
 {
-  if (!sec->used_by_bfd)
-    {
-      struct loongarch_elf_section_data *sdata;
-      size_t amt = sizeof (*sdata);
+  struct loongarch_elf_section_data *sdata;
 
-      sdata = bfd_zalloc (abfd, amt);
-      if (!sdata)
-	return false;
-      sec->used_by_bfd = sdata;
-    }
+  sdata = bfd_zalloc (abfd, sizeof (*sdata));
+  if (!sdata)
+    return false;
+  sec->used_by_bfd = sdata;
 
   return _bfd_elf_new_section_hook (abfd, sec);
 }
@@ -221,6 +216,10 @@ loongarch_elf_new_section_hook (bfd *abfd, asection *sec)
    || (R_TYPE) == R_LARCH_TLS_LE_LO12	  \
    || (R_TYPE) == R_LARCH_TLS_LE64_LO20	  \
    || (R_TYPE) == R_LARCH_TLS_LE64_HI12)
+
+#define IS_CALL_RELOC(R_TYPE)	  \
+  ((R_TYPE) == R_LARCH_B26	  \
+   ||(R_TYPE) == R_LARCH_CALL36)
 
 /* If TLS GD/IE need dynamic relocations, INDX will be the dynamic indx,
    and set NEED_RELOC to true used in allocate_dynrelocs and
@@ -490,7 +489,7 @@ loongarch_elf_link_hash_table_create (bfd *abfd)
 
   if (!_bfd_elf_link_hash_table_init
       (&ret->elf, abfd, link_hash_newfunc,
-       sizeof (struct loongarch_elf_link_hash_entry), LARCH_ELF_DATA))
+       sizeof (struct loongarch_elf_link_hash_entry)))
     {
       free (ret);
       return NULL;
@@ -864,8 +863,16 @@ bad_static_reloc (struct bfd_link_info *info,
 {
   reloc_howto_type * r = loongarch_elf_rtype_to_howto (abfd, r_type);
   const char *object;
-  const char *pic;
+  const char *pic_opt;
   const char *name = NULL;
+
+  /* If this, the problem is we are referring an external symbol in
+     a way only working for local symbols, not PC-relative vs.
+	 absolute.  */
+  bool bad_extern_access =
+    (bfd_link_pde (info)
+     || r_type == R_LARCH_PCREL20_S2
+     || r_type == R_LARCH_PCALA_HI20);
 
   if (h)
     name = h->root.root.string;
@@ -874,12 +881,12 @@ bad_static_reloc (struct bfd_link_info *info,
 					    elf_symtab_hdr (abfd).sh_link,
 					    isym->st_name);
   if (name == NULL || *name == '\0')
-    name ="<nameless>";
+    name = "<nameless>";
 
   if (bfd_link_dll (info))
     {
       object = _("a shared object");
-      pic = _("; recompile with -fPIC");
+      pic_opt = "-fPIC";
     }
   else
     {
@@ -887,13 +894,16 @@ bad_static_reloc (struct bfd_link_info *info,
 	object = _("a PIE object");
       else
 	object = _("a PDE object");
-      pic = _("; recompile with -fPIE");
+
+      pic_opt = bad_extern_access ? "-mno-direct-extern-access" : "-fPIE";
     }
 
   (*_bfd_error_handler)
    (_("%pB:(%pA+%#lx): relocation %s against `%s` can not be used when making "
-      "%s%s"),
-    abfd, sec, (long) rel->r_offset, r ? r->name : _("<unknown>"), name, object, pic);
+      "%s; recompile with %s%s"),
+    abfd, sec, (long) rel->r_offset, r ? r->name : _("<unknown>"), name,
+    object, pic_opt,
+    bad_extern_access ? _(" and check the symbol visibility") : "");
   bfd_set_error (bfd_error_bad_value);
   return false;
 }
@@ -1097,12 +1107,16 @@ loongarch_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	/* Since shared library global symbols interpose, any
 	   PC-relative relocations against external symbols
-	   should not be used to build shared libraries.  */
+	   should not be used to build shared libraries.
+	   In static PIE undefined weak symbols may be allowed
+	   by rewriting pcaddi to addi.w if addend is in [-2048, 2048).  */
 	case R_LARCH_PCREL20_S2:
 	  if (bfd_link_pic (info)
 	      && (sec->flags & SEC_ALLOC) != 0
 	      && (sec->flags & SEC_READONLY) != 0
-	      && ! LARCH_REF_LOCAL (info, h))
+	      && ! LARCH_REF_LOCAL (info, h)
+	      && (!info->nointerp
+		  || h->root.type != bfd_link_hash_undefweak))
 	    return bad_static_reloc (info, abfd, rel, sec, r_type, h, NULL);
 
 	  break;
@@ -1125,12 +1139,16 @@ loongarch_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    }
 
 	  /* PC-relative relocations are allowed For first version
-	     medium cmodel function call.  */
+	     medium cmodel function call.  Those against undefined
+	     weak symbol are allowed for static PIE by rewritting
+	     pcalau12i to lu12i.w.  */
 	  if (h != NULL && !h->needs_plt
 	      && bfd_link_pic (info)
 	      && (sec->flags & SEC_ALLOC) != 0
 	      && (sec->flags & SEC_READONLY) != 0
-	      && ! LARCH_REF_LOCAL (info, h))
+	      && ! LARCH_REF_LOCAL (info, h)
+	      && (!info->nointerp
+		  || h->root.type != bfd_link_hash_undefweak))
 	    return bad_static_reloc (info, abfd, rel, sec, r_type, h, NULL);
 
 	  break;
@@ -3252,6 +3270,7 @@ loongarch_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
       char tls_type;
       bfd_vma relocation, off, ie_off, desc_off;
       int i, j;
+      bool resolve_pcrel_undef_weak = false;
 
       /* When an unrecognized relocation is encountered, which usually
 	 occurs when using a newer assembler but an older linker, an error
@@ -4015,9 +4034,44 @@ loongarch_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	case R_LARCH_B26:
 	case R_LARCH_CALL36:
 	  unresolved_reloc = false;
+	  bool via_plt =
+	    plt != NULL && h != NULL && h->plt.offset != (bfd_vma) - 1;
+
 	  if (is_undefweak)
 	    {
 	      relocation = 0;
+
+	      /* A call to an undefined weak symbol is converted to 0.  */
+	      if (!via_plt && IS_CALL_RELOC (r_type))
+		{
+		  /* call36 fn1 => pcaddu18i $ra,0+jirl $ra,$zero,0
+		     tail36 $t0,fn1 => pcaddi18i $t0,0+jirl $zero,$zero,0  */
+		  if (R_LARCH_CALL36 == r_type)
+		    {
+		      uint32_t jirl = bfd_get (32, input_bfd,
+					  contents + rel->r_offset + 4);
+		      uint32_t rd = LARCH_GET_RD (jirl);
+		      jirl = LARCH_OP_JIRL | rd;
+
+		      bfd_put (32, input_bfd, jirl,
+			       contents + rel->r_offset + 4);
+		    }
+		  else
+		    {
+		      uint32_t b_bl = bfd_get (32, input_bfd,
+					       contents + rel->r_offset);
+		      /* b %plt(fn1) => jirl $zero,zero,0.  */
+		      if (LARCH_INSN_B (b_bl))
+			bfd_put (32, input_bfd, LARCH_OP_JIRL,
+				 contents + rel->r_offset);
+		      else
+		      /* bl %plt(fn1) => jirl $ra,zero,0.  */
+		      bfd_put (32, input_bfd, LARCH_OP_JIRL | 0x1,
+			       contents + rel->r_offset);
+		    }
+		  r = bfd_reloc_continue;
+		  break;
+		}
 	    }
 
 	  if (resolved_local)
@@ -4068,23 +4122,75 @@ loongarch_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 
 	  break;
 
+	case R_LARCH_PCALA64_HI12:
+	  pc -= 4;
+	  /* Fall through.  */
+	case R_LARCH_PCALA64_LO20:
+	  pc -= 8;
+	  /* Fall through.  */
 	case R_LARCH_PCREL20_S2:
-	  unresolved_reloc = false;
-	  if (h && h->plt.offset != MINUS_ONE)
-	    relocation = sec_addr (plt) + h->plt.offset;
-	  else
-	    relocation += rel->r_addend;
-	  relocation -= pc;
-	  break;
-
 	case R_LARCH_PCALA_HI20:
 	  unresolved_reloc = false;
+
+	  /* If sym is undef weak and it's hidden or we are doing a static
+	     link, (sym + addend) should be resolved to runtime address
+	     (0 + addend).  */
+	  resolve_pcrel_undef_weak =
+	    ((info->nointerp
+	      || (h && ELF_ST_VISIBILITY (h->other) != STV_DEFAULT))
+	     && is_undefweak);
+
+	  if (resolve_pcrel_undef_weak)
+	    pc = 0;
+
 	  if (h && h->plt.offset != MINUS_ONE)
 	    relocation = sec_addr (plt) + h->plt.offset;
 	  else
 	    relocation += rel->r_addend;
 
-	  RELOCATE_CALC_PC32_HI20 (relocation, pc);
+	  switch (r_type)
+	    {
+	    case R_LARCH_PCREL20_S2:
+	      relocation -= pc;
+	      if (resolve_pcrel_undef_weak)
+		{
+		  bfd_signed_vma addr = (bfd_signed_vma) relocation;
+		  if (addr >= 2048 || addr < -2048)
+		    {
+		      const char *msg =
+			_("cannot resolve R_LARCH_PCREL20_S2 against "
+			  "undefined weak symbol with addend out of "
+			  "[-2048, 2048)");
+		      fatal =
+			loongarch_reloc_is_fatal (info, input_bfd,
+						  input_section, rel,
+						  howto,
+						  bfd_reloc_notsupported,
+						  is_undefweak, name, msg);
+		      break;
+		    }
+
+		  uint32_t insn = bfd_get (32, input_bfd,
+					   contents + rel->r_offset);
+		  insn = LARCH_GET_RD (insn) | LARCH_OP_ADDI_W;
+		  insn |= (relocation & 0xfff) << 10;
+		  bfd_put_32 (input_bfd, insn, contents + rel->r_offset);
+		  r = bfd_reloc_continue;
+		}
+	      break;
+	    case R_LARCH_PCALA_HI20:
+	      RELOCATE_CALC_PC32_HI20 (relocation, pc);
+	      if (resolve_pcrel_undef_weak)
+		{
+		  uint32_t insn = bfd_get (32, input_bfd,
+					   contents + rel->r_offset);
+		  insn = LARCH_GET_RD (insn) | LARCH_OP_LU12I_W;
+		  bfd_put_32 (input_bfd, insn, contents + rel->r_offset);
+		}
+	      break;
+	    default:
+	      RELOCATE_CALC_PC64_HI32 (relocation, pc);
+	    }
 	  break;
 
 	case R_LARCH_TLS_LE_HI20_R:
@@ -4119,19 +4225,6 @@ loongarch_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	      rel->r_info = ELFNN_R_INFO (r_symndx, R_LARCH_B16);
 	      howto = loongarch_elf_rtype_to_howto (input_bfd, R_LARCH_B16);
 	    }
-	  break;
-
-	case R_LARCH_PCALA64_HI12:
-	  pc -= 4;
-	  /* Fall through.  */
-	case R_LARCH_PCALA64_LO20:
-	  if (h && h->plt.offset != MINUS_ONE)
-	    relocation = sec_addr (plt) + h->plt.offset;
-	  else
-	    relocation += rel->r_addend;
-
-	  RELOCATE_CALC_PC64_HI32 (relocation, pc - 8);
-
 	  break;
 
 	case R_LARCH_GOT_PC_HI20:
@@ -6231,7 +6324,9 @@ elf_loongarch64_hash_symbol (struct elf_link_hash_entry *h)
 #define ELF_ARCH bfd_arch_loongarch
 #define ELF_TARGET_ID LARCH_ELF_DATA
 #define ELF_MACHINE_CODE EM_LOONGARCH
-#define ELF_MAXPAGESIZE 0x4000
+#define ELF_MINPAGESIZE 0x1000
+#define ELF_MAXPAGESIZE 0x10000
+#define ELF_COMMONPAGESIZE 0x4000
 #define bfd_elfNN_bfd_reloc_type_lookup loongarch_reloc_type_lookup
 #define bfd_elfNN_bfd_link_hash_table_create				  \
   loongarch_elf_link_hash_table_create

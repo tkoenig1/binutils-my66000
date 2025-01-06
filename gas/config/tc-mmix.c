@@ -1,5 +1,5 @@
 /* tc-mmix.c -- Assembler for Don Knuth's MMIX.
-   Copyright (C) 2001-2024 Free Software Foundation, Inc.
+   Copyright (C) 2001-2025 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -439,16 +439,6 @@ mmix_fill_nops (char *opcodep, int n)
 
   for (i = 0; i < n; i++)
     md_number_to_chars (opcodep + i * 4, SWYM_INSN_BYTE << 24, 4);
-}
-
-/* See macro md_parse_name in tc-mmix.h.  */
-
-int
-mmix_current_location (void (*fn) (expressionS *), expressionS *exp)
-{
-  (*fn) (exp);
-
-  return 1;
 }
 
 /* Get up to three operands, filling them into the exp array.
@@ -2888,9 +2878,8 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
       return NULL;
     }
 
-  relP = XNEW (arelent);
-  gas_assert (relP != 0);
-  relP->sym_ptr_ptr = XNEW (asymbol *);
+  relP = notes_alloc (sizeof (arelent));
+  relP->sym_ptr_ptr = notes_alloc (sizeof (asymbol *));
   *relP->sym_ptr_ptr = baddsy;
   relP->address = fixP->fx_frag->fr_address + fixP->fx_where;
 

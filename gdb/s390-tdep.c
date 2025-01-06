@@ -40,6 +40,7 @@
 #include "trad-frame.h"
 #include "value.h"
 #include "inferior.h"
+#include "dwarf2/loc.h"
 
 #include "features/s390-linux32.c"
 #include "features/s390x-linux64.c"
@@ -2119,6 +2120,62 @@ s390_return_value (struct gdbarch *gdbarch, struct value *function,
   return rvc;
 }
 
+/* Try to get the value of DWARF_REG in FRAME at function entry.  If successful,
+   return it as value of type VAL_TYPE.  */
+
+static struct value *
+dwarf_reg_on_entry (int dwarf_reg, struct type *val_type,
+		    const frame_info_ptr &frame)
+{
+  enum call_site_parameter_kind kind = CALL_SITE_PARAMETER_DWARF_REG;
+  union call_site_parameter_u kind_u = { .dwarf_reg = dwarf_reg };
+
+  try
+    {
+      return value_of_dwarf_reg_entry (val_type, frame, kind, kind_u);
+    }
+  catch (const gdb_exception_error &e)
+    {
+      if (e.error == NO_ENTRY_VALUE_ERROR)
+	return nullptr;
+
+      throw;
+    }
+}
+
+/* Both the 32-bit and 64-bit ABIs specify that values of some types are
+   returned in a storage buffer provided by the caller.  Return the address of
+   that storage buffer, if possible.  Implements the
+   gdbarch_get_return_buf_addr hook.  */
+
+static CORE_ADDR
+s390_get_return_buf_addr (struct type *val_type,
+			  const frame_info_ptr &cur_frame)
+{
+  /* The address of the storage buffer is provided as a hidden argument in
+     register r2.  */
+  int dwarf_reg = 2;
+
+  /* The ABI does not guarantee that the register will not be changed while
+     executing the function.  Hence, it cannot be assumed that it will still
+     contain the address of the storage buffer when execution reaches the end
+     of the function.
+
+     Attempt to determine the value on entry using the DW_OP_entry_value DWARF
+     entries.  This requires compiling the user program with -fvar-tracking.  */
+  struct value *val_on_entry
+    = dwarf_reg_on_entry (dwarf_reg, lookup_pointer_type (val_type), cur_frame);
+
+  if (val_on_entry == nullptr)
+    {
+      warning ("Cannot determine the function return value.\n"
+	       "Try compiling with -fvar-tracking.");
+      return 0;
+    }
+
+  return value_as_address (val_on_entry);
+}
+
 /* Frame unwinding.  */
 
 /* Implement the stack_frame_destroyed_p gdbarch method.  */
@@ -4014,6 +4071,13 @@ ex:
 	/* 0xb330-0xb335 undefined */
 
 	case 0xb33a: /* MAYR - multiply and add unnormalized */
+	  /* float pair destination [RRD]; R1 may designate lower- or
+	     higher-numbered register of pair */
+	  if (record_full_arch_list_add_reg (regcache, S390_F0_REGNUM + (inib[4] & 13)))
+	    return -1;
+	  if (record_full_arch_list_add_reg (regcache, S390_F0_REGNUM + (inib[4] | 2)))
+	    return -1;
+	  break;
 	case 0xb33b: /* MYR - multiply unnormalized */
 	  /* float pair destination [RRD] */
 	  if (record_full_arch_list_add_reg (regcache, S390_F0_REGNUM + inib[4]))
@@ -6333,6 +6397,13 @@ ex:
 	/* 0xed36 undefined */
 
 	case 0xed3a: /* MAY - multiply and add unnormalized */
+	  /* float pair destination [RXF]; R1 may designate lower- or
+	     higher-numbered register of pair */
+	  if (record_full_arch_list_add_reg (regcache, S390_F0_REGNUM + (inib[8] & 13)))
+	    return -1;
+	  if (record_full_arch_list_add_reg (regcache, S390_F0_REGNUM + (inib[8] | 2)))
+	    return -1;
+	  break;
 	case 0xed3b: /* MY - multiply unnormalized */
 	  /* float pair destination [RXF] */
 	  if (record_full_arch_list_add_reg (regcache, S390_F0_REGNUM + inib[8]))
@@ -7183,6 +7254,7 @@ s390_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_dummy_id (gdbarch, s390_dummy_id);
   set_gdbarch_frame_align (gdbarch, s390_frame_align);
   set_gdbarch_return_value (gdbarch, s390_return_value);
+  set_gdbarch_get_return_buf_addr (gdbarch, s390_get_return_buf_addr);
 
   /* Frame handling.  */
   /* Stack grows downward.  */

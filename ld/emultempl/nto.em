@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2023-2024 Free Software Foundation, Inc.
+#   Copyright (C) 2023-2025 Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.
 #
@@ -22,7 +22,7 @@
 # specific routines.
 
 # NTO templates aims to refine the default ${ARCH}elf.em template.
-. "${srcdir}/emultempl/${ARCH}elf.em"
+source_em "${srcdir}/emultempl/${ARCH}elf.em"
 
 cat >>e${EMULATION_NAME}.c <<EOF
 

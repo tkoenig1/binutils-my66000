@@ -1,5 +1,9 @@
 -*- text -*-
 
+* Add support for the x86 Intel AVX10.2 instructions.
+
+* Add support for the x86 Intel SM4 AVX10.2 instructions.
+
 * Support for Nios II targets has been dropped, as the architecture has
   been EOL'ed by Intel.
 
@@ -9,8 +13,8 @@
 
 * On x86 emulation support (for secondary targets) was dropped.
 
-* Add support for RISC-V Zcmp (cm.mva01s, cm.mvsa01), Smrnmi, CORE-V
-  (xcvbitmanip, xcvsimd) extensions with version 1.0 and more SiFive
+* Add support for RISC-V Zcmp (cm.mva01s, cm.mvsa01), Smrnmi, S[sm]dbltrp,
+  CORE-V (xcvbitmanip, xcvsimd) extensions with version 1.0 and more SiFive
   extensions (xsfvqmaccdod, xsfvqmaccqoq and xsfvfnrclipxfqf).
 
 Changes in 2.43:
@@ -1230,7 +1234,7 @@ Changes in 1.93.01:
   of new CPUs and formats, lots of bugs fixed.
 
 
-Copyright (C) 2012-2024 Free Software Foundation, Inc.
+Copyright (C) 2012-2025 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

@@ -1,5 +1,5 @@
 /* BFD back-end for Intel Hex objects.
-   Copyright (C) 1995-2024 Free Software Foundation, Inc.
+   Copyright (C) 1995-2025 Free Software Foundation, Inc.
    Written by Ian Lance Taylor of Cygnus Support <ian@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -486,7 +486,6 @@ ihex_scan (bfd *abfd)
 static bfd_cleanup
 ihex_object_p (bfd *abfd)
 {
-  void * tdata_save;
   bfd_byte b[9];
   unsigned int i;
   unsigned int type;
@@ -525,12 +524,12 @@ ihex_object_p (bfd *abfd)
     }
 
   /* OK, it looks like it really is an Intel Hex file.  */
-  tdata_save = abfd->tdata.any;
-  if (! ihex_mkobject (abfd) || ! ihex_scan (abfd))
+  if (!ihex_mkobject (abfd))
+    return NULL;
+
+  if (!ihex_scan (abfd))
     {
-      if (abfd->tdata.any != tdata_save && abfd->tdata.any != NULL)
-	bfd_release (abfd, abfd->tdata.any);
-      abfd->tdata.any = tdata_save;
+      bfd_release (abfd, abfd->tdata.any);
       return NULL;
     }
 
@@ -998,13 +997,13 @@ const bfd_target ihex_vec =
   {
     _bfd_bool_bfd_false_error,
     ihex_mkobject,
-    _bfd_generic_mkarchive,
+    _bfd_bool_bfd_false_error,
     _bfd_bool_bfd_false_error,
   },
   {				/* bfd_write_contents.  */
     _bfd_bool_bfd_false_error,
     ihex_write_object_contents,
-    _bfd_write_archive_contents,
+    _bfd_bool_bfd_false_error,
     _bfd_bool_bfd_false_error,
   },
 

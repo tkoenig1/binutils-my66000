@@ -1,5 +1,5 @@
 /* RISC-V-specific support for ELF.
-   Copyright (C) 2011-2024 Free Software Foundation, Inc.
+   Copyright (C) 2011-2025 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on TILE-Gx and MIPS targets.
@@ -1262,6 +1262,7 @@ static struct riscv_implicit_subset riscv_implicit_subsets[] =
   {"smcntrpmf", "+zicsr", check_implicit_always},
   {"smstateen", "+ssstateen", check_implicit_always},
   {"smepmp", "+zicsr", check_implicit_always},
+  {"smdbltrp", "+zicsr", check_implicit_always},
 
   {"ssaia", "+zicsr", check_implicit_always},
   {"sscsrind", "+zicsr", check_implicit_always},
@@ -1272,6 +1273,7 @@ static struct riscv_implicit_subset riscv_implicit_subsets[] =
   {"sstvala", "+zicsr", check_implicit_always},
   {"sstvecd", "+zicsr", check_implicit_always},
   {"ssu64xl", "+zicsr", check_implicit_always},
+  {"ssdbltrp", "+zicsr", check_implicit_always},
 
   {"svade", "+zicsr", check_implicit_always},
   {"svadu", "+zicsr", check_implicit_always},
@@ -1448,6 +1450,7 @@ static struct riscv_supported_ext riscv_supported_std_s_ext[] =
   {"smepmp",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"smrnmi",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"smstateen",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
+  {"smdbltrp",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"ssaia",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"ssccptr",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"sscsrind",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
@@ -1458,6 +1461,7 @@ static struct riscv_supported_ext riscv_supported_std_s_ext[] =
   {"sstvala",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"sstvecd",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"ssu64xl",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
+  {"ssdbltrp",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"svade",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"svadu",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },
   {"svbare",		ISA_SPEC_CLASS_DRAFT,		1, 0, 0 },

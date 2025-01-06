@@ -1,5 +1,5 @@
 /* opncls.c -- open and close a BFD.
-   Copyright (C) 1990-2024 Free Software Foundation, Inc.
+   Copyright (C) 1990-2025 Free Software Foundation, Inc.
 
    Written by Cygnus Support.
 
@@ -45,18 +45,9 @@ SUBSECTION
 	Functions for opening and closing
 */
 
-/* Counters used to initialize the bfd identifier.  */
+/* Counter used to initialize the unique bfd identifier.  */
 
 static unsigned int bfd_id_counter = 0;
-static unsigned int bfd_reserved_id_counter = 0;
-
-/*
-EXTERNAL
-.{* Set to N to open the next N BFDs using an alternate id space.  *}
-.extern unsigned int bfd_use_reserved_id;
-.
-*/
-unsigned int bfd_use_reserved_id = 0;
 
 /* fdopen is a loser -- we should use stdio exclusively.  Unfortunately
    if we do that we can't use fcntl.  */
@@ -83,13 +74,7 @@ _bfd_new_bfd (void)
 
   if (!bfd_lock ())
     return NULL;
-  if (bfd_use_reserved_id)
-    {
-      nbfd->id = --bfd_reserved_id_counter;
-      --bfd_use_reserved_id;
-    }
-  else
-    nbfd->id = bfd_id_counter++;
+  nbfd->id = bfd_id_counter++;
   if (!bfd_unlock ())
     {
       free (nbfd);
@@ -958,7 +943,6 @@ bfd_close_all_done (bfd *abfd)
     _maybe_make_executable (abfd);
 
   _bfd_delete_bfd (abfd);
-  _bfd_clear_error_data ();
 
   return ret;
 }
@@ -1783,7 +1767,7 @@ bfd_fill_in_gnu_debuglink_section (bfd *abfd,
   debuglink_size &= ~3;
   debuglink_size += 4;
 
-  contents = (char *) bfd_malloc (debuglink_size);
+  contents = bfd_malloc (debuglink_size);
   if (contents == NULL)
     {
       /* XXX Should we delete the section from the bfd ?  */
@@ -1796,14 +1780,9 @@ bfd_fill_in_gnu_debuglink_section (bfd *abfd,
 
   bfd_put_32 (abfd, crc32, contents + crc_offset);
 
-  if (! bfd_set_section_contents (abfd, sect, contents, 0, debuglink_size))
-    {
-      /* XXX Should we delete the section from the bfd ?  */
-      free (contents);
-      return false;
-    }
-
-  return true;
+  bool ret = bfd_set_section_contents (abfd, sect, contents, 0, debuglink_size);
+  free (contents);
+  return ret;
 }
 
 /* Finds the build-id associated with @var{abfd}.  If the build-id is

@@ -1,4 +1,4 @@
-/* Copyright (C) 2021-2024 Free Software Foundation, Inc.
+/* Copyright (C) 2021-2025 Free Software Foundation, Inc.
    Contributed by Oracle.
 
    This file is part of GNU Binutils.
@@ -521,12 +521,11 @@ Hist_data::sort (long ind, bool reverse)
     hist_items->sort ((CompareFunc) sort_compare_all, this);
 
   // ensure that <Total> comes first/last
-  char *tname = NTXT ("<Total>");
   for (int i = 0; i < hist_items->size (); ++i)
     {
       HistItem *hi = hist_items->fetch (i);
       char *name = hi->obj->get_name ();
-      if (name != NULL && streq (name, tname))
+      if (name != NULL && strncmp (name, "<Total>", 7) == 0)
 	{
 	  int idx0 = rev_sort ? hist_items->size () - 1 : 0;
 	  if (i != idx0)

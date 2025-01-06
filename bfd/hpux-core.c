@@ -1,5 +1,5 @@
 /* BFD back-end for HP/UX core files.
-   Copyright (C) 1993-2024 Free Software Foundation, Inc.
+   Copyright (C) 1993-2025 Free Software Foundation, Inc.
    Written by Stu Grossman, Cygnus Support.
    Converted to back-end form by Ian Lance Taylor, Cygnus SUpport
 
@@ -128,7 +128,7 @@ make_bfd_asection (bfd *abfd, const char *name, flagword flags,
 /* Return true if the given core file section corresponds to a thread,
    based on its name.  */
 
-static int
+static bool
 thread_section_p (bfd *abfd ATTRIBUTE_UNUSED,
 		  asection *sect,
 		  void *obj ATTRIBUTE_UNUSED)

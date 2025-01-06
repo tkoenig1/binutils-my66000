@@ -7,7 +7,7 @@
 
 /* Main header file for the bfd library -- portable access to object files.
 
-   Copyright (C) 1990-2024 Free Software Foundation, Inc.
+   Copyright (C) 1990-2025 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.
 
@@ -811,7 +811,6 @@ typedef struct bfd_section
 
   /* A symbol which points at this section only.  */
   struct bfd_symbol *symbol;
-  struct bfd_symbol **symbol_ptr_ptr;
 
   /* Early in the link process, map_head and map_tail are used to build
      a list of input sections attached to an output section.  Later,
@@ -1002,8 +1001,8 @@ discarded_section (const asection *sec)
   /* target_index, used_by_bfd, constructor_chain, owner,           */ \
      0,            NULL,        NULL,              NULL,               \
 								       \
-  /* symbol,                    symbol_ptr_ptr,                     */ \
-     (struct bfd_symbol *) SYM, &SEC.symbol,                           \
+  /* symbol,                                                        */ \
+     (struct bfd_symbol *) SYM,                                        \
 								       \
   /* map_head, map_tail, already_assigned, type                     */ \
      { NULL }, { NULL }, NULL,             0                           \
@@ -3009,9 +3008,6 @@ bool bfd_merge_private_bfd_data
 		 (ibfd, info))
 
 /* Extracted from opncls.c.  */
-/* Set to N to open the next N BFDs using an alternate id space.  */
-extern unsigned int bfd_use_reserved_id;
-
 bfd *bfd_fopen (const char *filename, const char *target,
     const char *mode, int fd);
 
@@ -8027,6 +8023,13 @@ static inline bool
 bfd_keep_unused_section_symbols (const bfd *abfd)
 {
   return abfd->xvec->keep_unused_section_symbols;
+}
+
+static inline bool
+bfd_target_supports_archives (const bfd *abfd)
+{
+  return (abfd->xvec->_bfd_check_format[bfd_archive]
+	  != abfd->xvec->_bfd_check_format[bfd_unknown]);
 }
 
 bool bfd_set_default_target (const char *name);
