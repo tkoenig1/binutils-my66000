@@ -1493,6 +1493,8 @@ static const my66000_fmt_spec_t mem_fmt_list[] =
 {
  { "A,[K]",   0, 0xffff},
  { "A,[K,E]", 0, 0,    },
+ { "A,[t]",   0, 0xffff},
+ { "A,[t,v]", 0, 0,    },
  { NULL,      0, 0,    },
 };
 
