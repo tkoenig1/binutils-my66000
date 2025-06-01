@@ -188,7 +188,6 @@ instruction_type (my66000_encoding enc)
       return "mem";
     case MY66000_MM:
     case MY66000_MS_55:
-    case MY66000_MS_56:
     case MY66000_MS_60:
       return "mm";
     case MY66000_ARITH:
@@ -919,12 +918,6 @@ match_64_bit_or_label (char **ptr, char **errmsg, expressionS *ex)
 }
 
 static uint64_t
-match_32_bit_vanilla (char **ptr, char **errmsg, expressionS *ex)
-{
-  return match_num_or_label (ptr, errmsg, ex, 32, true);
-}
-
-static uint64_t
 match_64_bit_vanilla (char **ptr, char **errmsg, expressionS *ex)
 {
   return match_num_or_label (ptr, errmsg, ex, 64, true);
@@ -941,6 +934,64 @@ match_ins_width (char **ptr, char **errmsg)
 {
   return match_integer (ptr, errmsg, 1, 64);
 }
+
+/* Do the matching for a 32- or 64-bit constant "by hand", this is
+   needed to differentiate between different size float formats.
+   C'est la vie... */
+
+static uint64_t
+match_hex (char **ptr, char **errmsg, int bytes)
+{
+  char *str;
+  *errmsg = NULL;
+  str = *ptr;
+  uint64_t val;
+  int i;
+
+  /* Drop leading whitespace.  */
+  while (ISSPACE (*str))
+    str++;
+
+  if (str[0] != '0' && (str[1] != 'x' || str[1] != 'X'))
+    {
+      strcpy (errbuf, "Need starting 0x for hex constant");
+      *errmsg = errbuf;
+      return 0;
+    }
+  str += 2;
+  val = 0;
+  /* Roll our own strtoul, with checking the number of digits.  */
+  for (i = 0; i<2*bytes; i++)
+    {
+      if (ISDIGIT(str[i]))
+	{
+	  val = 16*val + str[i] - '0';
+	}
+      else
+	{
+	  char ch = TOLOWER(str[i]);
+	  if (ch >= 'a' && ch <= 'f')
+	    {
+	      val = 16*val + ch - 'a';
+	    }
+	  else
+	    {
+	      snprintf (errbuf, sizeof(errbuf), "Hex digit required, seen %c",
+		       str[i]);
+	      *errmsg = errbuf;
+	      return 0;
+	    }
+	}
+    }
+  if (ISXDIGIT(str[i]))
+    {
+      strcpy (errbuf, "Too many hex digits");
+      return 0;
+    }
+  *ptr = str + i;
+  return val;
+}
+
 
 /* Match an INS pattern, #o,#w.  Dept. of dirty tricks: This breaks
    only matching single operands, but anything else would be too
@@ -1357,7 +1408,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 
 	case MY66000_OPS_I32_HEX:
-	  val_tmp = match_32_bit_vanilla (&sp, errmsg, &imm);
+	  val_tmp = match_hex (&sp, errmsg, 4);
 	  if (*errmsg)
 	    break;
 	  imm.X_op = O_constant;
@@ -1377,7 +1428,7 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  break;
 
 	case MY66000_OPS_I64_HEX:
-	  val_tmp = match_64_bit_vanilla (&sp, errmsg, &imm);
+	  val_tmp = match_hex (&sp, errmsg, 8);
 	  if (*errmsg)
 	    break;
 	  imm.X_op = O_constant;

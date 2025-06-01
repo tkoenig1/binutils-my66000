@@ -114,7 +114,7 @@
 #define OP5_MINOR(x) ((x) << OPF_OFFS)
 #define OP5_MASK OP5_MINOR(31)
 
-#define LOOP_OFFS 10
+#define LOOP_OFFS 24
 #define LOOP_MINOR(x) ((x) << LOOP_OFFS)
 #define LOOP_MASK LOOP_MINOR(3)
 
@@ -612,7 +612,7 @@ static const my66000_opc_info_t opc_op1[] =
  { NULL,   MAJOR(9) | MINOR (53), MY66000_BAD, NULL, 0, 0},
  { "mm",   MAJOR(9) | MINOR (54), MY66000_MM,  NULL, 0, 0},
  { "ms",   MAJOR(9) | MINOR (55), MY66000_MS_55, NULL, 0, 0},
- { "ms",   MAJOR(9) | MINOR (56), MY66000_MS_56, NULL, 0, 0},
+ { NULL,   MAJOR(9) | MINOR (56), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (57), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (58), MY66000_BAD, NULL, 0, 0},
  { NULL,   MAJOR(9) | MINOR (59), MY66000_BAD, NULL, 0, 0},
@@ -2112,21 +2112,7 @@ static const my66000_fmt_spec_t mm_fmt_list [] =
 
 static const my66000_fmt_spec_t ms_55_fmt_list[] =
 {
-  { "C,A,B",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
-  { "C,A,#L", XOP1_BITS(1,0), XOP1_FLAGS_MASK | SRC1_MASK },
-  { "C,A,#P", XOP1_BITS(1,1), XOP1_FLAGS_MASK | SRC1_MASK },
-  { NULL, 0, 0},
-};
-
-
-/* Minor opcode 56 (111000) - Source is 8-bit data in a 32-bit
-   container.  */
-
-static const my66000_fmt_spec_t ms_56_fmt_list[] =
-{
-  { "C,#p,B",  XOP1_BITS(0,0), XOP1_FLAGS_MASK | DST_MASK },
-  { "C,#p,#L", XOP1_BITS(1,0), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
-  { "C,#p,#P", XOP1_BITS(1,1), XOP1_FLAGS_MASK | DST_MASK | SRC1_MASK },
+  { "B,A,C",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
   { NULL, 0, 0},
 };
 
@@ -2296,42 +2282,37 @@ static const my66000_fmt_spec_t vec32_fmt_list[] =
   { NULL, 0, 0},
 };
 
-/* LOOP uses the same bits as XOP4.  It also has some bits forced to
-zero, to pad out the KIND number.  */
-
-#define LOOP_KIND_MASK (3 << 24)
+#define LOOP_BITS(I,S1,S2,d) ((I<<15) | (S1<<14) | (S2<<13) | (d<<11))
+#define LOOP_FMT_MASK (LOOP_BITS(1,1,1,1) | (1<<10))
 
 static const my66000_fmt_spec_t loopu_fmt_list[] =
 {
-  { "m,B,N,C",   XOP4_BITS (0, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
-  { "m,B,#o,C",  XOP4_BITS (0, 0, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
-  { "m,B,N,#G",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
-  { "m,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
-
-  { "m,B,#b,C",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
-  { "m,B,N,#L",  XOP4_BITS (1, 0, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
-  { "m,B,#r,#f", XOP4_BITS (1, 0, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
-  { "m,B,#P,C",  XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
-  { "m,B,N,#U",  XOP4_BITS (1, 1, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
-  { "m,B,#b,#L", XOP4_BITS (1, 1, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
+  { "m,B,N,C",   LOOP_BITS (0,0,0,0), LOOP_FMT_MASK},
+  { "m,B,N,#G",  LOOP_BITS (0,0,1,0), LOOP_FMT_MASK},
+  { "m,B,#o,C",  LOOP_BITS (0,1,0,0), LOOP_FMT_MASK},
+  { "m,B,#o,#G", LOOP_BITS (0,1,1,0), LOOP_FMT_MASK},
+  { "m,B,N,#L",  LOOP_BITS (1,0,0,0), LOOP_FMT_MASK | SRC2_MASK },
+  { "m,B,#b,C",  LOOP_BITS (1,0,1,0), LOOP_FMT_MASK | SRC3_MASK },
+  { "m,B,N,#U",  LOOP_BITS (1,1,0,0), LOOP_FMT_MASK | SRC2_MASK },
+  { "m,B,#P,C",  LOOP_BITS (1,1,1,0), LOOP_FMT_MASK | SRC3_MASK },
+  { "m,B,#r,#f", LOOP_BITS (1,0,0,1), LOOP_FMT_MASK | SRC2_MASK | SRC3_MASK },
+  { "m,B,#b,#L", LOOP_BITS (1,1,0,1), LOOP_FMT_MASK | SRC2_MASK | SRC3_MASK },
   { NULL, 0, 0},
 };
 
 static const my66000_fmt_spec_t loops_fmt_list[] =
 {
-  { "n,B,N,C",   XOP4_BITS (0, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
-  { "n,B,#o,C",  XOP4_BITS (0, 0, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
-  { "n,B,N,#G",  XOP4_BITS (0, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK},
-  { "n,B,#o,#G", XOP4_BITS (0, 1, 1), XOP4_FMT_MASK | LOOP_KIND_MASK},
-
-  { "n,B,#b,C",  XOP4_BITS (1, 0, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
-  { "n,B,N,#L",  XOP4_BITS (1, 0, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
-  { "n,B,#r,#f", XOP4_BITS (1, 0, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
-  { "n,B,#P,C",  XOP4_BITS (1, 1, 0), XOP4_FMT_MASK | LOOP_KIND_MASK | SRC3_MASK},
-  { "n,B,N,#U",  XOP4_BITS (1, 1, 1) | 0, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK },
-  { "n,B,#b,#L", XOP4_BITS (1, 1, 1) | 1, XOP4_FMT_MASK | LOOP_KIND_MASK | SRC2_MASK | SRC3_MASK},
-
-   { NULL, 0, 0},
+  { "n,B,N,C",   LOOP_BITS (0,0,0,0), LOOP_FMT_MASK},
+  { "n,B,N,#G",  LOOP_BITS (0,0,1,0), LOOP_FMT_MASK},
+  { "n,B,#o,C",  LOOP_BITS (0,1,0,0), LOOP_FMT_MASK},
+  { "n,B,#o,#G", LOOP_BITS (0,1,1,0), LOOP_FMT_MASK},
+  { "n,B,N,#L",  LOOP_BITS (1,0,0,0), LOOP_FMT_MASK | SRC2_MASK },
+  { "n,B,#b,C",  LOOP_BITS (1,0,1,0), LOOP_FMT_MASK | SRC3_MASK },
+  { "n,B,N,#U",  LOOP_BITS (1,1,0,0), LOOP_FMT_MASK | SRC2_MASK },
+  { "n,B,#P,C",  LOOP_BITS (1,1,1,0), LOOP_FMT_MASK | SRC3_MASK },
+  { "n,B,#r,#f", LOOP_BITS (1,0,0,1), LOOP_FMT_MASK | SRC2_MASK | SRC3_MASK },
+  { "n,B,#b,#L", LOOP_BITS (1,1,0,1), LOOP_FMT_MASK | SRC2_MASK | SRC3_MASK },
+  { NULL, 0, 0},
 };
 
 static const my66000_fmt_spec_t svc_fmt_list[] =
@@ -2440,7 +2421,6 @@ const my66000_opcode_fmt_t my66000_opcode_fmt[] =
    { ldm_fmt_list,      MY66000_LDM   },
    { xop0_fmt_list,     MY66000_XOP0  },
    { ms_55_fmt_list,    MY66000_MS_55 },
-   { ms_56_fmt_list,    MY66000_MS_56 },
    { ms_60_fmt_list,    MY66000_MS_60 },
    { br_far4_fmt_list,  MY66000_BR_FAR4 },
    { br_far8_fmt_list,  MY66000_BR_FAR8 },

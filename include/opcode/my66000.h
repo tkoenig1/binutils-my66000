@@ -94,9 +94,8 @@ typedef enum my66000_encoding
  MY66000_LDM,	  /* Load and store multiple.	*/
  MY66000_XOP0,	  /* XOP0 group of shifts.  */
  MY66000_MS_55,	  /* MS for minor opcode 55.  */
- MY66000_MS_56,	  /* MS for minor opcode 56.  */
  MY66000_MS_60,	  /* MS for minor opcode 60.  */
- MY66000_BR_FAR4, /* Far branches, fourxo bytes offset.  */
+ MY66000_BR_FAR4, /* Far branches, four bytes offset.  */
  MY66000_BR_FAR8, /* Far branches, eight bytes offset.  */
  MY66000_SVR,     /* SVR instruction.  */
 } my66000_encoding;
