@@ -2112,11 +2112,13 @@ static const my66000_fmt_spec_t mm_fmt_list [] =
 
 static const my66000_fmt_spec_t ms_55_fmt_list[] =
 {
-  { "B,A,C",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
+  { "C,A,B",  XOP1_BITS(0,0), XOP1_FLAGS_MASK},
+  { "C,A,#L", XOP1_BITS(1,0), XOP1_FLAGS_MASK | SRC1_MASK },
+  { "C,A,#P", XOP1_BITS(1,1), XOP1_FLAGS_MASK | SRC1_MASK },
   { NULL, 0, 0},
 };
 
-/* Same here, for minor opcode 56, data is signed 5-bit immediate.  */
+/* Same here, for minor opcode 60, data is signed 5-bit immediate.  */
 
 static const my66000_fmt_spec_t ms_60_fmt_list[] =
 {
