@@ -1453,7 +1453,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_I8_MS,   0, 0, 4, 2,            "8-bit immediate ms",       'p' },
  {MY66000_OPS_I5_MS,   OPERAND_ENTRY ( 5,21), "5-bit immediate ms",       'q' },
  {MY66000_OPS_I16_HI,  0, 0, 2, 2,            "high 16 bit of 32-bit constant", 'r' },
- {MY66000_OPS_SVC16,   OPERAND_ENTRY (16, 0), "16-bit SVC immediate",     's' },
+ {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  's' },
  {MY66000_OPS_IP_BASE, OPERAND_ENTRY ( 5,16), "IP as base register",      't' },
  {MY66000_OPS_P_ELSE,  OPERAND_ENTRY ( 4, 6), "ELSE clause for predicate",'u' },
  {MY66000_OPS_PCREL16, OPERAND_ENTRY (16, 0), "invalid",                  'v' },
@@ -2319,7 +2319,7 @@ static const my66000_fmt_spec_t loops_fmt_list[] =
 
 static const my66000_fmt_spec_t svc_fmt_list[] =
 {
-  { "#F,#s", 0, 0},
+  { "#F,#E", 0, 0},
   { NULL, 0, 0},
 };
 

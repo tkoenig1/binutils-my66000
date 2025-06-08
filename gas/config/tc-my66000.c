@@ -602,6 +602,7 @@ match_16bit_u (char **ptr, char **errmsg)
   return match_integer (ptr, errmsg, 0, UINT16_MAX);
 }
 
+
 static uint16_t
 match_imm13 (char **ptr, char **errmsg)
 {
@@ -1268,10 +1269,6 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	case MY66000_OPS_IMM16JT:
 	  bits = match_16bit_u (&sp, errmsg);
 	  needs_jt = bits + 1;
-	  break;
-
-	case MY66000_OPS_SVC16:
-	  bits = match_16bit_u (&sp, errmsg);
 	  break;
 
 	case MY66000_OPS_MSCALE:
