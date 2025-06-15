@@ -63,7 +63,7 @@ maintainer.  The first maintainer is free to devolve that
 responsibility among the other maintainers.
 
   AARCH64	   Richard Earnshaw <rearnsha@arm.com>
-  AARCH64	   Marcus Shawcroft <marcus.shawcroft@arm.com>
+  AARCH64	   Alice Carlotti <alice.carlotti@arm.com>
   ARC		   Claudiu Zissulescu <claziss@gmail.com>
   ARM		   Nick Clifton <nickc@redhat.com>
   ARM		   Richard Earnshaw <rearnsha@arm.com>
@@ -88,11 +88,9 @@ responsibility among the other maintainers.
   GOLD		   Ian Lance Taylor <iant@google.com>
   GOLD		   Cary Coutant <ccoutant@gmail.com>
   gprofng	   Vladimir Mezentsev <vladimir.mezentsev@oracle.com>
-  H8300		   Prafulla Thakare <prafulla.thakare@kpitcummins.com>
   HPPA		   Dave Anglin <dave.anglin@bell.net>
   HPPA elf64	   Jeff Law <law@redhat.com> [Basic maintainance only]
   IA-64		   Jim Wilson <wilson@tuliptree.org>
-  IQ2000	   Stan Cox <scox@redhat.com>
   ix86		   H.J. Lu <hjl.tools@gmail.com>
   ix86 COFF	   DJ Delorie <dj@redhat.com>
   ix86 PE/COFF	   Dave Korn <dave.korn.cygwin@gmail.com>
@@ -108,7 +106,6 @@ responsibility among the other maintainers.
   MACH-O           Tristan Gingold <tgingold@free.fr>
   MAXQ		   Inderpreet Singh <inderpreetb@noida.hcltech.com>
   MEP		   Nick Clifton <nickc@redhat.com>
-  METAG            Markos Chandras <markos.chandras@imgtec.com>
   MICROBLAZE	   Michael Eager <eager@eagercon.com>
   MIPS		   Chenghua Xu <paul.hua.gm@gmail.com>
   MIPS I-IV	   Maciej W. Rozycki <macro@orcam.me.uk>
@@ -120,7 +117,8 @@ responsibility among the other maintainers.
   OR1K		   Christian Svensson <blue@cmd.nu>
   OR1K		   Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>
   OR1K		   Stafford Horne <shorne@gmail.com>
-  PPC		   Peter Bergner <bergner@linux.ibm.com>
+  PPC		   Surya Kumari Jangala <jskumari@linux.ibm.com>
+  PPC		   Peter Bergner <bergner@tenstorrent.com>
   PPC vector ext   Aldy Hernandez <aldyh@redhat.com>
   RISC-V	   Palmer Dabbelt <palmer@dabbelt.com>
   RISC-V	   Andrew Waterman <andrew@sifive.com>

@@ -1,6 +1,6 @@
 /* Native support code for PPC AIX, for GDB the GNU debugger.
 
-   Copyright (C) 2006-2024 Free Software Foundation, Inc.
+   Copyright (C) 2006-2025 Free Software Foundation, Inc.
 
    Free Software Foundation, Inc.
 
@@ -328,15 +328,16 @@ aix_sighandle_frame_sniffer (const struct frame_unwind *self,
 
 /* AIX signal handler frame unwinder */
 
-static const struct frame_unwind aix_sighandle_frame_unwind = {
+static const struct frame_unwind_legacy aix_sighandle_frame_unwind (
   "rs6000 aix sighandle",
   SIGTRAMP_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   aix_sighandle_frame_this_id,
   aix_sighandle_frame_prev_register,
   NULL,
   aix_sighandle_frame_sniffer
-};
+);
 
 /* Core file support.  */
 

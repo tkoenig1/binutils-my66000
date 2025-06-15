@@ -1,6 +1,6 @@
 /* Symbol table lookup for the GNU debugger, GDB.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -60,7 +60,6 @@
 #include "cp-abi.h"
 #include "cp-support.h"
 #include "observable.h"
-#include "solist.h"
 #include "macrotab.h"
 #include "macroscope.h"
 
@@ -75,7 +74,7 @@
 #include "gdbsupport/pathstuff.h"
 #include "gdbsupport/common-utils.h"
 #include <optional>
-#include <unordered_set>
+#include "gdbsupport/unordered_set.h"
 
 /* Forward declarations for local functions.  */
 
@@ -123,6 +122,41 @@ struct main_info
 /* Program space key for finding name and language of "main".  */
 
 static const registry<program_space>::key<main_info> main_progspace_key;
+
+/* Symbol lookup is not reentrant (though this is not an intrinsic
+   restriction).  Keep track of whether a symbol lookup is active, to be able
+   to detect reentrancy.  */
+static bool in_symbol_lookup;
+
+/* Struct to mark that a symbol lookup is active for the duration of its
+   lifetime.  */
+
+struct enter_symbol_lookup
+{
+  enter_symbol_lookup ()
+  {
+    /* Ensure that the current language has been set.  Normally the
+       language is set lazily.  However, when performing a symbol lookup,
+       this could result in a recursive call into the lookup code in some
+       cases.  Set it now to ensure that this does not happen.  */
+    get_current_language ();
+
+    /* Detect symbol lookup reentrance.  */
+    gdb_assert (!in_symbol_lookup);
+
+    in_symbol_lookup = true;
+  }
+
+  ~enter_symbol_lookup ()
+  {
+    /* Sanity check.  */
+    gdb_assert (in_symbol_lookup);
+
+    in_symbol_lookup = false;
+  }
+
+  DISABLE_COPY_AND_ASSIGN (enter_symbol_lookup);
+};
 
 /* The default symbol cache size.
    There is no extra cpu cost for large N (except when flushing the cache,
@@ -1876,7 +1910,7 @@ lookup_name_info::match_any ()
 {
   /* Lookup any symbol that "" would complete.  I.e., this matches all
      symbol names.  */
-  static const lookup_name_info lookup_name ("", symbol_name_match_type::FULL,
+  static const lookup_name_info lookup_name ("", symbol_name_match_type::WILD,
 					     true);
 
   return lookup_name;
@@ -2128,13 +2162,6 @@ lookup_symbol_aux (const char *name, symbol_name_match_type match_type,
 	 domain_name (domain).c_str (), language_str (language));
     }
 
-  /* Make sure we do something sensible with is_a_field_of_this, since
-     the callers that set this parameter to some non-null value will
-     certainly use it later.  If we don't set it, the contents of
-     is_a_field_of_this are undefined.  */
-  if (is_a_field_of_this != NULL)
-    memset (is_a_field_of_this, 0, sizeof (*is_a_field_of_this));
-
   langdef = language_def (language);
 
   /* Search specified block and its superiors.  Don't search
@@ -2259,6 +2286,8 @@ lookup_symbol_in_block (const char *name, symbol_name_match_type match_type,
 			const struct block *block,
 			const domain_search_flags domain)
 {
+  enter_symbol_lookup tmp;
+
   struct symbol *sym;
 
   if (symbol_lookup_debug)
@@ -2294,6 +2323,8 @@ lookup_global_symbol_from_objfile (struct objfile *main_objfile,
 				   const char *name,
 				   const domain_search_flags domain)
 {
+  enter_symbol_lookup tmp;
+
   gdb_assert (block_index == GLOBAL_BLOCK || block_index == STATIC_BLOCK);
 
   for (objfile *objfile : main_objfile->separate_debug_objfiles ())
@@ -2618,6 +2649,8 @@ lookup_global_or_static_symbol (const char *name,
 	return {};
       return result;
     }
+
+  enter_symbol_lookup tmp;
 
   /* Do a global search (of global blocks, heh).  */
   if (result.symbol == NULL)
@@ -4458,7 +4491,7 @@ info_sources_filter::matches (const char *fullname) const
       switch (m_match_type)
 	{
 	case match_on::DIRNAME:
-	  dirname = ldirname (fullname);
+	  dirname = gdb_ldirname (fullname);
 	  to_match = dirname.c_str ();
 	  break;
 	case match_on::BASENAME:
@@ -4673,7 +4706,7 @@ info_sources_worker (struct ui_out *uiout,
 	  if (uiout->is_mi_like_p ())
 	    {
 	      const char *debug_info_state;
-	      if (objfile_has_symbols (objfile))
+	      if (objfile->has_symbols ())
 		{
 		  if (debug_fully_readin)
 		    debug_info_state = "fully-read";
@@ -4689,7 +4722,7 @@ info_sources_worker (struct ui_out *uiout,
 	      if (!debug_fully_readin)
 		uiout->text ("(Full debug information has not yet been read "
 			     "for this file.)\n");
-	      if (!objfile_has_symbols (objfile))
+	      if (!objfile->has_symbols ())
 		uiout->text ("(Objfile has no debug information.)\n");
 	      uiout->text ("\n");
 	    }
@@ -4869,7 +4902,7 @@ global_symbol_searcher::expand_symtabs
     {
       return file_matches (filename, m_filenames, basenames);
     };
-  gdb::function_view<expand_symtabs_file_matcher_ftype> file_matcher = nullptr;
+  expand_symtabs_file_matcher file_matcher = nullptr;
   if (!m_filenames.empty ())
     file_matcher = do_file_match;
 
@@ -5582,7 +5615,7 @@ rbreak_command (const char *regexp, int from_tty)
     spec.add_filename (std::move (file_name));
   std::vector<symbol_search> symbols = spec.search ();
 
-  std::unordered_set<std::string> seen_names;
+  gdb::unordered_set<std::string> seen_names;
   scoped_rbreak_breakpoints finalize;
   int err_count = 0;
 
@@ -6165,8 +6198,6 @@ default_collect_symbol_completion_matches_break_on
   if (current_language->macro_expansion () == macro_expansion_c
       && code == TYPE_CODE_UNDEF)
     {
-      gdb::unique_xmalloc_ptr<struct macro_scope> scope;
-
       /* This adds a macro's name to the current completion list.  */
       auto add_macro_name = [&] (const char *macro_name,
 				 const macro_definition *,
@@ -6184,10 +6215,9 @@ default_collect_symbol_completion_matches_break_on
 	 resulting expression will be evaluated at "file:line" -- but
 	 at there does not seem to be a way to detect this at
 	 completion time.  */
-      scope = default_macro_scope ();
-      if (scope)
-	macro_for_each_in_scope (scope->file, scope->line,
-				 add_macro_name);
+      macro_scope scope = default_macro_scope ();
+      if (scope.is_valid ())
+	macro_for_each_in_scope (scope.file, scope.line, add_macro_name);
 
       /* User-defined macros are always visible.  */
       macro_for_each (macro_user_macros, add_macro_name);
@@ -6509,7 +6539,7 @@ find_main_name (void)
      language.  It is easy to guaranty this with Ada, since we use a
      special symbol generated only when the main in Ada to find the name
      of the main procedure.  It is difficult however to see how this can
-     be guarantied for languages such as C, for instance.  This suggests
+     be guaranteed for languages such as C, for instance.  This suggests
      that order of call for these methods becomes important, which means
      a more complicated approach.  */
   new_main_name = ada_main_name ();
@@ -6593,31 +6623,6 @@ main_language (void)
     find_main_name ();
 
   return info->language_of_main;
-}
-
-/* Return 1 if the supplied producer string matches the ARM RealView
-   compiler (armcc).  */
-
-bool
-producer_is_realview (const char *producer)
-{
-  static const char *const arm_idents[] = {
-    "ARM C Compiler, ADS",
-    "Thumb C Compiler, ADS",
-    "ARM C++ Compiler, ADS",
-    "Thumb C++ Compiler, ADS",
-    "ARM/Thumb C/C++ Compiler, RVCT",
-    "ARM C/C++ Compiler, RVCT"
-  };
-
-  if (producer == NULL)
-    return false;
-
-  for (const char *ident : arm_idents)
-    if (startswith (producer, ident))
-      return true;
-
-  return false;
 }
 
 
@@ -6776,7 +6781,7 @@ symbol::get_maybe_copied_address () const
   const char *linkage_name = this->linkage_name ();
   bound_minimal_symbol minsym
     = lookup_minimal_symbol_linkage (this->objfile ()->pspace (), linkage_name,
-				     false);
+				     false, false);
   if (minsym.minsym != nullptr)
     return minsym.value_address ();
 
@@ -6793,7 +6798,8 @@ minimal_symbol::get_maybe_copied_address (objfile *objf) const
 
   const char *linkage_name = this->linkage_name ();
   bound_minimal_symbol found
-    = lookup_minimal_symbol_linkage (objf->pspace (), linkage_name, true);
+    = lookup_minimal_symbol_linkage (objf->pspace (), linkage_name,
+				     false, true);
   if (found.minsym != nullptr)
     return found.value_address ();
 

@@ -146,8 +146,10 @@ pint (int arg ATTRIBUTE_UNUSED)
 static void
 h8300_elf_section (int push)
 {
-  static const char * known_data_sections [] = { ".rodata", ".tdata", ".tbss" };
-  static const char * known_data_prefixes [] = { ".debug", ".zdebug", ".gnu.warning" };
+  static const char * known_data_sections []
+    = { ".rodata", ".tdata", ".tbss", ".gnu_object_only" };
+  static const char * known_data_prefixes []
+    = { ".debug", ".zdebug", ".gnu.warning" };
   char * saved_ilp = input_line_pointer;
   const char * name;
 
@@ -1902,12 +1904,12 @@ md_assemble (char *str)
   int size, i;
 
   /* Drop leading whitespace.  */
-  while (*str == ' ')
+  while (is_whitespace (*str))
     str++;
 
   /* Find the op code end.  */
   for (op_start = op_end = str;
-       *op_end != 0 && *op_end != ' ';
+       !is_end_of_stmt (*op_end) && !is_whitespace (*op_end);
        op_end++)
     {
       if (*op_end == '.')
@@ -1935,8 +1937,7 @@ md_assemble (char *str)
     while (*++slash)
       *slash = TOLOWER (*slash);
 
-  instruction = (const struct h8_instruction *)
-    str_hash_find (opcode_hash_control, op_start);
+  instruction = str_hash_find (opcode_hash_control, op_start);
 
   if (instruction == NULL)
     {

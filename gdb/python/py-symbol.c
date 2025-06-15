@@ -1,6 +1,6 @@
 /* Python interface to symbols.
 
-   Copyright (C) 2008-2024 Free Software Foundation, Inc.
+   Copyright (C) 2008-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -29,12 +29,6 @@ struct symbol_object {
   PyObject_HEAD
   /* The GDB symbol structure this object is wrapping.  */
   struct symbol *symbol;
-  /* A symbol object is associated with an objfile, so keep track with
-     doubly-linked list, rooted in the objfile.  This lets us
-     invalidate the underlying struct symbol when the objfile is
-     deleted.  */
-  symbol_object *prev;
-  symbol_object *next;
 };
 
 /* Require a valid symbol.  All access to symbol_object->symbol should be
@@ -50,26 +44,8 @@ struct symbol_object {
       }							\
   } while (0)
 
-/* A deleter that is used when an objfile is about to be freed.  */
-struct symbol_object_deleter
-{
-  void operator() (symbol_object *obj)
-  {
-    while (obj)
-      {
-	symbol_object *next = obj->next;
-
-	obj->symbol = NULL;
-	obj->next = NULL;
-	obj->prev = NULL;
-
-	obj = next;
-      }
-  }
-};
-
-static const registry<objfile>::key<symbol_object, symbol_object_deleter>
-     sympy_objfile_data_key;
+static const gdbpy_registry<gdbpy_memoizing_registry_storage<symbol_object,
+  symbol, &symbol_object::symbol>> sympy_registry;
 
 static PyObject *
 sympy_str (PyObject *self)
@@ -151,6 +127,19 @@ sympy_get_addr_class (PyObject *self, void *closure)
   SYMPY_REQUIRE_VALID (self, symbol);
 
   return gdb_py_object_from_longest (symbol->aclass ()).release ();
+}
+
+/* Implement gdb.Symbol.domain attribute.  Return the domain as an
+   integer.  */
+
+static PyObject *
+sympy_get_domain (PyObject *self, void *closure)
+{
+  struct symbol *symbol = nullptr;
+
+  SYMPY_REQUIRE_VALID (self, symbol);
+
+  return gdb_py_object_from_longest (symbol->domain ()).release ();
 }
 
 static PyObject *
@@ -334,19 +323,18 @@ static void
 set_symbol (symbol_object *obj, struct symbol *symbol)
 {
   obj->symbol = symbol;
-  obj->prev = NULL;
-  if (symbol->is_objfile_owned ()
-      && symbol->symtab () != NULL)
+  if (symbol->is_objfile_owned ())
     {
-      struct objfile *objfile = symbol->objfile ();
-
-      obj->next = sympy_objfile_data_key.get (objfile);
-      if (obj->next)
-	obj->next->prev = obj;
-      sympy_objfile_data_key.set (objfile, obj);
+      /* Can it really happen that symbol->symtab () is NULL?  */
+      if (symbol->symtab () != nullptr)
+	{
+	  sympy_registry.add (symbol->objfile (), obj);
+	}
     }
   else
-    obj->next = NULL;
+    {
+      sympy_registry.add (symbol->arch (), obj);
+    }
 }
 
 /* Create a new symbol object (gdb.Symbol) that encapsulates the struct
@@ -355,6 +343,15 @@ PyObject *
 symbol_to_symbol_object (struct symbol *sym)
 {
   symbol_object *sym_obj;
+
+  /* Look if there's already a gdb.Symbol object for given SYMBOL
+     and if so, return it.  */
+  if (sym->is_objfile_owned ())
+    sym_obj = sympy_registry.lookup (sym->objfile (), sym);
+  else
+    sym_obj = sympy_registry.lookup (sym->arch (), sym);
+  if (sym_obj != nullptr)
+    return (PyObject*)sym_obj;
 
   sym_obj = PyObject_New (symbol_object, &symbol_object_type);
   if (sym_obj)
@@ -377,15 +374,14 @@ sympy_dealloc (PyObject *obj)
 {
   symbol_object *sym_obj = (symbol_object *) obj;
 
-  if (sym_obj->prev)
-    sym_obj->prev->next = sym_obj->next;
-  else if (sym_obj->symbol != NULL
-	   && sym_obj->symbol->is_objfile_owned ()
-	   && sym_obj->symbol->symtab () != NULL)
-    sympy_objfile_data_key.set (sym_obj->symbol->objfile (), sym_obj->next);
-  if (sym_obj->next)
-    sym_obj->next->prev = sym_obj->prev;
-  sym_obj->symbol = NULL;
+  if (sym_obj->symbol != nullptr)
+    {
+      if (sym_obj->symbol->is_objfile_owned ())
+	sympy_registry.remove (sym_obj->symbol->objfile (), sym_obj);
+      else
+	sympy_registry.remove (sym_obj->symbol->arch (), sym_obj);
+    }
+
   Py_TYPE (obj)->tp_free (obj);
 }
 
@@ -719,6 +715,7 @@ static gdb_PyGetSetDef symbol_object_getset[] = {
 This is either name or linkage_name, depending on whether the user asked GDB\n\
 to display demangled or mangled names.", NULL },
   { "addr_class", sympy_get_addr_class, NULL, "Address class of the symbol." },
+  { "domain", sympy_get_domain, nullptr, "Domain of the symbol." },
   { "is_argument", sympy_is_argument, NULL,
     "True if the symbol is an argument of a function." },
   { "is_artificial", sympy_is_artificial, nullptr,

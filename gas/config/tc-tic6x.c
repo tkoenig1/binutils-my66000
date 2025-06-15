@@ -489,7 +489,8 @@ s_tic6x_arch (int ignored ATTRIBUTE_UNUSED)
   char *arch;
 
   arch = input_line_pointer;
-  while (*input_line_pointer && !ISSPACE (*input_line_pointer))
+  while (!is_end_of_stmt (*input_line_pointer)
+	 && !is_whitespace (*input_line_pointer))
     input_line_pointer++;
   c = *input_line_pointer;
   *input_line_pointer = 0;
@@ -845,7 +846,7 @@ tic6x_unrecognized_line (int c)
 	 If it looks like one but not a valid one, give a better
 	 error.  */
       p = input_line_pointer;
-      while (*p != ']' && !is_end_of_line[(unsigned char) *p])
+      while (*p != ']' && !is_end_of_stmt (*p))
 	p++;
       if (*p != ']')
 	return 0;
@@ -1180,7 +1181,7 @@ typedef struct
   } value;
 } tic6x_operand;
 
-#define skip_whitespace(str)  do { if (*(str) == ' ') ++(str); } while (0)
+#define skip_whitespace(str)  do { if (is_whitespace (*(str))) ++(str); } while (0)
 
 /* Parse a register operand, or part of an operand, starting at *P.
    If syntactically OK (including that the number is in the range 0 to
@@ -1328,7 +1329,7 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
 	  char *rq = q + 2;
 
 	  skip_whitespace (rq);
-	  if (is_end_of_line[(unsigned char) *rq] || *rq == ',')
+	  if (is_end_of_stmt (*rq) || *rq == ',')
 	    {
 	      op->form = TIC6X_OP_FUNC_UNIT;
 	      op->value.func_unit.base = base;
@@ -1349,7 +1350,7 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
 	  char *rq = q + 3;
 
 	  skip_whitespace (rq);
-	  if (is_end_of_line[(unsigned char) *rq] || *rq == ',')
+	  if (is_end_of_stmt (*rq) || *rq == ',')
 	    {
 	      op->form = TIC6X_OP_IRP;
 	      operand_parsed = true;
@@ -1368,7 +1369,7 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
 	  char *rq = q + 3;
 
 	  skip_whitespace (rq);
-	  if (is_end_of_line[(unsigned char) *rq] || *rq == ',')
+	  if (is_end_of_stmt (*rq) || *rq == ',')
 	    {
 	      op->form = TIC6X_OP_NRP;
 	      operand_parsed = true;
@@ -1391,7 +1392,7 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
 	      char *rq = q + len;
 
 	      skip_whitespace (rq);
-	      if (is_end_of_line[(unsigned char) *rq] || *rq == ',')
+	      if (is_end_of_stmt (*rq) || *rq == ',')
 		{
 		  op->form = TIC6X_OP_CTRL;
 		  op->value.ctrl = crid;
@@ -1559,7 +1560,7 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
       if (mem_ok)
 	{
 	  skip_whitespace (mq);
-	  if (!is_end_of_line[(unsigned char) *mq] && *mq != ',')
+	  if (!is_end_of_stmt (*mq) && *mq != ',')
 	    mem_ok = false;
 	}
 
@@ -1603,7 +1604,7 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
 	      if (reg_ok)
 		{
 		  skip_whitespace (rq);
-		  if (is_end_of_line[(unsigned char) *rq] || *rq == ',')
+		  if (is_end_of_stmt (*rq) || *rq == ',')
 		    {
 		      if ((second_reg.num & 1)
 			  || (first_reg.num != second_reg.num + 1)
@@ -1621,7 +1622,7 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
 	  else if (op_forms & TIC6X_OP_REG)
 	    {
 	      skip_whitespace (rq);
-	      if (is_end_of_line[(unsigned char) *rq] || *rq == ',')
+	      if (is_end_of_stmt (*rq) || *rq == ',')
 		{
 		  op->form = TIC6X_OP_REG;
 		  op->value.reg = first_reg;
@@ -1661,12 +1662,12 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
       /* Now the operand has been parsed, there must be nothing more
 	 before the comma or end of line.  */
       skip_whitespace (q);
-      if (!is_end_of_line[(unsigned char) *q] && *q != ',')
+      if (!is_end_of_stmt (*q) && *q != ',')
 	{
 	  operand_parsed = false;
 	  as_bad (_("junk after operand %u of '%.*s'"), opno,
 		  opc_len, str);
-	  while (!is_end_of_line[(unsigned char) *q] && *q != ',')
+	  while (!is_end_of_stmt (*q) && *q != ',')
 	    q++;
 	}
     }
@@ -1703,7 +1704,7 @@ tic6x_parse_operand (char **p, tic6x_operand *op, unsigned int op_forms,
 	  break;
 
 	}
-      while (!is_end_of_line[(unsigned char) *q] && *q != ',')
+      while (!is_end_of_stmt (*q) && *q != ',')
 	q++;
     }
   *p = q;
@@ -3148,7 +3149,7 @@ md_assemble (char *str)
   char *output;
 
   p = str;
-  while (*p && !is_end_of_line[(unsigned char) *p] && *p != ' ')
+  while (!is_end_of_stmt (*p) && !is_whitespace (*p))
     p++;
 
   /* This function should only have been called when there is actually
@@ -3208,10 +3209,10 @@ md_assemble (char *str)
 
       if (good_func_unit)
 	{
-	  if (p[3] == ' ' || is_end_of_line[(unsigned char) p[3]])
+	  if (is_whitespace (p[3]) || is_end_of_stmt (p[3]))
 	    p += 3;
 	  else if ((p[3] == 'x' || p[3] == 'X')
-		   && (p[4] == ' ' || is_end_of_line[(unsigned char) p[4]]))
+		   && (is_whitespace (p[4]) || is_end_of_stmt (p[4])))
 	    {
 	      maybe_cross = 1;
 	      p += 4;
@@ -3219,7 +3220,7 @@ md_assemble (char *str)
 	  else if (maybe_base == tic6x_func_unit_d
 		   && (p[3] == 't' || p[3] == 'T')
 		   && (p[4] == '1' || p[4] == '2')
-		   && (p[5] == ' ' || is_end_of_line[(unsigned char) p[5]]))
+		   && (is_whitespace (p[5]) || is_end_of_stmt (p[5])))
 	    {
 	      maybe_data_side = p[4] - '0';
 	      p += 5;
@@ -3356,7 +3357,7 @@ md_assemble (char *str)
   while (true)
     {
       skip_whitespace (p);
-      if (is_end_of_line[(unsigned char) *p])
+      if (is_end_of_stmt (*p))
 	{
 	  if (num_operands_read > 0)
 	    {
@@ -3379,7 +3380,7 @@ md_assemble (char *str)
 	bad_operands = true;
       num_operands_read++;
 
-      if (is_end_of_line[(unsigned char) *p])
+      if (is_end_of_stmt (*p))
 	break;
       else if (*p == ',')
 	{

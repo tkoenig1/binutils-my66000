@@ -97,41 +97,39 @@ sframe_decoder_set_func_reloc_index (struct sframe_dec_info *sfd_info,
    needed for linking SEC.  Returns TRUE if setup is done successfully.  */
 
 static bool
-sframe_decoder_init_func_bfdinfo (asection *sec,
+sframe_decoder_init_func_bfdinfo (bfd *abfd,
+				  const asection *sec,
 				  struct sframe_dec_info *sfd_info,
-				  struct elf_reloc_cookie *cookie)
+				  const struct elf_reloc_cookie *cookie)
 {
   unsigned int fde_count;
   unsigned int func_bfdinfo_size, i;
+  const Elf_Internal_Rela *rel;
 
   fde_count = sframe_decoder_get_num_fidx (sfd_info->sfd_ctx);
   sfd_info->sfd_fde_count = fde_count;
 
   /* Allocate and clear the memory.  */
   func_bfdinfo_size = (sizeof (struct sframe_func_bfdinfo)) * fde_count;
-  sfd_info->sfd_func_bfdinfo
-    = (struct sframe_func_bfdinfo*) bfd_malloc (func_bfdinfo_size);
+  sfd_info->sfd_func_bfdinfo = bfd_zalloc (abfd, func_bfdinfo_size);
   if (sfd_info->sfd_func_bfdinfo == NULL)
     return false;
-  memset (sfd_info->sfd_func_bfdinfo, 0, func_bfdinfo_size);
 
   /* For linker generated .sframe sections, we have no relocs.  Skip.  */
   if ((sec->flags & SEC_LINKER_CREATED) && cookie->rels == NULL)
     return true;
 
+  BFD_ASSERT (cookie->rels + fde_count == cookie->relend);
+  rel = cookie->rels;
   for (i = 0; i < fde_count; i++)
     {
-      cookie->rel = cookie->rels + i;
-      BFD_ASSERT (cookie->rel < cookie->relend);
       /* Bookkeep the relocation offset and relocation index of each function
 	 for later use.  */
-      sframe_decoder_set_func_r_offset (sfd_info, i, cookie->rel->r_offset);
-      sframe_decoder_set_func_reloc_index (sfd_info, i,
-					   (cookie->rel - cookie->rels));
+      sframe_decoder_set_func_r_offset (sfd_info, i, rel->r_offset);
+      sframe_decoder_set_func_reloc_index (sfd_info, i, i);
 
-      cookie->rel++;
+      rel++;
     }
-  BFD_ASSERT (cookie->rel == cookie->relend);
 
   return true;
 }
@@ -224,7 +222,7 @@ _bfd_elf_parse_sframe (bfd *abfd,
        sframe_decode in case of error.  */
     goto fail_no_free;
 
-  if (!sframe_decoder_init_func_bfdinfo (sec, sfd_info, cookie))
+  if (!sframe_decoder_init_func_bfdinfo (abfd, sec, sfd_info, cookie))
     {
       sframe_decoder_free (&sfd_ctx);
       goto fail_no_free;

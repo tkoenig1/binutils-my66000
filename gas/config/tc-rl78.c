@@ -425,15 +425,13 @@ md_number_to_chars (char * buf, valueT val, int n)
 static void
 require_end_of_expr (const char *fname)
 {
-  while (* input_line_pointer == ' '
-	 || * input_line_pointer == '\t')
+  while (is_whitespace (* input_line_pointer))
     input_line_pointer ++;
 
-  if (! * input_line_pointer
-      || strchr ("\n\r,", * input_line_pointer)
+  if (is_end_of_stmt (* input_line_pointer)
+      || * input_line_pointer == ','
       || strchr (comment_chars, * input_line_pointer)
-      || strchr (line_comment_chars, * input_line_pointer)
-      || strchr (line_separator_chars, * input_line_pointer))
+      || strchr (line_comment_chars, * input_line_pointer))
     return;
 
   as_bad (_("%%%s() must be outermost term in expression"), fname);
@@ -1422,7 +1420,7 @@ md_apply_fix (struct fix * f ATTRIBUTE_UNUSED,
     return;
 
   op = f->fx_frag->fr_literal + f->fx_where;
-  val = (unsigned long) * t;
+  val = *t;
 
   if (f->fx_addsy == NULL)
     f->fx_done = 1;

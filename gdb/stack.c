@@ -1,6 +1,6 @@
 /* Print and select stack frames for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -827,7 +827,7 @@ print_frame_args (const frame_print_options &fp_opts,
 		     (1) Because find_saved_registers may be slow for
 			 remote debugging.
 
-		     (2) Because registers are often re-used and stack
+		     (2) Because registers are often reused and stack
 			 slots rarely (never?) are.  Therefore using
 			 the stack slot is much less likely to print
 			 garbage.
@@ -1750,7 +1750,7 @@ info_frame_command_core (const frame_info_ptr &fi, bool selected_frame_p)
 	  /* Find out the location of the saved register without
 	     fetching the corresponding value.  */
 	  frame_register_unwind (fi, i, &optimized, &unavailable,
-				 &lval, &addr, &realnum, NULL);
+				 &lval, &addr, &realnum);
 	  /* For moment, only display registers that were saved on the
 	     stack.  */
 	  if (!optimized && !unavailable && lval == lval_memory)
@@ -2221,6 +2221,7 @@ iterate_over_block_locals (const struct block *b,
       switch (sym->aclass ())
 	{
 	case LOC_CONST:
+	case LOC_CONST_BYTES:
 	case LOC_LOCAL:
 	case LOC_REGISTER:
 	case LOC_STATIC:
@@ -2695,7 +2696,7 @@ return_command (const char *retval_exp, int from_tty)
   thisfun = get_frame_function (thisframe);
   gdbarch = get_frame_arch (thisframe);
 
-  if (get_frame_type (get_current_frame ()) == INLINE_FRAME)
+  if (get_frame_type (thisframe) == INLINE_FRAME)
     error (_("Can not force return from an inlined function."));
 
   /* Compute the return value.  If the computation triggers an error,
@@ -2862,9 +2863,11 @@ find_frame_for_function (const char *function_name)
 
   do
     {
+      CORE_ADDR frame_pc = get_frame_address_in_block (frame);
+
       for (size_t i = 0; (i < sals.size () && !found); i++)
-	found = (get_frame_pc (frame) >= func_bounds[i].low
-		 && get_frame_pc (frame) < func_bounds[i].high);
+	found = (frame_pc >= func_bounds[i].low
+		 && frame_pc < func_bounds[i].high);
       if (!found)
 	{
 	  level = 1;

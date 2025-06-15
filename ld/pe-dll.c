@@ -381,7 +381,10 @@ static const autofilter_entry_type autofilter_liblist[] =
   { STRING_COMMA_LEN ("libmsvcrt") },
   { STRING_COMMA_LEN ("libmsvcrt-os") },
   { STRING_COMMA_LEN ("libucrt") },
+  { STRING_COMMA_LEN ("libucrtapp") },
   { STRING_COMMA_LEN ("libucrtbase") },
+  { STRING_COMMA_LEN ("libpthread") },
+  { STRING_COMMA_LEN ("libwinpthread") },
   { NULL, 0 }
 };
 
@@ -777,7 +780,7 @@ process_def_file_and_drectve (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *
 
 	  if (!bfd_generic_link_read_symbols (b))
 	    {
-	      einfo (_("%F%P: %pB: could not read symbols: %E\n"), b);
+	      fatal (_("%P: %pB: could not read symbols: %E\n"), b);
 	      return;
 	    }
 
@@ -1069,7 +1072,7 @@ build_filler_bfd (bool include_edata)
 			     bfd_get_arch (link_info.output_bfd),
 			     bfd_get_mach (link_info.output_bfd)))
     {
-      einfo (_("%F%P: can not create BFD: %E\n"));
+      fatal (_("%P: can not create BFD: %E\n"));
       return;
     }
 
@@ -1347,7 +1350,7 @@ pe_walk_relocs (struct bfd_link_info *info,
 
       if (!bfd_generic_link_read_symbols (b))
 	{
-	  einfo (_("%F%P: %pB: could not read symbols: %E\n"), b);
+	  fatal (_("%P: %pB: could not read symbols: %E\n"), b);
 	  return;
 	}
 
@@ -1428,7 +1431,7 @@ pe_find_data_imports (const char *symhead,
       if (!bfd_hash_table_init (import_hash,
 				bfd_hash_newfunc,
 				sizeof (struct bfd_hash_entry)))
-	einfo (_("%F%P: bfd_hash_table_init failed: %E\n"));
+	fatal (_("%P: bfd_hash_table_init failed: %E\n"));
     }
   else
     import_hash = NULL;
@@ -1468,7 +1471,7 @@ pe_find_data_imports (const char *symhead,
 
 		if (!bfd_generic_link_read_symbols (b))
 		  {
-		    einfo (_("%F%P: %pB: could not read symbols: %E\n"), b);
+		    fatal (_("%P: %pB: could not read symbols: %E\n"), b);
 		    return;
 		  }
 
@@ -1570,7 +1573,7 @@ generate_reloc (bfd *abfd, struct bfd_link_info *info)
 
       if (!bfd_generic_link_read_symbols (b))
 	{
-	  einfo (_("%F%P: %pB: could not read symbols: %E\n"), b);
+	  fatal (_("%P: %pB: could not read symbols: %E\n"), b);
 	  return;
 	}
 
@@ -1617,10 +1620,11 @@ generate_reloc (bfd *abfd, struct bfd_link_info *info)
 		  printf ("rel: %s\n", sym->name);
 		}
 	      if (!relocs[i]->howto->pc_relative
-		  && relocs[i]->howto->type != pe_details->imagebase_reloc
-		  && (relocs[i]->howto->type < pe_details->secrel_reloc_lo
-		      || relocs[i]->howto->type > pe_details->secrel_reloc_hi)
-		  && relocs[i]->howto->type != pe_details->section_reloc)
+		  && (bfd_get_flavour (b) != bfd_target_coff_flavour
+		      || (relocs[i]->howto->type != pe_details->imagebase_reloc
+			  && (relocs[i]->howto->type < pe_details->secrel_reloc_lo
+			      || relocs[i]->howto->type > pe_details->secrel_reloc_hi)
+			  && relocs[i]->howto->type != pe_details->section_reloc)))
 		{
 		  struct bfd_symbol *sym = *relocs[i]->sym_ptr_ptr;
 		  const struct bfd_link_hash_entry *blhe
@@ -2636,9 +2640,9 @@ make_import_fixup_mark (arelent *rel, char *name)
   memcpy (fixup_name, buf, prefix_len);
 
   bh = NULL;
-  bfd_coff_link_add_one_symbol (&link_info, abfd, fixup_name, BSF_GLOBAL,
-				current_sec, /* sym->section, */
-				rel->address, NULL, true, false, &bh);
+  _bfd_generic_link_add_one_symbol (&link_info, abfd, fixup_name, BSF_GLOBAL,
+				    current_sec, /* sym->section, */
+				    rel->address, NULL, true, false, &bh);
 
   return bh->root.string;
 }

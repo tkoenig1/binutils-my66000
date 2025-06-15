@@ -1,6 +1,6 @@
 /* Handle ROCm Code Objects for GDB, the GNU Debugger.
 
-   Copyright (C) 2019-2024 Free Software Foundation, Inc.
+   Copyright (C) 2019-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -29,7 +29,6 @@
 #include "observable.h"
 #include "solib.h"
 #include "solib-svr4.h"
-#include "solist.h"
 #include "symfile.h"
 
 #include <unordered_map>
@@ -202,10 +201,10 @@ rocm_solib_handle_event ()
   rocm_update_solib_list ();
 }
 
-/* Create so_list objects from rocm_so objects in SOS.  */
+/* Create solib objects from rocm_so objects in SOS.  */
 
 static owning_intrusive_list<solib>
-so_list_from_rocm_sos (const std::vector<rocm_so> &sos)
+solibs_from_rocm_sos (const std::vector<rocm_so> &sos)
 {
   owning_intrusive_list<solib> dst;
 
@@ -214,8 +213,8 @@ so_list_from_rocm_sos (const std::vector<rocm_so> &sos)
       auto &newobj = dst.emplace_back ();
 
       newobj.lm_info = std::make_unique<lm_info_svr4> (*so.lm_info);
-      newobj.so_name = so.name;
-      newobj.so_original_name = so.unique_name;
+      newobj.name = so.name;
+      newobj.original_name = so.unique_name;
     }
 
   return dst;
@@ -236,13 +235,13 @@ rocm_solib_current_sos ()
   if (dev_sos.empty ())
     return sos;
 
-  owning_intrusive_list<solib> dev_so_list = so_list_from_rocm_sos (dev_sos);
+  owning_intrusive_list<solib> dev_solibs = solibs_from_rocm_sos (dev_sos);
 
   if (sos.empty ())
-    return dev_so_list;
+    return dev_solibs;
 
   /* Append our libraries to the end of the list.  */
-  sos.splice (std::move (dev_so_list));
+  sos.splice (std::move (dev_solibs));
 
   return sos;
 }
@@ -403,7 +402,7 @@ protected:
 
   /* Snapshot of the original ELF image taken during load.  This is done to
      support the situation where an inferior uses an in-memory image, and
-     releases or re-uses this memory before GDB is done using it.  */
+     releases or reuses this memory before GDB is done using it.  */
   gdb::byte_vector m_objfile_image;
 
   LONGEST size () override
@@ -704,6 +703,9 @@ rocm_update_solib_list ()
       return;
     }
 
+  gdb::unique_xmalloc_ptr<amd_dbgapi_code_object_id_t> code_object_list_holder
+    (code_object_list);
+
   for (size_t i = 0; i < count; ++i)
     {
       CORE_ADDR l_addr;
@@ -734,8 +736,6 @@ rocm_update_solib_list ()
 
       sos.emplace_back (uri_bytes, std::move (unique_name), std::move (li));
     }
-
-  xfree (code_object_list);
 
   if (rocm_solib_ops.current_sos == NULL)
     {

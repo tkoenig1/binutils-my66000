@@ -1,6 +1,6 @@
 /* Target-dependent code for the Renesas RX for GDB, the GNU debugger.
 
-   Copyright (C) 2008-2024 Free Software Foundation, Inc.
+   Copyright (C) 2008-2025 Free Software Foundation, Inc.
 
    Contributed by Red Hat, Inc.
 
@@ -631,29 +631,31 @@ rx_exception_sniffer (const struct frame_unwind *self,
 /* Data structure for normal code using instruction-based prologue
    analyzer.  */
 
-static const struct frame_unwind rx_frame_unwind = {
+static const struct frame_unwind_legacy rx_frame_unwind (
   "rx prologue",
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   rx_frame_this_id,
   rx_frame_prev_register,
   NULL,
   rx_frame_sniffer
-};
+);
 
 /* Data structure for exception code using instruction-based prologue
    analyzer.  */
 
-static const struct frame_unwind rx_exception_unwind = {
+static const struct frame_unwind_legacy rx_exception_unwind (
   "rx exception",
   /* SIGTRAMP_FRAME could be used here, but backtraces are less informative.  */
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   rx_frame_this_id,
   rx_frame_prev_register,
   NULL,
   rx_exception_sniffer
-};
+);
 
 /* Implement the "push_dummy_call" gdbarch method.  */
 static CORE_ADDR

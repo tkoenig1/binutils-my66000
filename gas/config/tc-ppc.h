@@ -72,15 +72,15 @@ extern const char *ppc_target_format (void);
 /* We don't need to handle .word strangely.  */
 #define WORKING_DOT_WORD
 
-#define MAX_MEM_FOR_RS_ALIGN_CODE 4
-#define HANDLE_ALIGN(FRAGP)						\
+#define MAX_MEM_FOR_RS_ALIGN_CODE(p2align, max) 8
+#define HANDLE_ALIGN(SEC, FRAGP)						\
   if ((FRAGP)->fr_type == rs_align_code)				\
-    ppc_handle_align (FRAGP);
+    ppc_handle_align (SEC, FRAGP);
 
 extern unsigned int ppc_nop_select (void);
 #define NOP_OPCODE ppc_nop_select ()
 
-extern void ppc_handle_align (struct frag *);
+extern void ppc_handle_align (segT, struct frag *);
 extern void ppc_frag_check (struct frag *);
 
 #ifdef OBJ_ELF

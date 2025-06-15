@@ -1010,7 +1010,7 @@ tic4x_sect (int x ATTRIBUTE_UNUSED)
      recognised and scanning extends into the next line, stopping with
      an error (blame Volker Kuhlmann <v.kuhlmann@elec.canterbury.ac.nz>
      if this is not true).  */
-  if (is_end_of_line[(unsigned char) c])
+  if (is_end_of_stmt (c))
     *(--input_line_pointer) = c;
 
   demand_empty_rest_of_line ();
@@ -1472,7 +1472,7 @@ tic4x_indirect_parse (tic4x_operand_t *operand,
 	  s++;
 	}
     }
-  if (*s != ' ' && *s != ',' && *s != '\0')
+  if (!is_whitespace (*s) && *s != ',' && !is_end_of_stmt (*s))
     return 0;
   input_line_pointer = s;
   return 1;
@@ -2428,7 +2428,7 @@ md_assemble (char *str)
       /* Find mnemonic (second part of parallel instruction).  */
       s = str;
       /* Skip past instruction mnemonic.  */
-      while (*s && *s != ' ')
+      while (!is_end_of_stmt (*s) && !is_whitespace (*s))
 	s++;
       if (*s)			/* Null terminate for str_hash_find.  */
 	*s++ = '\0';		/* and skip past null.  */
@@ -2450,8 +2450,7 @@ md_assemble (char *str)
 
   if (insn->in_use)
     {
-      if ((insn->inst = (struct tic4x_inst *)
-	   str_hash_find (tic4x_op_hash, insn->name)) == NULL)
+      if ((insn->inst = str_hash_find (tic4x_op_hash, insn->name)) == NULL)
 	{
 	  as_bad (_("Unknown opcode `%s'."), insn->name);
 	  insn->parallel = 0;
@@ -2492,7 +2491,7 @@ md_assemble (char *str)
     {
       /* Find mnemonic.  */
       s = str;
-      while (*s && *s != ' ')	/* Skip past instruction mnemonic.  */
+      while (!is_end_of_stmt (*s) && !is_whitespace (*s))	/* Skip past instruction mnemonic.  */
 	s++;
       if (*s)			/* Null terminate for str_hash_find.  */
 	*s++ = '\0';		/* and skip past null.  */

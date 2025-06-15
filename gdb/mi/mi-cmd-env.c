@@ -1,5 +1,5 @@
 /* MI Command Set - environment commands.
-   Copyright (C) 2002-2024 Free Software Foundation, Inc.
+   Copyright (C) 2002-2025 Free Software Foundation, Inc.
 
    Contributed by Red Hat Inc.
 
@@ -19,11 +19,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "inferior.h"
-#include "value.h"
 #include "mi-out.h"
 #include "mi-cmds.h"
 #include "mi-getopt.h"
-#include "symtab.h"
 #include "target.h"
 #include "gdbsupport/environ.h"
 #include "command.h"

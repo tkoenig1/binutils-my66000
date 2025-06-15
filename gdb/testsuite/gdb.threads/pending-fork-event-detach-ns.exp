@@ -1,4 +1,4 @@
-# Copyright 2021-2024 Free Software Foundation, Inc.
+# Copyright 2021-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 #   - If a pending fork child is mistakenly still attached, it will prevent its
 #     parent thread from waitpid'ing it, preventing the main thread from joining
 #     it, prevent it from writing the flag file, failing the test.
+
+require allow_fork_tests
 
 standard_testfile
 

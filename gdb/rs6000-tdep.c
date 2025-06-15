@@ -1,6 +1,6 @@
 /* Target-dependent code for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -3837,16 +3837,16 @@ rs6000_frame_prev_register (const frame_info_ptr &this_frame,
   return trad_frame_get_prev_register (this_frame, info->saved_regs, regnum);
 }
 
-static const struct frame_unwind rs6000_frame_unwind =
-{
+static const struct frame_unwind_legacy rs6000_frame_unwind (
   "rs6000 prologue",
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   rs6000_frame_this_id,
   rs6000_frame_prev_register,
   NULL,
   default_frame_sniffer
-};
+);
 
 /* Allocate and initialize a frame cache for an epilogue frame.
    SP is restored and prev-PC is stored in LR.  */
@@ -3978,15 +3978,15 @@ rs6000_epilogue_frame_sniffer (const struct frame_unwind *self,
 /* Frame unwinder for epilogue frame.  This is required for reverse step-over
    a function without debug information.  */
 
-static const struct frame_unwind rs6000_epilogue_frame_unwind =
-{
+static const struct frame_unwind_legacy rs6000_epilogue_frame_unwind (
   "rs6000 epilogue",
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   rs6000_epilogue_frame_this_id, rs6000_epilogue_frame_prev_register,
   NULL,
   rs6000_epilogue_frame_sniffer
-};
+);
 
 
 static CORE_ADDR
@@ -6951,7 +6951,7 @@ ppc_process_record_prefix_store_vsx_ds_form (struct gdbarch *gdbarch,
 }
 
 /* Record the prefixed VSX, form D, instructions.  The arguments are the
-   instruction address for PC-relative addresss (addr), the first 32-bits of
+   instruction address for PC-relative address (addr), the first 32-bits of
    the instruction (insn_prefix) and the following 32-bits of the instruction
    (insn_suffix).  Return 0 on success.  */
 
@@ -7583,7 +7583,7 @@ ppc64_update_call_site_pc (struct gdbarch *gdbarch, CORE_ADDR pc)
   return pc + 4;
 }
 
-/* Initialize the current architecture based on INFO.  If possible, re-use an
+/* Initialize the current architecture based on INFO.  If possible, reuse an
    architecture from ARCHES, which is a list of architectures already created
    during this debugging session.
 

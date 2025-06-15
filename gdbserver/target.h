@@ -1,5 +1,5 @@
 /* Target operations for the remote server for GDB.
-   Copyright (C) 2002-2024 Free Software Foundation, Inc.
+   Copyright (C) 2002-2025 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -77,13 +77,13 @@ public:
   /* Start a new process.
 
      PROGRAM is a path to the program to execute.
-     PROGRAM_ARGS is a standard NULL-terminated array of arguments,
-     to be passed to the inferior as ``argv'' (along with PROGRAM).
+     PROGRAM_ARGS is a string containing all of the arguments that will be
+     used to start the inferior.
 
      Returns the new PID on success, -1 on failure.  Registers the new
      process with the process list.  */
   virtual int create_inferior (const char *program,
-			       const std::vector<char *> &program_args) = 0;
+			       const std::string &program_args) = 0;
 
   /* Do additional setup after a new process is created, including
      exec-wrapper completion.  */
@@ -475,6 +475,13 @@ public:
      caller.  */
   virtual const char *thread_name (ptid_t thread);
 
+  /* Return the string translation for THREAD's id.  This gives the
+     target a chance to completely re-interpret the thread id and
+     present a target-specific description for displaying to the user.
+     Return empty if the target is fine with how an id is displayed
+     by default.  */
+  virtual std::string thread_id_str (thread_info *thread);
+
   /* Thread ID to (numeric) thread handle: Return true on success and
      false for failure.  Return pointer to thread handle via HANDLE
      and the handle's length via HANDLE_LEN.  */
@@ -734,5 +741,11 @@ bool set_desired_thread ();
 bool set_desired_process ();
 
 std::string target_pid_to_str (ptid_t);
+
+static inline std::string
+target_thread_id_str (thread_info *thread)
+{
+  return the_target->thread_id_str (thread);
+}
 
 #endif /* GDBSERVER_TARGET_H */

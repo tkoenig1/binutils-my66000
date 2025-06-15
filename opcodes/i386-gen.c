@@ -251,6 +251,8 @@ static const dependency isa_dependencies[] =
     "SEV_ES" },
   { "RMPQUERY",
     "SNP|64" },
+  { "RMPREAD",
+    "SNP|64" },
   { "TSX",
     "RTM|HLE" },
   { "TSXLDTRK",
@@ -269,6 +271,12 @@ static const dependency isa_dependencies[] =
     "AMX_TILE" },
   { "AMX_TF32",
     "AMX_TILE" },
+  { "AMX_FP8",
+    "AMX_TILE" },
+  { "AMX_MOVRS",
+    "AMX_TILE" },
+  { "AMX_AVX512",
+    "AMX_TILE|AVX10_2" },
   { "KL",
     "SSE2" },
   { "WIDEKL",
@@ -289,6 +297,12 @@ static const dependency isa_dependencies[] =
     "64" },
   { "APX_F",
     "XSAVE|64" },
+  { "PadLockRNG2",
+    "PadLock" },
+  { "PadLockPHE2",
+    "PadLock" },
+  { "PadLockXMODX",
+    "PadLock" },
 };
 
 /* This array is populated as process_i386_initializers() walks cpu_flags[].  */
@@ -342,7 +356,11 @@ static bitfield cpu_flags[] =
   BITFIELD (3dnow),
   BITFIELD (3dnowA),
   BITFIELD (PadLock),
-  BITFIELD (GMI),
+  BITFIELD (PadLockRNG2),
+  BITFIELD (PadLockPHE2),
+  BITFIELD (PadLockXMODX),
+  BITFIELD (GMISM2),
+  BITFIELD (GMICCS),
   BITFIELD (SVME),
   BITFIELD (VMX),
   BITFIELD (SMX),
@@ -415,6 +433,7 @@ static bitfield cpu_flags[] =
   BITFIELD (MSR_IMM),
   BITFIELD (APX_F),
   BITFIELD (AVX10_2),
+  BITFIELD (MOVRS),
   BITFIELD (MWAITX),
   BITFIELD (CLZERO),
   BITFIELD (OSPKE),
@@ -437,6 +456,9 @@ static bitfield cpu_flags[] =
   BITFIELD (AMX_COMPLEX),
   BITFIELD (AMX_TRANSPOSE),
   BITFIELD (AMX_TF32),
+  BITFIELD (AMX_FP8),
+  BITFIELD (AMX_MOVRS),
+  BITFIELD (AMX_AVX512),
   BITFIELD (AMX_TILE),
   BITFIELD (MOVDIRI),
   BITFIELD (MOVDIR64B),
@@ -453,6 +475,7 @@ static bitfield cpu_flags[] =
   BITFIELD (TLBSYNC),
   BITFIELD (SNP),
   BITFIELD (RMPQUERY),
+  BITFIELD (RMPREAD),
   BITFIELD (64),
   BITFIELD (No64),
 #ifdef CpuUnused
@@ -517,6 +540,7 @@ static const struct {
 } operand_classes[] = {
   CLASS (Reg),
   CLASS (SReg),
+  CLASS (RegFP),
   CLASS (RegCR),
   CLASS (RegDR),
   CLASS (RegTR),
@@ -1023,6 +1047,20 @@ process_i386_cpu_flag (FILE *table, char *flag,
 	  all[Cpu64].value = 1;
 
       output_cpu_flags(table, all, ARRAY_SIZE (all), -1, comma, indent, lineno);
+
+      /* For APX_F extension of multiple cpuid enabled insns, we cannot use
+	 APX_F(cpuid_A&cpuid_B) in the opcode table, as the result would fail
+	 to be parsed.  Furthermore, the result also wouldn't be quite valid.
+	 However, the assembler's cpu_flags_match() will simply propagate "any"
+	 to "all", zapping "any" afterwards altogether.  IOW in this situation
+	 both masks have "&&" meaning.  Set the missing flag here.  */
+      if (all[CpuAMX_TRANSPOSE].value && all[CpuAMX_MOVRS].value)
+	{
+	  if (!any[CpuAPX_F].value || !any[CpuAMX_MOVRS].value)
+	    fail ("%s: %d: internal error: APX_F=%d AMX_MOVRS=%d\n",
+		  filename, lineno, any[CpuAPX_F].value, any[CpuAMX_MOVRS].value);
+	  any[CpuAMX_TRANSPOSE].value = 1;
+	}
     }
 
   output_cpu_flags (table, any, ARRAY_SIZE (any), name != NULL,

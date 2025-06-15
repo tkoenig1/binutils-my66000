@@ -1552,7 +1552,7 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
     }
 
   /* Find the instruction.  */
-  instruction = (struct cris_opcode *) str_hash_find (op_hash, insn_text);
+  instruction = str_hash_find (op_hash, insn_text);
   if (instruction == NULL)
     {
       as_bad (_("Unknown opcode: `%s'"), insn_text);
@@ -1682,7 +1682,7 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 	      if (modified_char == '.' && *s == '.')
 		{
 		  if ((s[1] != 'd' && s[1] == 'D')
-		      || ! ISSPACE (s[2]))
+		      || ! is_whitespace (s[2]))
 		    break;
 		  s += 2;
 		  continue;
@@ -2094,7 +2094,7 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
 
 	      /* As discard_rest_of_line, but without continuing to the
 		 next line.  */
-	      while (!is_end_of_line[(unsigned char) *input_line_pointer])
+	      while (!is_end_of_stmt (*input_line_pointer))
 		input_line_pointer++;
 	      return;
 	    }
@@ -3231,7 +3231,7 @@ get_flags (char **cPP, int *flagsp)
 	     whitespace.  Anything else, and we consider it a failure.  */
 	  if (**cPP != ','
 	      && **cPP != 0
-	      && ! ISSPACE (**cPP))
+	      && ! is_whitespace (**cPP))
 	    return 0;
 	  else
 	    return 1;
@@ -4039,9 +4039,8 @@ void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg)
 {
   /* This assignment truncates upper bits if valueT is 64 bits (as with
-     --enable-64-bit-bfd), which is fine here, though we cast to avoid
-     any compiler warnings.  */
-  long val = (long) *valP;
+     --enable-64-bit-bfd), which is fine here.  */
+  long val = *valP;
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
 
   if (fixP->fx_addsy == 0 && !fixP->fx_pcrel)
@@ -4278,7 +4277,7 @@ cris_arch_from_string (const char **str)
       int len = strlen (ap->name);
 
       if (strncmp (*str, ap->name, len) == 0
-	  && (str[0][len] == 0 || ISSPACE (str[0][len])))
+	  && (is_end_of_stmt (str[0][len]) || is_whitespace (str[0][len])))
 	{
 	  *str += strlen (ap->name);
 	  return ap->arch;

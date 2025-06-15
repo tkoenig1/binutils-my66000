@@ -688,8 +688,11 @@ typedef struct bfd_section
   /* Nonzero if this section uses RELA relocations, rather than REL.  */
   unsigned int use_rela_p:1;
 
-  /* Nonzero if this section contents are mmapped, rather than malloced.  */
+  /* Nonzero if section contents are mmapped.  */
   unsigned int mmapped_p:1;
+
+  /* Nonzero if section contents should not be freed.  */
+  unsigned int alloced:1;
 
   /* Bits used by various backends.  The generic code doesn't touch
      these fields.  */
@@ -925,6 +928,9 @@ extern asection _bfd_std_section[4];
 #define BFD_COM_SECTION_NAME "*COM*"
 #define BFD_IND_SECTION_NAME "*IND*"
 
+/* GNU object-only section name.  */
+#define GNU_OBJECT_ONLY_SECTION_NAME ".gnu_object_only"
+
 /* Pointer to the common section.  */
 #define bfd_com_section_ptr (&_bfd_std_section[0])
 /* Pointer to the undefined section.  */
@@ -969,57 +975,6 @@ discarded_section (const asection *sec)
 	  && sec->sec_info_type != SEC_INFO_TYPE_MERGE
 	  && sec->sec_info_type != SEC_INFO_TYPE_JUST_SYMS);
 }
-
-#define BFD_FAKE_SECTION(SEC, SYM, NAME, IDX, FLAGS)                   \
-  /* name, next, prev, id,  section_id, index, flags, user_set_vma, */ \
-  {  NAME, NULL, NULL, IDX, 0,          0,     FLAGS, 0,               \
-								       \
-  /* linker_mark, linker_has_input, gc_mark, decompress_status,     */ \
-     0,           0,                1,       0,                        \
-								       \
-  /* segment_mark, sec_info_type, use_rela_p, mmapped_p,           */  \
-     0,            0,             0,          0,                       \
-								       \
-  /* sec_flg0, sec_flg1, sec_flg2, sec_flg3, sec_flg4, sec_flg5,    */ \
-     0,        0,        0,        0,        0,        0,              \
-								       \
-  /* vma, lma, size, rawsize, compressed_size,                      */ \
-     0,   0,   0,    0,       0,                                       \
-								       \
-  /* output_offset, output_section, relocation, orelocation,        */ \
-     0,             &SEC,           NULL,       NULL,                  \
-								       \
-  /* reloc_count, alignment_power, filepos, rel_filepos,            */ \
-     0,           0,               0,       0,                         \
-								       \
-  /* line_filepos, userdata, contents, lineno, lineno_count,        */ \
-     0,            NULL,     NULL,     NULL,   0,                      \
-								       \
-  /* entsize, kept_section, moving_line_filepos,                    */ \
-     0,       NULL,         0,                                         \
-								       \
-  /* target_index, used_by_bfd, constructor_chain, owner,           */ \
-     0,            NULL,        NULL,              NULL,               \
-								       \
-  /* symbol,                                                        */ \
-     (struct bfd_symbol *) SYM,                                        \
-								       \
-  /* map_head, map_tail, already_assigned, type                     */ \
-     { NULL }, { NULL }, NULL,             0                           \
-								       \
-    }
-
-/* We use a macro to initialize the static asymbol structures because
-   traditional C does not permit us to initialize a union member while
-   gcc warns if we don't initialize it.
-   the_bfd, name, value, attr, section [, udata]  */
-#ifdef __STDC__
-#define GLOBAL_SYM_INIT(NAME, SECTION) \
-  { 0, NAME, 0, BSF_SECTION_SYM, SECTION, { 0 }}
-#else
-#define GLOBAL_SYM_INIT(NAME, SECTION) \
-  { 0, NAME, 0, BSF_SECTION_SYM, SECTION }
-#endif
 
 void bfd_section_list_clear (bfd *);
 
@@ -1964,7 +1919,8 @@ enum bfd_lto_object_type
     lto_non_object,            /* Not an LTO object.  */
     lto_non_ir_object,         /* An object without LTO IR.  */
     lto_slim_ir_object,        /* A slim LTO IR object.  */
-    lto_fat_ir_object          /* A fat LTO IR object.  */
+    lto_fat_ir_object,         /* A fat LTO IR object.  */
+    lto_mixed_object           /* A mixed LTO IR object.  */
   };
 
 struct bfd_mmapped_entry
@@ -2187,7 +2143,7 @@ struct bfd
   unsigned int read_only : 1;
 
   /* LTO object type.  */
-  ENUM_BITFIELD (bfd_lto_object_type) lto_type : 2;
+  ENUM_BITFIELD (bfd_lto_object_type) lto_type : 3;
 
   /* Set if this BFD is currently being processed by
      bfd_check_format_matches.  This is checked by the cache to
@@ -2218,6 +2174,9 @@ struct bfd
 
   /* The last section on the section list.  */
   struct bfd_section *section_last;
+
+  /* The object-only section on the section list.  */
+  struct bfd_section *object_only_section;
 
   /* The number of sections.  */
   unsigned int section_count;
@@ -2343,6 +2302,16 @@ static inline enum bfd_lto_object_type
 bfd_get_lto_type (const bfd *abfd)
 {
   return abfd->lto_type;
+}
+
+static inline bool
+bfd_lto_slim_symbol_p (const bfd *abfd, const char *name)
+{
+  return (bfd_get_lto_type (abfd) != lto_non_ir_object
+	  && name != NULL
+	  && name[0] == '_'
+	  && name[1] == '_'
+	  && strcmp (name + (name[2] == '_'), "__gnu_lto_slim") == 0);
 }
 
 static inline flagword
@@ -2792,6 +2761,8 @@ bfd_vma bfd_emul_get_commonpagesize (const char *);
 
 char *bfd_demangle (bfd *, const char *, int);
 
+asymbol *bfd_group_signature (asection *group, asymbol **isympp);
+
 /* Extracted from bfdio.c.  */
 bfd_size_type bfd_read (void *, bfd_size_type, bfd *)
 ATTRIBUTE_WARN_UNUSED_RESULT;
@@ -2954,6 +2925,20 @@ const char *bfd_format_string (bfd_format format);
    && bfd_is_abs_section ((H)->u.def.section) \
    && !(H)->rel_from_abs)
 
+bool _bfd_generic_link_add_one_symbol
+   (struct bfd_link_info *info,
+    bfd *abfd,
+    const char *name,
+    flagword flags,
+    asection *section,
+    bfd_vma value,
+    const char *string,
+    bool copy,
+    bool collect,
+    struct bfd_link_hash_entry **hashp);
+
+bool bfd_link_align_section (asection *, unsigned int);
+
 bool bfd_link_split_section (bfd *abfd, asection *sec);
 
 #define bfd_link_split_section(abfd, sec) \
@@ -3074,6 +3059,9 @@ bool bfd_fill_in_gnu_debuglink_section
 char *bfd_follow_build_id_debuglink (bfd *abfd, const char *dir);
 
 const char *bfd_set_filename (bfd *abfd, const char *filename);
+
+const char *bfd_extract_object_only_section
+   (bfd *abfd);
 
 /* Extracted from reloc.c.  */
 typedef enum bfd_reloc_status

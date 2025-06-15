@@ -989,7 +989,7 @@ assemble_two_insns (char *str1, char *str2, int parallel_p)
   {
     char *s2 = str1;
 
-    while (ISSPACE (*s2++))
+    while (is_whitespace (*s2++))
       continue;
 
     --s2;
@@ -2333,13 +2333,13 @@ m32r_parse_name (char const *name,
       /* If we have an absolute symbol or a
 	 reg, then we know its value now.  */
       segment = S_GET_SEGMENT (exprP->X_add_symbol);
-      if (mode != expr_defer && segment == absolute_section)
+      if (!expr_defer_p (mode) && segment == absolute_section)
 	{
 	  exprP->X_op = O_constant;
 	  exprP->X_add_number = S_GET_VALUE (exprP->X_add_symbol);
 	  exprP->X_add_symbol = NULL;
 	}
-      else if (mode != expr_defer && segment == reg_section)
+      else if (!expr_defer_p (mode) && segment == reg_section)
 	{
 	  exprP->X_op = O_register;
 	  exprP->X_add_number = S_GET_VALUE (exprP->X_add_symbol);

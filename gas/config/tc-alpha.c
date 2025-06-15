@@ -589,7 +589,7 @@ get_alpha_reloc_tag (long sequence)
 
   sprintf (buffer, "!%ld", sequence);
 
-  info = (struct alpha_reloc_tag *) str_hash_find (alpha_literal_hash, buffer);
+  info = str_hash_find (alpha_literal_hash, buffer);
   if (! info)
     {
       size_t len = strlen (buffer);
@@ -888,7 +888,7 @@ tokenize_arguments (char *str,
 
 #ifdef RELOC_OP_P
   /* ??? Wrest control of ! away from the regular expression parser.  */
-  is_end_of_line[(unsigned char) '!'] = 1;
+  lex_type[(unsigned char) '!'] |= LEX_EOS;
 #endif
 
   while (tok < end_tok && *input_line_pointer)
@@ -1029,21 +1029,21 @@ tokenize_arguments (char *str,
   debug_exp (orig_tok, ntok - (end_tok - tok));
 #endif
 #ifdef RELOC_OP_P
-  is_end_of_line[(unsigned char) '!'] = 0;
+  lex_type[(unsigned char) '!'] &= ~LEX_EOS;
 #endif
 
   return ntok - (end_tok - tok);
 
  err:
 #ifdef RELOC_OP_P
-  is_end_of_line[(unsigned char) '!'] = 0;
+  lex_type[(unsigned char) '!'] &= ~LEX_EOS;
 #endif
   input_line_pointer = old_input_line_pointer;
   return TOKENIZE_ERROR;
 
 #ifdef RELOC_OP_P
  err_report:
-  is_end_of_line[(unsigned char) '!'] = 0;
+  lex_type[(unsigned char) '!'] &= ~LEX_EOS;
 #endif
   input_line_pointer = old_input_line_pointer;
   return TOKENIZE_ERROR_REPORT;
@@ -1170,8 +1170,7 @@ assemble_tokens_to_insn (const char *opname,
   const struct alpha_opcode *opcode;
 
   /* Search opcodes.  */
-  opcode = (const struct alpha_opcode *) str_hash_find (alpha_opcode_hash,
-							opname);
+  opcode = str_hash_find (alpha_opcode_hash, opname);
   if (opcode)
     {
       int cpumatch;
@@ -3318,8 +3317,7 @@ assemble_tokens (const char *opname,
 #endif
   if (local_macros_on)
     {
-      macro = (const struct alpha_macro *) str_hash_find (alpha_macro_hash,
-							  opname);
+      macro = str_hash_find (alpha_macro_hash, opname);
       if (macro)
 	{
 	  found_something = 1;
@@ -3333,8 +3331,7 @@ assemble_tokens (const char *opname,
     }
 
   /* Search opcodes.  */
-  opcode = (const struct alpha_opcode *) str_hash_find (alpha_opcode_hash,
-							opname);
+  opcode = str_hash_find (alpha_opcode_hash, opname);
   if (opcode)
     {
       found_something = 1;
@@ -3789,7 +3786,7 @@ s_alpha_end (int dummy ATTRIBUTE_UNUSED)
 	  if (sym && cur_frame_data)
 	    {
 	      OBJ_SYMFIELD_TYPE *obj = symbol_get_obj (sym);
-	      expressionS *exp = XNEW (expressionS);
+	      expressionS *exp = notes_alloc (sizeof (*exp));
 
 	      obj->size = exp;
 	      exp->X_op = O_subtract;
@@ -4059,7 +4056,8 @@ alpha_elf_md_finish (void)
 	   function symbol.  This prevents problems with globals.  */
 	cfi_new_fde (symbol_temp_new (S_GET_SEGMENT (p->func_sym),
 				      symbol_get_frag (p->func_sym),
-				      S_GET_VALUE (p->func_sym)));
+				      S_GET_VALUE (p->func_sym)),
+		     false);
 
 	cfi_set_sections ();
 	cfi_set_return_column (p->ra_regno);
@@ -4138,7 +4136,7 @@ s_alpha_usepv (int unused ATTRIBUTE_UNUSED)
 
   sym = symbol_find_or_make (name);
   name_end = restore_line_pointer (name_end);
-  if (! is_end_of_line[(unsigned char) name_end])
+  if (! is_end_of_stmt (name_end))
     input_line_pointer++;
 
   if (name_end != ',')
@@ -4201,7 +4199,7 @@ s_alpha_section_name (void)
     {
       char *end = input_line_pointer;
 
-      while (0 == strchr ("\n\t,; ", *end))
+      while (!is_whitespace (*end) && !is_end_of_stmt (*end) && *end != ',')
 	end++;
       if (end == input_line_pointer)
 	{
@@ -5367,7 +5365,7 @@ alpha_handle_align (fragS *fragp)
     0x00, 0x00, 0xfe, 0x2f
   };
 
-  int bytes, fix;
+  size_t bytes, fix;
   char *p;
 
   if (fragp->fr_type != rs_align_code)
@@ -5375,16 +5373,14 @@ alpha_handle_align (fragS *fragp)
 
   bytes = fragp->fr_next->fr_address - fragp->fr_address - fragp->fr_fix;
   p = fragp->fr_literal + fragp->fr_fix;
-  fix = 0;
 
-  if (bytes & 3)
+  fix = bytes & 3;
+  if (fix)
     {
-      fix = bytes & 3;
       memset (p, 0, fix);
       p += fix;
       bytes -= fix;
     }
-
   if (bytes & 4)
     {
       memcpy (p, unop, 4);
@@ -5392,11 +5388,13 @@ alpha_handle_align (fragS *fragp)
       bytes -= 4;
       fix += 4;
     }
-
-  memcpy (p, nopunop, 8);
-
   fragp->fr_fix += fix;
-  fragp->fr_var = 8;
+
+  if (bytes)
+    {
+      memcpy (p, nopunop, 8);
+      fragp->fr_var = 8;
+    }
 }
 
 /* Public interface functions.  */

@@ -1,6 +1,6 @@
 /* Target-dependent code for BPF.
 
-   Copyright (C) 2020-2024 Free Software Foundation, Inc.
+   Copyright (C) 2020-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -181,16 +181,16 @@ bpf_frame_prev_register (const frame_info_ptr &this_frame,
 
 /* Frame unwinder machinery for BPF.  */
 
-static const struct frame_unwind bpf_frame_unwind =
-{
+static const struct frame_unwind_legacy bpf_frame_unwind (
   "bpf prologue",
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   bpf_frame_unwind_stop_reason,
   bpf_frame_this_id,
   bpf_frame_prev_register,
   NULL,
   default_frame_sniffer
-};
+);
 
 
 /* Breakpoints.  */
@@ -307,7 +307,7 @@ bpf_return_value (struct gdbarch *gdbarch, struct value *function,
 }
 
 
-/* Initialize the current architecture based on INFO.  If possible, re-use an
+/* Initialize the current architecture based on INFO.  If possible, reuse an
    architecture from ARCHES, which is a list of architectures already created
    during this debugging session.  */
 

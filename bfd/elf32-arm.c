@@ -2630,6 +2630,8 @@ static const insn_sequence elf32_arm_stub_long_branch_thumb2_only_pure[] =
   THUMB32_MOVW (0xf2400c00),	     /* mov.w ip, R_ARM_MOVW_ABS_NC */
   THUMB32_MOVT (0xf2c00c00),	     /* movt  ip, R_ARM_MOVT_ABS << 16 */
   THUMB16_INSN (0x4760),	     /* bx   ip */
+  THUMB16_INSN (0xbf00),	     /* nop */
+  /* The nop is added to ensure alignment of following stubs in the section.  */
 };
 
 /* V4T Thumb -> Thumb long branch stub. Using the stack is not
@@ -5072,7 +5074,7 @@ arm_build_one_stub (struct bfd_hash_entry *gen_entry,
      section.  The user should fix his linker script.  */
   if (stub_entry->target_section->output_section == NULL
       && info->non_contiguous_regions)
-    info->callbacks->einfo (_("%F%P: Could not assign `%pA' to an output section. "
+    info->callbacks->fatal (_("%P: Could not assign `%pA' to an output section. "
 			      "Retry without --enable-non-contiguous-regions.\n"),
 			    stub_entry->target_section);
 
@@ -7073,6 +7075,7 @@ elf32_arm_build_stubs (struct bfd_link_info *info)
       stub_sec->contents = (unsigned char *) bfd_zalloc (htab->stub_bfd, size);
       if (stub_sec->contents == NULL && size != 0)
 	return false;
+      stub_sec->alloced = 1;
 
       stub_sec->size = 0;
     }
@@ -7279,6 +7282,7 @@ arm_allocate_glue_section_space (bfd * abfd, bfd_size_type size, const char * na
 
   BFD_ASSERT (s->size == size);
   s->contents = contents;
+  s->alloced = 1;
 }
 
 bool
@@ -16823,6 +16827,7 @@ elf32_arm_late_size_sections (bfd * output_bfd ATTRIBUTE_UNUSED,
 	  BFD_ASSERT (s != NULL);
 	  s->size = sizeof ELF_DYNAMIC_INTERPRETER;
 	  s->contents = (unsigned char *) ELF_DYNAMIC_INTERPRETER;
+	  s->alloced = 1;
 	}
     }
 
@@ -17173,6 +17178,7 @@ elf32_arm_late_size_sections (bfd * output_bfd ATTRIBUTE_UNUSED,
       s->contents = (unsigned char *) bfd_zalloc (dynobj, s->size);
       if (s->contents == NULL)
 	return false;
+      s->alloced = 1;
     }
 
   return _bfd_elf_maybe_vxworks_add_dynamic_tags (output_bfd, info,
@@ -18387,6 +18393,9 @@ elf32_arm_output_arch_local_syms (bfd *output_bfd,
 	{
 	  struct arm_local_iplt_info **local_iplt;
 	  unsigned int i, num_syms;
+
+	  if (!is_arm_elf (input_bfd))
+	    continue;
 
 	  local_iplt = elf32_arm_local_iplt (input_bfd);
 	  if (local_iplt != NULL)

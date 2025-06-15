@@ -41,7 +41,6 @@ static char mnemonic_chars[256];
 
 #define is_register_char(x) (register_chars[(unsigned char) x])
 #define is_mnemonic_char(x) (mnemonic_chars[(unsigned char) x])
-#define is_whitespace_char(x) (((x) == ' ') || ((x) == '\t'))
 #define is_space_char(x) ((x) == ' ')
 
 #define FPU_PREFIX_CHAR 'f'
@@ -221,7 +220,7 @@ skip_whitespace (const char *line)
 {
   const char *l = line;
 
-  if (is_whitespace_char (*l))
+  if (is_whitespace (*l))
     {
       l++;
     }
@@ -4381,11 +4380,10 @@ parse_dsp_addr (const char *line, metag_addr *addr, unsigned int size,
 
   l = parse_dsp_regs_list (l, regs, 1, &regs_read, true, true, load, false);
 
-  if (l == NULL)
+  if (l == NULL || regs_read == 0)
     return NULL;
 
-  if (!is_addr_unit (regs[0]->unit) &&
-      !is_dspram_reg (regs[0]))
+  if (!is_addr_unit (regs[0]->unit) && !is_dspram_reg (regs[0]))
     {
       as_bad (_("invalid register for memory access"));
       return NULL;
@@ -4435,7 +4433,7 @@ parse_dsp_addr (const char *line, metag_addr *addr, unsigned int size,
 
   l = parse_dsp_regs_list (l, regs, 1, &regs_read, true, true, load, false);
 
-  if (l == NULL)
+  if (l == NULL || regs_read == 0)
     return NULL;
 
   if (regs[0]->unit != addr->base_reg->unit)
@@ -4523,7 +4521,7 @@ parse_dget_set (const char *line, metag_insn *insn,
 			       false, false);
     }
 
-  if (l == NULL)
+  if (l == NULL || regs_read == 0)
     return NULL;
 
   /* The first register dictates the unit.  */
@@ -6052,7 +6050,7 @@ parse_prefix (const char *line, metag_insn *insn)
 	      /* Check this isn't a split condition beginning with L.  */
 	      l2 = parse_split_condition (l2, insn);
 
-	      if (l2 && is_whitespace_char (*l2))
+	      if (l2 && is_whitespace (*l2))
 		{
 		  l = l2;
 		}
@@ -6090,7 +6088,7 @@ parse_prefix (const char *line, metag_insn *insn)
 	      l++;
 	    }
 
-	  if (! is_whitespace_char (*l))
+	  if (! is_whitespace (*l))
 	    {
 	      l = parse_split_condition (l, insn);
 
@@ -6116,7 +6114,7 @@ parse_prefix (const char *line, metag_insn *insn)
 
 	  insn->dsp_width = DSP_WIDTH_SINGLE;
 
-	  while (!is_whitespace_char (*l))
+	  while (!is_whitespace (*l))
 	    {
 	      /* We have to check for split condition codes first
 		 because they are the longest strings to match,
@@ -6843,34 +6841,26 @@ void
 metag_handle_align (fragS * fragP)
 {
   static unsigned char const noop[4] = { 0xfe, 0xff, 0xff, 0xa0 };
-  int bytes, fix;
-  char *p;
 
   if (fragP->fr_type != rs_align_code)
     return;
 
-  bytes = fragP->fr_next->fr_address - fragP->fr_address - fragP->fr_fix;
-  p = fragP->fr_literal + fragP->fr_fix;
-  fix = 0;
-
-  if (bytes & 3)
+  int bytes = fragP->fr_next->fr_address - fragP->fr_address - fragP->fr_fix;
+  char *p = fragP->fr_literal + fragP->fr_fix;
+  int fix = bytes & 3;
+  if (fix != 0)
     {
-      fix = bytes & 3;
       memset (p, 0, fix);
       p += fix;
       bytes -= fix;
+      fragP->fr_fix += fix;
     }
 
-  while (bytes >= 4)
+  if (bytes != 0)
     {
+      fragP->fr_var = 4;
       memcpy (p, noop, 4);
-      p += 4;
-      bytes -= 4;
-      fix += 4;
     }
-
-  fragP->fr_fix += fix;
-  fragP->fr_var = 4;
 }
 
 static char *
@@ -6908,13 +6898,13 @@ metag_parse_name (char const * name, expressionS * exprP, enum expr_mode mode,
       /* If we have an absolute symbol or a
 	 reg, then we know its value now.  */
       segment = S_GET_SEGMENT (exprP->X_add_symbol);
-      if (mode != expr_defer && segment == absolute_section)
+      if (!expr_defer_p (mode) && segment == absolute_section)
 	{
 	  exprP->X_op = O_constant;
 	  exprP->X_add_number = S_GET_VALUE (exprP->X_add_symbol);
 	  exprP->X_add_symbol = NULL;
 	}
-      else if (mode != expr_defer && segment == reg_section)
+      else if (!expr_defer_p (mode) && segment == reg_section)
 	{
 	  exprP->X_op = O_register;
 	  exprP->X_add_number = S_GET_VALUE (exprP->X_add_symbol);
@@ -7039,7 +7029,7 @@ void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
-  int value = (int)*valP;
+  int value = *valP;
 
   switch (fixP->fx_r_type)
     {

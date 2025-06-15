@@ -1,4 +1,4 @@
-# Copyright 2017-2024 Free Software Foundation, Inc.
+# Copyright 2017-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -172,6 +172,10 @@ proc multi_target_prepare {} {
     global binfile srcfile
 
     if { ![allow_gdbserver_tests] } {
+	return 0
+    }
+
+    if {![allow_multi_inferior_tests]} {
 	return 0
     }
 

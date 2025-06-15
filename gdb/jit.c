@@ -1,6 +1,6 @@
 /* Handle JIT code generation in the inferior for GDB, the GNU Debugger.
 
-   Copyright (C) 2009-2024 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -665,6 +665,8 @@ jit_object_close_impl (struct gdb_symbol_callbacks *cb,
 
   objfile *objfile = objfile::make (nullptr, current_program_space,
 				    objfile_name.c_str (), OBJF_NOT_FILENAME);
+  objfile->section_offsets.push_back (0);
+  objfile->sect_index_text = 0;
   objfile->per_bfd->gdbarch = priv_data->gdbarch;
 
   for (gdb_symtab &symtab : obj->symtabs)
@@ -985,8 +987,10 @@ jit_unwind_reg_get_impl (struct gdb_unwind_callbacks *cb, int regnum)
   size = register_size (frame_arch, gdb_reg);
   value = ((struct gdb_reg_value *)
 	   xmalloc (sizeof (struct gdb_reg_value) + size - 1));
-  value->defined = deprecated_frame_register_read (priv->this_frame, gdb_reg,
-						   value->value);
+  value->defined
+    = deprecated_frame_register_read (priv->this_frame, gdb_reg,
+				      gdb::make_array_view (value->value,
+							    size));
   value->size = size;
   value->free = reg_value_free_impl;
   return value;
@@ -1096,7 +1100,7 @@ jit_frame_prev_register (const frame_info_ptr &this_frame, void **cache, int reg
     return frame_unwind_got_optimized (this_frame, reg);
 
   gdbarch = priv->regcache->arch ();
-  gdb_byte *buf = (gdb_byte *) alloca (register_size (gdbarch, reg));
+  gdb::byte_vector buf (register_size (gdbarch, reg));
   enum register_status status = priv->regcache->cooked_read (reg, buf);
 
   if (status == REG_VALID)
@@ -1108,17 +1112,17 @@ jit_frame_prev_register (const frame_info_ptr &this_frame, void **cache, int reg
 /* Relay everything back to the unwinder registered by the JIT debug
    info reader.*/
 
-static const struct frame_unwind jit_frame_unwind =
-{
+static const struct frame_unwind_legacy jit_frame_unwind (
   "jit",
   NORMAL_FRAME,
+  FRAME_UNWIND_EXTENSION,
   default_frame_unwind_stop_reason,
   jit_frame_this_id,
   jit_frame_prev_register,
   NULL,
   jit_frame_sniffer,
   jit_dealloc_cache
-};
+);
 
 
 /* This is the information that is stored at jit_gdbarch_data for each

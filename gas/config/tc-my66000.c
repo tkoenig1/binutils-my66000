@@ -21,6 +21,7 @@
 
 #include "as.h"
 #include "safe-ctype.h"
+#include "gas/read.h"
 #include "opcode/my66000.h"
 #include <assert.h>
 
@@ -412,7 +413,7 @@ match_character (char c, char **ptr, char **errmsg)
 {
   char *s;
 
-  for (s = *ptr; ISSPACE(*s); s++)
+  for (s = *ptr; is_whitespace(*s); s++)
     ;
 
   if (*s != c)
@@ -480,7 +481,7 @@ match_integer_expr_ex (char **ptr, char **errmsg, offsetT minval, offsetT maxval
   str = *ptr;
 
   /* Drop leading whitespace.  */
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     str++;
 
   input_line_pointer = str;
@@ -493,7 +494,7 @@ match_integer_expr_ex (char **ptr, char **errmsg, offsetT minval, offsetT maxval
     {
       if (*endp == '\0' || *endp == ',' || *endp == ']' || *endp == ':'
 	  || *endp == '<' || *endp == '>'
-	  || is_end_of_line[(unsigned char) *endp])
+	  || is_end_of_stmt(*endp))
 	break;
       endp++;
     }
@@ -723,7 +724,7 @@ match_tf_list (char **ptr, char **errmsg, char ch)
   str = *ptr;
 
   /* Drop leading whitespace.  */
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     str++;
 
   while (TOUPPER (*str) == ch)
@@ -754,7 +755,7 @@ match_register (char **ptr, char **errmsg, htab_t map)
   char buf[MAX_REG_STR_LEN + 1];
 
   /* Drop leading whitespace.  */
-  while (ISSPACE (*s))
+  while (is_whitespace (*s))
     s++;
 
   /* Search for the end of the potential register name.  */
@@ -831,7 +832,7 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
   str = *ptr;
 
   /* Drop leading whitespace.  */
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     str++;
 
   input_line_pointer = str;
@@ -841,7 +842,7 @@ match_num_or_label (char **ptr, char **errmsg, expressionS *ex,
     {
       if (*endp == '\0' || *endp == ',' || *endp == ']' || *endp == ':'
 	  || *endp == '<' || *endp == '>'
-	  || is_end_of_line[(unsigned char) *endp])
+	  || is_end_of_stmt (*endp))
 	break;
       endp++;
     }
@@ -954,7 +955,7 @@ match_hex (char **ptr, char **errmsg, int bytes)
   int i;
 
   /* Drop leading whitespace.  */
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     str++;
 
   if (str[0] != '0' && (str[1] != 'x' || str[1] != 'X'))
@@ -1717,14 +1718,14 @@ md_assemble (char *str)
 
   // fprintf(stderr,"md_assemble : frag_now->fr_literal = %p\n", frag_now->fr_literal);
   /* Drop leading whitespace.  */
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     str++;
 
   /* Copy the instruction into the buffer, searching for the end.  */
   for (i = 0; i < MAX_OP_STR_LEN; i++)
     {
       char c = str[i];
-      if (!c || is_end_of_line[(unsigned char) c] || ISSPACE(c))
+      if (!c || is_end_of_stmt (c) || is_whitespace(c))
 	break;
       buffer[i] = TOLOWER(c);
     }
@@ -2182,7 +2183,7 @@ handle_jt (int num ATTRIBUTE_UNUSED)
 	{
 	  if (*endp == '\0' || *endp == ',' || *endp == ']' || *endp == ':'
 	      || *endp == '<' || *endp == '>'
-	      || is_end_of_line[(unsigned char) *endp])
+	      || is_end_of_stmt (*endp))
 	    break;
 	  endp ++;
 	}

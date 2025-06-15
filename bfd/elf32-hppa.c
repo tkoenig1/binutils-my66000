@@ -728,7 +728,7 @@ hppa_build_one_stub (struct bfd_hash_entry *bh, void *in_arg)
 	 section.  The user should fix his linker script.  */
       if (hsh->target_section->output_section == NULL
 	  && info->non_contiguous_regions)
-	info->callbacks->einfo (_("%F%P: Could not assign `%pA' to an output "
+	info->callbacks->fatal (_("%P: Could not assign `%pA' to an output "
 				  "section. Retry without "
 				  "--enable-non-contiguous-regions.\n"),
 				hsh->target_section);
@@ -757,7 +757,7 @@ hppa_build_one_stub (struct bfd_hash_entry *bh, void *in_arg)
 	 section.  The user should fix his linker script.  */
       if (hsh->target_section->output_section == NULL
 	  && info->non_contiguous_regions)
-	info->callbacks->einfo (_("%F%P: Could not assign `%pA' to an output "
+	info->callbacks->fatal (_("%P: Could not assign `%pA' to an output "
 				  "section. Retry without "
 				  "--enable-non-contiguous-regions.\n"),
 				hsh->target_section);
@@ -838,7 +838,7 @@ hppa_build_one_stub (struct bfd_hash_entry *bh, void *in_arg)
 	 section.  The user should fix his linker script.  */
       if (hsh->target_section->output_section == NULL
 	  && info->non_contiguous_regions)
-	info->callbacks->einfo (_("%F%P: Could not assign `%pA' to an output "
+	info->callbacks->fatal (_("%P: Could not assign `%pA' to an output "
 				  "section. Retry without "
 				  "--enable-non-contiguous-regions.\n"),
 				hsh->target_section);
@@ -2068,6 +2068,7 @@ elf32_hppa_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	    abort ();
 	  sec->size = sizeof ELF_DYNAMIC_INTERPRETER;
 	  sec->contents = (unsigned char *) ELF_DYNAMIC_INTERPRETER;
+	  sec->alloced = 1;
 	}
 
       /* Force millicode symbols local.  */
@@ -2215,12 +2216,10 @@ elf32_hppa_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 		 section.  We want this stub right at the end, up
 		 against the .got section.  */
 	      int gotalign = bfd_section_alignment (htab->etab.sgot);
-	      int pltalign = bfd_section_alignment (sec);
 	      int align = gotalign > 3 ? gotalign : 3;
 	      bfd_size_type mask;
 
-	      if (align > pltalign)
-		bfd_set_section_alignment (sec, align);
+	      (void) bfd_link_align_section (sec, align);
 	      mask = ((bfd_size_type) 1 << gotalign) - 1;
 	      sec->size = (sec->size + sizeof (plt_stub) + mask) & ~mask;
 	    }
@@ -2272,6 +2271,7 @@ elf32_hppa_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       sec->contents = bfd_zalloc (dynobj, sec->size);
       if (sec->contents == NULL)
 	return false;
+      sec->alloced = 1;
     }
 
   return _bfd_elf_add_dynamic_tags (output_bfd, info, relocs);
@@ -2995,6 +2995,7 @@ elf32_hppa_build_stubs (struct bfd_link_info *info)
 	stub_sec->contents = bfd_zalloc (htab->stub_bfd, stub_sec->size);
 	if (stub_sec->contents == NULL)
 	  return false;
+	stub_sec->alloced = 1;
 	stub_sec->size = 0;
       }
 

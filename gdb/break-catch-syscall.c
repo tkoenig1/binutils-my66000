@@ -1,6 +1,6 @@
 /* Everything about syscall catchpoints, for GDB.
 
-   Copyright (C) 2009-2024 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -423,7 +423,7 @@ catch_syscall_command_1 (const char *arg, int from_tty,
   struct syscall s;
   struct gdbarch *gdbarch = get_current_arch ();
 
-  /* Checking if the feature if supported.  */
+  /* Checking if the feature is supported.  */
   if (gdbarch_get_syscall_number_p (gdbarch) == 0)
     error (_("The feature 'catch syscall' is not supported on \
 this architecture yet."));

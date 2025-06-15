@@ -1,6 +1,6 @@
 /* Target-dependent code for the Xtensa port of GDB, the GNU debugger.
 
-   Copyright (C) 2003-2024 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1496,17 +1496,16 @@ xtensa_frame_prev_register (const frame_info_ptr &this_frame,
 }
 
 
-static const struct frame_unwind
-xtensa_unwind =
-{
+static const struct frame_unwind_legacy xtensa_unwind (
   "xtensa prologue",
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   xtensa_frame_this_id,
   xtensa_frame_prev_register,
   NULL,
   default_frame_sniffer
-};
+);
 
 static CORE_ADDR
 xtensa_frame_base_address (const frame_info_ptr &this_frame, void **this_cache)
@@ -1768,7 +1767,7 @@ xtensa_push_dummy_call (struct gdbarch *gdbarch,
 	      arg_type = builtin_type (gdbarch)->builtin_long;
 	      arg = value_cast (arg_type, arg);
 	    }
-	  /* Aligment is equal to the type length for the basic types.  */
+	  /* Alignment is equal to the type length for the basic types.  */
 	  info->align = arg_type->length ();
 	  break;
 

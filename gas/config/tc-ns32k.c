@@ -1097,13 +1097,15 @@ parse (const char *line, int recursive_level)
   if (recursive_level <= 0)
     {
       /* Called from md_assemble.  */
-      for (lineptr = line; (*lineptr) != '\0' && (*lineptr) != ' '; lineptr++)
+      for (lineptr = line;
+	   (*lineptr) != '\0' && !is_whitespace (*lineptr);
+	   lineptr++)
 	continue;
 
       c = *lineptr;
       *(char *) lineptr = '\0';
 
-      desc = (struct ns32k_opcode *) str_hash_find (inst_hash_handle, line);
+      desc = str_hash_find (inst_hash_handle, line);
       if (!desc)
 	as_fatal (_("No such opcode"));
 
@@ -1964,7 +1966,7 @@ md_fix_pcrel_adjust (fixS *fixP)
 void
 md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 {
-  long val = * (long *) valP;
+  long val = *valP;
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
 
   if (fix_bit_fixP (fixP))

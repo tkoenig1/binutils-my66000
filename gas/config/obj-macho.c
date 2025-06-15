@@ -105,13 +105,13 @@ collect_16char_name (char *dest, const char *msg, int require_comma)
   namstart = input_line_pointer;
 
   while ( (c = *input_line_pointer) != ','
-	 && !is_end_of_line[(unsigned char) c])
+	 && !is_end_of_stmt (c))
     input_line_pointer++;
 
   {
       int len = input_line_pointer - namstart; /* could be zero.  */
       /* lose any trailing space.  */
-      while (len > 0 && namstart[len-1] == ' ')
+      while (len > 0 && is_whitespace (namstart[len-1]))
         len--;
       if (len > 16)
         {
@@ -325,12 +325,12 @@ obj_mach_o_section (int ignore ATTRIBUTE_UNUSED)
       SKIP_WHITESPACE ();
       p = input_line_pointer;
       while ((c = *input_line_pointer) != ','
-	      && !is_end_of_line[(unsigned char) c])
+	      && !is_end_of_stmt (c))
 	input_line_pointer++;
 
       len = input_line_pointer - p;
       /* strip trailing spaces.  */
-      while (len > 0 && p[len-1] == ' ')
+      while (len > 0 && is_whitespace (p[len - 1]))
 	len--;
       tmpc = p[len];
 
@@ -364,12 +364,12 @@ obj_mach_o_section (int ignore ATTRIBUTE_UNUSED)
 	      p = input_line_pointer;
 	      while ((c = *input_line_pointer) != '+'
 		      && c != ','
-		      && !is_end_of_line[(unsigned char) c])
+		      && !is_end_of_stmt (c))
 		input_line_pointer++;
 
 	      len = input_line_pointer - p;
 	      /* strip trailing spaces.  */
-	      while (len > 0 && p[len-1] == ' ')
+	      while (len > 0 && is_whitespace (p[len - 1]))
 		len--;
 	      tmpc = p[len];
 
@@ -1135,7 +1135,7 @@ obj_mach_o_sym_qual (int ntype)
 	{
 	  input_line_pointer++;
 	  SKIP_WHITESPACE ();
-	  if (is_end_of_line[(unsigned char) *input_line_pointer])
+	  if (is_end_of_stmt (*input_line_pointer))
 	    c = '\n';
 	}
     }
@@ -1818,13 +1818,8 @@ obj_mach_o_set_indirect_symbols (bfd *abfd, asection *sec,
 	      if (nactual < bfd_get_symcount (abfd))
 		nactual = bfd_get_symcount (abfd);
 
-	      ms->indirect_syms =
-			bfd_zalloc (abfd,
-				    nactual * sizeof (bfd_mach_o_asymbol *));
-
-	      if (ms->indirect_syms == NULL)
-		as_fatal (_("internal error: failed to allocate %d indirect"
-			    "symbol pointers"), nactual);
+	      ms->indirect_syms = notes_calloc (nactual,
+						sizeof (*ms->indirect_syms));
 
 	      for (isym = list, n = 0; isym != NULL; isym = isym->next, n++)
 		{

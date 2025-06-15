@@ -1,6 +1,6 @@
 /* GDB CLI commands.
 
-   Copyright (C) 2000-2024 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -215,7 +215,7 @@ error_no_arg (const char *why)
 static void
 info_command (const char *arg, int from_tty)
 {
-  help_list (infolist, "info ", all_commands, gdb_stdout);
+  help_list (infolist, "info", all_commands, gdb_stdout);
 }
 
 /* See cli/cli-cmds.h.  */
@@ -833,7 +833,7 @@ echo_command (const char *text, int from_tty)
 	  gdb_printf ("%c", c);
       }
 
-  gdb_stdout->reset_style ();
+  gdb_stdout->emit_style_escape (ui_file_style ());
 
   /* Force this output to appear now.  */
   gdb_flush (gdb_stdout);
@@ -950,6 +950,21 @@ static void
 shell_command (const char *arg, int from_tty)
 {
   shell_escape (arg, from_tty);
+}
+
+/* Completion for the shell command.  Currently, this just uses filename
+   completion, but we could, potentially, complete command names from $PATH
+   for the first word, which would make this even more shell like.  */
+
+static void
+shell_command_completer (struct cmd_list_element *ignore,
+			 completion_tracker &tracker,
+			 const char *text, const char * /* word */)
+{
+  tracker.set_use_custom_word_point (true);
+  const char *word
+    = advance_to_filename_maybe_quoted_complete_word_point (tracker, text);
+  filename_maybe_quoted_completer (ignore, tracker, text, word);
 }
 
 static void
@@ -2398,6 +2413,11 @@ value_from_setting (const setting &var, struct gdbarch *gdbarch)
 
 	return current_language->value_string (gdbarch, value, len);
       }
+    case var_color:
+      {
+	std::string s = var.get<ui_file_style::color> ().to_string ();
+	return current_language->value_string (gdbarch, s.c_str (), s.size ());
+      }
     default:
       gdb_assert_not_reached ("bad var_type");
     }
@@ -2445,6 +2465,7 @@ str_value_from_setting (const setting &var, struct gdbarch *gdbarch)
     case var_pinteger:
     case var_boolean:
     case var_auto_boolean:
+    case var_color:
       {
 	std::string cmd_val = get_setshow_command_value_string (var);
 
@@ -2797,7 +2818,7 @@ the previous command number shown."),
     = add_com ("shell", class_support, shell_command, _("\
 Execute the rest of the line as a shell command.\n\
 With no arguments, run an inferior shell."));
-  set_cmd_completer (shell_cmd, deprecated_filename_completer);
+  set_cmd_completer_handle_brkchars (shell_cmd, shell_command_completer);
 
   add_com_alias ("!", shell_cmd, class_support, 0);
 

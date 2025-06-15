@@ -180,7 +180,7 @@ proc objcopy_test_verilog {testname} {
 	untested "verilog width-4 and width-8 tests"
 	return
     }
-    
+
     foreach width {4 8} {
 	set got [binutils_run $OBJCOPY "-O verilog --verilog-data-width $width $binfile $verilog-$width.hex"]
 	if ![string equal "" $got] then {
@@ -194,7 +194,7 @@ proc objcopy_test_verilog {testname} {
 	}
     }
 
-    # Test generating endian correct output.    
+    # Test generating endian correct output.
     set testname "objcopy (verilog output endian-ness == input endian-ness)"
     set got [binutils_run $OBJCOPY "-O verilog --verilog-data-width 4 $binfile $verilog-I4.hex"]
     if ![string equal "" $got] then {
@@ -202,9 +202,9 @@ proc objcopy_test_verilog {testname} {
     }
     send_log "regexp_diff $verilog-I4.hex $srcdir/$subdir/verilog-I4.hex\n"
     if {! [regexp_diff "$verilog-I4.hex" "$srcdir/$subdir/verilog-I4.hex"]} {
-	pass $testname 
+	pass $testname
     } else {
-	fail $testname 
+	fail $testname
     }
 }
 
@@ -660,6 +660,87 @@ proc strip_test_with_saving_a_symbol { } {
 }
 
 strip_test_with_saving_a_symbol
+
+# Test stripping an archive.
+
+proc strip_test_archive { } {
+    global AR
+    global CC
+    global STRIP
+    global srcdir
+    global subdir
+
+    set test "strip -g on archive"
+
+    if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog.o object debug] != "" } {
+	untested $test
+	return
+    }
+
+    set stripobjfile tmpdir/striptestprog.o
+    set stripobjarchive testprog.o
+    if [is_remote host] {
+	set archive libstrip.a
+	set objfile [remote_download host tmpdir/testprog.o]
+	remote_file host delete $archive
+	remote_file host delete $stripobjfile
+	remote_file host delete $stripobjarchive
+    } else {
+	set archive tmpdir/libstrip.a
+	set objfile tmpdir/testprog.o
+	remote_file build delete $stripobjfile
+	remote_file build delete $stripobjarchive
+    }
+
+    remote_file build delete tmpdir/libstrip.a
+
+    set exec_output [binutils_run $STRIP "-g -o $stripobjfile $objfile"]
+    set exec_output [prune_warnings $exec_output]
+    if ![string equal "" $exec_output] {
+	fail $test
+	return
+    }
+
+    set exec_output [binutils_run $AR "rc $archive ${objfile}"]
+    set exec_output [prune_warnings $exec_output]
+    if ![string equal "" $exec_output] {
+	fail $test
+	return
+    }
+
+    set exec_output [binutils_run $STRIP "-g $archive"]
+    set exec_output [prune_warnings $exec_output]
+    if ![string equal "" $exec_output] {
+	fail $test
+	return
+    }
+
+    set exec_output [binutils_run $AR "x $archive"]
+    set exec_output [prune_warnings $exec_output]
+    if ![string equal "" $exec_output] {
+	fail $test
+	return
+    }
+
+    if [is_remote host] {
+	set stripobjfile [remote_download host $stripobjfile]
+	set stripobjarchive [remote_download host $stripobjarchive]
+    }
+
+    send_log "cmp $stripobjarchive $stripobjfile\n"
+    verbose "cmp $stripobjarchive $stripobjfile"
+    set status [remote_exec build cmp "$stripobjarchive $stripobjfile"]
+    set exec_output [lindex $status 1]
+    set exec_output [prune_warnings $exec_output]
+
+    if [string equal "" $exec_output] then {
+	pass $test
+    } else {
+	fail $test
+    }
+}
+
+strip_test_archive
 
 # Build a final executable.
 
@@ -1463,7 +1544,6 @@ if [is_elf_format] {
 run_dump_test "pr23633"
 
 run_dump_test "set-section-alignment"
-run_dump_test "section-alignment"
 
 setup_xfail "hppa*-*-*"
 setup_xfail "spu-*-*"

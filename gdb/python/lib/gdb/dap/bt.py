@@ -1,4 +1,4 @@
-# Copyright 2022-2024 Free Software Foundation, Inc.
+# Copyright 2022-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -84,9 +84,9 @@ def _backtrace(thread_id, levels, startFrame, stack_format):
                 "column": 0,
                 "instructionPointerReference": hex(pc),
             }
-            line = export_line(current_frame.line())
+            line = current_frame.line()
             if line is not None:
-                newframe["line"] = line
+                newframe["line"] = export_line(line)
                 if stack_format["line"]:
                     # Unclear whether export_line should be called
                     # here, but since it's just for users we pick the

@@ -113,7 +113,6 @@ target_triplet = @target@
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
-	$(top_srcdir)/../config/bfd64.m4 \
 	$(top_srcdir)/../config/depstand.m4 \
 	$(top_srcdir)/../config/gettext-sister.m4 \
 	$(top_srcdir)/../config/gettext.m4 \
@@ -1301,7 +1300,7 @@ SRCIPROT = $(srcdir)/cache.c $(srcdir)/libbfd.c \
 TEXIDIR = $(srcdir)/../texinfo/fsf
 info_TEXINFOS = doc/bfd.texi
 doc_bfd_TEXINFOS = $(DOCFILES) doc/bfdsumm.texi
-AM_MAKEINFOFLAGS = --no-split -I "$(srcdir)/doc" -I doc
+AM_MAKEINFOFLAGS = --no-split -I "$(srcdir)/doc" -P doc
 TEXI2DVI = texi2dvi -I "$(srcdir)/doc" -I doc
 MKDOC = doc/chew$(EXEEXT_FOR_BUILD)
 
@@ -1318,7 +1317,7 @@ REGEN_TEXI = \
 	$(MKDOC) -f $(srcdir)/doc/doc.str < $< > $@.tmp; \
 	texi=$@; \
 	texi=$${texi%.stamp}.texi; \
-	test -e $$texi || test ! -f $(srcdir)/$$texi || $(LN_S) $(srcdir)/$$texi $$texi; \
+	test -e $$texi || test ! -f $(srcdir)/$$texi || $(LN_S) $(abs_srcdir)/$$texi $$texi; \
 	$(SHELL) $(srcdir)/../move-if-change $@.tmp $$texi; \
 	touch $@; \
 	)

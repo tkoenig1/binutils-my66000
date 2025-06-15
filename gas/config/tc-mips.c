@@ -45,7 +45,7 @@ typedef char static_assert2[sizeof (valueT) < 8 ? -1 : 1];
 #define streq(a, b)           (strcmp (a, b) == 0)
 
 #define SKIP_SPACE_TABS(S) \
-  do { while (*(S) == ' ' || *(S) == '\t') ++(S); } while (0)
+  do { while (is_whitespace (*(S))) ++(S); } while (0)
 
 /* Clean up namespace so we can include obj-elf.h too.  */
 static int mips_output_flavor (void);
@@ -9031,7 +9031,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
   r[1] = BFD_RELOC_UNUSED;
   r[2] = BFD_RELOC_UNUSED;
   hash = mips_opts.micromips ? micromips_op_hash : op_hash;
-  amo = (struct mips_opcode *) str_hash_find (hash, name);
+  amo = str_hash_find (hash, name);
   gas_assert (amo);
   gas_assert (strcmp (name, amo->name) == 0);
 
@@ -9189,7 +9189,7 @@ mips16_macro_build (expressionS *ep, const char *name, const char *fmt,
   bfd_reloc_code_real_type r[3]
     = {BFD_RELOC_UNUSED, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
 
-  mo = (struct mips_opcode *) str_hash_find (mips16_op_hash, name);
+  mo = str_hash_find (mips16_op_hash, name);
   gas_assert (mo);
   gas_assert (strcmp (name, mo->name) == 0);
 
@@ -14266,7 +14266,7 @@ mips_lookup_insn (htab_t hash, const char *start,
   name = xstrndup (start, length);
 
   /* Look up the instruction as-is.  */
-  insn = (struct mips_opcode *) str_hash_find (hash, name);
+  insn = str_hash_find (hash, name);
   if (insn)
     goto end;
 
@@ -14278,7 +14278,7 @@ mips_lookup_insn (htab_t hash, const char *start,
       if (*p == 0 && mask != 0)
 	{
 	  *dot = 0;
-	  insn = (struct mips_opcode *) str_hash_find (hash, name);
+	  insn = str_hash_find (hash, name);
 	  *dot = '.';
 	  if (insn && (insn->pinfo2 & INSN2_VU0_CHANNEL_SUFFIX) != 0)
 	    {
@@ -14304,7 +14304,7 @@ mips_lookup_insn (htab_t hash, const char *start,
       if (suffix)
 	{
 	  memmove (name + opend - 2, name + opend, length - opend + 1);
-	  insn = (struct mips_opcode *) str_hash_find (hash, name);
+	  insn = str_hash_find (hash, name);
 	  if (insn)
 	    {
 	      forced_insn_length = suffix;
@@ -14349,7 +14349,7 @@ mips_ip (char *str, struct mips_cl_insn *insn)
   opcode_extra = 0;
 
   /* We first try to match an instruction up to a space or to the end.  */
-  for (end = 0; str[end] != '\0' && !ISSPACE (str[end]); end++)
+  for (end = 0; !is_end_of_stmt (str[end]) && !is_whitespace (str[end]); end++)
     continue;
 
   first = mips_lookup_insn (hash, str, end, &opcode_extra);
@@ -14388,22 +14388,14 @@ mips16_ip (char *str, struct mips_cl_insn *insn)
   struct mips_operand_token *tokens;
   unsigned int l;
 
-  for (s = str; *s != '\0' && *s != '.' && *s != ' '; ++s)
+  for (s = str; *s != '\0' && *s != '.' && !is_whitespace (*s); ++s)
     ;
   end = s;
   c = *end;
 
   l = 0;
-  switch (c)
+  if (c == '.')
     {
-    case '\0':
-      break;
-
-    case ' ':
-      s++;
-      break;
-
-    case '.':
       s++;
       if (*s == 't')
 	{
@@ -14415,17 +14407,18 @@ mips16_ip (char *str, struct mips_cl_insn *insn)
 	  l = 4;
 	  s++;
 	}
-      if (*s == '\0')
-	break;
-      else if (*s++ == ' ')
-	break;
-      set_insn_error (0, _("unrecognized opcode"));
-      return;
+      if (l == 0 || (*s != '\0' && !is_whitespace (*s++)))
+	{
+	  set_insn_error (0, _("unrecognized opcode"));
+	  return;
+	}
     }
+  else if (is_whitespace (c))
+    s++;
   forced_insn_length = l;
 
   *end = 0;
-  first = (struct mips_opcode *) str_hash_find (mips16_op_hash, str);
+  first = str_hash_find (mips16_op_hash, str);
   *end = c;
 
   if (!first)
@@ -14641,7 +14634,9 @@ parse_relocation (char **str, bfd_reloc_code_real_type *reloc)
       {
 	int len = strlen (percent_op[i].str);
 
-	if (!ISSPACE ((*str)[len]) && (*str)[len] != '(')
+	if (!is_end_of_stmt ((*str)[len])
+	    && !is_whitespace ((*str)[len])
+	    && (*str)[len] != '(')
 	  continue;
 
 	*str += strlen (percent_op[i].str);
@@ -14691,7 +14686,7 @@ my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
 
       /* Skip over whitespace and brackets, keeping count of the number
 	 of brackets.  */
-      while (*str == ' ' || *str == '\t' || *str == '(')
+      while (is_whitespace (*str) || *str == '(')
 	if (*str++ == '(')
 	  str_depth++;
     }
@@ -14703,7 +14698,7 @@ my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
   str = expr_parse_end;
 
   /* Match every open bracket.  */
-  while (crux_depth > 0 && (*str == ')' || *str == ' ' || *str == '\t'))
+  while (crux_depth > 0 && (*str == ')' || is_whitespace (*str)))
     if (*str++ == ')')
       crux_depth--;
 
@@ -16512,7 +16507,7 @@ s_mips_globl (int x ATTRIBUTE_UNUSED)
       restore_line_pointer (c);
       SKIP_WHITESPACE ();
 
-      if (!is_end_of_line[(unsigned char) *input_line_pointer]
+      if (!is_end_of_stmt (*input_line_pointer)
 	  && (*input_line_pointer != ','))
 	{
 	  char *secname;
@@ -16533,7 +16528,7 @@ s_mips_globl (int x ATTRIBUTE_UNUSED)
 	{
 	  input_line_pointer++;
 	  SKIP_WHITESPACE ();
-	  if (is_end_of_line[(unsigned char) *input_line_pointer])
+	  if (is_end_of_stmt (*input_line_pointer))
 	    c = '\n';
 	}
     }
@@ -16758,7 +16753,7 @@ s_mipsset (int x ATTRIBUTE_UNUSED)
 
   file_mips_check_options ();
 
-  while (!is_end_of_line[(unsigned char) *input_line_pointer])
+  while (!is_end_of_stmt (*input_line_pointer))
     ++input_line_pointer;
   ch = *input_line_pointer;
   *input_line_pointer = '\0';
@@ -16901,7 +16896,7 @@ s_module (int ignore ATTRIBUTE_UNUSED)
 {
   char *name = input_line_pointer, ch;
 
-  while (!is_end_of_line[(unsigned char) *input_line_pointer])
+  while (!is_end_of_stmt (*input_line_pointer))
     ++input_line_pointer;
   ch = *input_line_pointer;
   *input_line_pointer = '\0';
@@ -17513,7 +17508,7 @@ s_nan (int ignore ATTRIBUTE_UNUSED)
   static const char str_2008[] = "2008";
   size_t i;
 
-  for (i = 0; !is_end_of_line[(unsigned char) input_line_pointer[i]]; i++);
+  for (i = 0; !is_end_of_stmt (input_line_pointer[i]); i++);
 
   if (i == sizeof (str_2008) - 1
       && memcmp (input_line_pointer, str_2008, i) == 0)
@@ -17573,7 +17568,7 @@ s_mips_weakext (int ignore ATTRIBUTE_UNUSED)
 
   SKIP_WHITESPACE ();
 
-  if (! is_end_of_line[(unsigned char) *input_line_pointer])
+  if (! is_end_of_stmt (*input_line_pointer))
     {
       if (S_IS_DEFINED (symbolP))
 	{
@@ -19779,7 +19774,7 @@ s_mips_end (int x ATTRIBUTE_UNUSED)
   mips_frame_reg_valid = 0;
   mips_cprestore_valid = 0;
 
-  if (!is_end_of_line[(unsigned char) *input_line_pointer])
+  if (!is_end_of_stmt (*input_line_pointer))
     {
       p = get_symbol ();
       demand_empty_rest_of_line ();
@@ -19814,7 +19809,7 @@ s_mips_end (int x ATTRIBUTE_UNUSED)
   if (p && cur_proc_ptr)
     {
       OBJ_SYMFIELD_TYPE *obj = symbol_get_obj (p);
-      expressionS *exp = XNEW (expressionS);
+      expressionS *exp = notes_alloc (sizeof (*exp));
 
       obj->size = exp;
       exp->X_op = O_subtract;

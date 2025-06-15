@@ -409,7 +409,7 @@ promote_token (struct token_s tok)
 	  : tok.class_id;
       case CAT_IMMEDIATE:
 	{
-	  expressionS exp = { 0 };
+	  expressionS exp;
 	  char *ilp_save = input_line_pointer;
 	  input_line_pointer = tok.insn + tok.begin;
 	  expression (&exp);
@@ -462,7 +462,7 @@ get_token_class (struct token_s *token, struct token_classes *classes, int insn_
   int found = 0;
   int tok_sz = token->end - token->begin;
   char *tok = token->insn + token->begin;
-  expressionS exp = {0};
+  expressionS exp;
 
   token->val = 0;
   int token_val_p = 0;
@@ -597,12 +597,12 @@ read_token (struct token_s *tok)
     {
       if ('0' <= str[*begin - i] && str[*begin - i] <= '9')
 	last_imm_p = 1;
-      else if (str[*begin - i] != ' ' && str[*begin - i] != '\t')
+      else if (!is_whitespace (str[*begin - i]))
 	break;
     }
 
   /* Eat up all leading spaces.  */
-  while (str[*begin] && (str[*begin] == ' ' || str[*begin] == '\n'))
+  while (str[*begin] && (is_whitespace (str[*begin]) || str[*begin] == '\n'))
     *begin += 1;
 
   *end = *begin;
@@ -624,7 +624,9 @@ read_token (struct token_s *tok)
       }
 
       if (str[*begin] == '.'
-	  && (!(*begin > 0 && (str[*begin - 1] == ' ' || is_delim(str[*begin - 1])))
+	  && (!(*begin > 0
+		&& (is_whitespace (str[*begin - 1])
+		    || is_delim (str[*begin - 1])))
 	    || last_imm_p))
 	modifier_p = 1;
 
@@ -633,7 +635,8 @@ read_token (struct token_s *tok)
 	*end += 1;
 
       /* Stop when reaching the start of the new token. */
-      while (!(!str[*end] || is_delim (str[*end]) || str[*end] == ' ' || (modifier_p && str[*end] == '.')))
+      while (!(!str[*end] || is_delim (str[*end]) || is_whitespace (str[*end])
+	     || (modifier_p && str[*end] == '.')))
 	*end += 1;
 
     }

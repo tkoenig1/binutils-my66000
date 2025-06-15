@@ -1,6 +1,6 @@
 /* Target-dependent code for Solaris UltraSPARC.
 
-   Copyright (C) 2003-2024 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -182,16 +182,16 @@ sparc64_sol2_sigtramp_frame_sniffer (const struct frame_unwind *self,
   return sol2_sigtramp_p (this_frame);
 }
 
-static const struct frame_unwind sparc64_sol2_sigtramp_frame_unwind =
-{
+static const struct frame_unwind_legacy sparc64_sol2_sigtramp_frame_unwind (
   "sparc64 solaris sigtramp",
   SIGTRAMP_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   sparc64_sol2_sigtramp_frame_this_id,
   sparc64_sol2_sigtramp_frame_prev_register,
   NULL,
   sparc64_sol2_sigtramp_frame_sniffer
-};
+);
 
 
 

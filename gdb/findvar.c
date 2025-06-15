@@ -1,6 +1,6 @@
 /* Find a variable's value in memory, for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -485,7 +485,8 @@ language_defn::read_var_value (struct symbol *var,
 	/* Determine address of TLS variable. */
 	if (obj_section
 	    && (obj_section->the_bfd_section->flags & SEC_THREAD_LOCAL) != 0)
-	  addr = target_translate_tls_address (obj_section->objfile, addr);
+	  addr = target_translate_tls_address (obj_section->objfile, addr,
+					       var->print_name ());
       }
       break;
 
@@ -540,6 +541,24 @@ default_value_from_register (gdbarch *gdbarch, type *type, int regnum,
 
   return value;
 }
+
+/* Default implementation of gdbarch_dwarf2_reg_piece_offset.  Implements
+   DW_OP_bits_piece for DW_OP_piece.  */
+
+ULONGEST
+default_dwarf2_reg_piece_offset (gdbarch *gdbarch, int gdb_regnum, ULONGEST size)
+{
+  ULONGEST reg_size = register_size (gdbarch, gdb_regnum);
+  gdb_assert (size <= reg_size);
+  if (reg_size == size)
+    return 0;
+
+  if (gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG)
+    return reg_size - size;
+
+  return 0;
+}
+
 
 /* VALUE must be an lval_register value.  If regnum is the value's
    associated register number, and len the length of the value's type,

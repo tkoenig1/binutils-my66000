@@ -189,7 +189,6 @@ struct m9s12xg_opcode_def
 /* Local functions.  */
 static register_id reg_name_search (char *);
 static register_id register_name (void);
-static int cmp_opcode (struct m68hc11_opcode *, struct m68hc11_opcode *);
 static char *print_opcode_format (struct m68hc11_opcode *, int);
 static char *skip_whites (char *);
 static int check_range (long, int);
@@ -588,8 +587,10 @@ md_section_align (asection *seg, valueT addr)
 }
 
 static int
-cmp_opcode (struct m68hc11_opcode *op1, struct m68hc11_opcode *op2)
+cmp_opcode (const void *p1, const void *p2)
 {
+  const struct m68hc11_opcode *op1 = p1;
+  const struct m68hc11_opcode *op2 = p2;
   return strcmp (op1->name, op2->name);
 }
 
@@ -639,8 +640,7 @@ md_begin (void)
 	      }
 	}
     }
-  qsort (opcodes, num_opcodes, sizeof (struct m68hc11_opcode),
-         (int (*) (const void*, const void*)) cmp_opcode);
+  qsort (opcodes, num_opcodes, sizeof (struct m68hc11_opcode), cmp_opcode);
 
   opc = XNEWVEC (struct m68hc11_opcode_def, num_opcodes);
   m68hc11_opcode_defs = opc;
@@ -1008,7 +1008,7 @@ print_insn_format (char *name)
   struct m68hc11_opcode *opcode;
   char buf[128];
 
-  opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash, name);
+  opc = str_hash_find (m68hc11_hash, name);
   if (opc == NULL)
     {
       as_bad (_("Instruction `%s' is not recognized."), name);
@@ -1082,7 +1082,7 @@ reg_name_search (char *name)
 static char *
 skip_whites (char *p)
 {
-  while (*p == ' ' || *p == '\t')
+  while (is_whitespace (*p))
     p++;
 
   return p;
@@ -1301,7 +1301,7 @@ get_operand (operand *oper, int which, long opmode)
       char c = 0;
 
       p = skip_whites (p);
-      while (*p && *p != ' ' && *p != '\t')
+      while (*p && !is_whitespace (*p))
 	p++;
 
       if (*p)
@@ -1461,7 +1461,7 @@ get_operand (operand *oper, int which, long opmode)
     mode = M6811_OP_IND16 | M6811_OP_JUMP_REL;
 
   p = input_line_pointer;
-  while (*p == ' ' || *p == '\t')
+  while (is_whitespace (*p))
     p++;
   input_line_pointer = p;
   oper->mode = mode;
@@ -2813,7 +2813,7 @@ md_assemble (char *str)
   struct m68hc11_opcode *opcode;
 
   struct m68hc11_opcode opcode_local;
-  unsigned char *op_start, *op_end;
+  char *op_start, *op_end;
   char *save;
   char name[20];
   int nlen = 0;
@@ -2823,13 +2823,13 @@ md_assemble (char *str)
   int alias_id = -1;
 
   /* Drop leading whitespace.  */
-  while (*str == ' ')
+  while (is_whitespace (*str))
     str++;
 
   /* Find the opcode end and get the opcode in 'name'.  The opcode is forced
      lower case (the opcode table only has lower case op-codes).  */
-  for (op_start = op_end = (unsigned char *) str;
-       *op_end && !is_end_of_line[*op_end] && *op_end != ' ';
+  for (op_start = op_end = str;
+       !is_end_of_stmt (*op_end) && !is_whitespace (*op_end);
        op_end++)
     {
       name[nlen] = TOLOWER (op_start[nlen]);
@@ -2848,7 +2848,7 @@ md_assemble (char *str)
   if (current_architecture == cpuxgate)
     {
       /* Find the opcode definition given its name.  */
-      opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash, name);
+      opc = str_hash_find (m68hc11_hash, name);
       if (opc == NULL)
         {
           as_bad (_("Opcode `%s' is not recognized."), name);
@@ -2862,7 +2862,7 @@ md_assemble (char *str)
       opcode_local.format = opc->opcode->format;
 
       save = input_line_pointer;
-      input_line_pointer = (char *) op_end;
+      input_line_pointer = op_end;
 
       if (opc->format == M68XG_OP_NONE)
         {
@@ -3430,7 +3430,7 @@ md_assemble (char *str)
                   else
                     {
                       as_bad ("Failed to find opcode for %s %s\n",
-			      opc->opcode->name, (char *)op_end);
+			      opc->opcode->name, op_end);
                     }
                 }
             }
@@ -3445,7 +3445,7 @@ md_assemble (char *str)
         {
           char *p = input_line_pointer;
 
-          while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+          while (is_whitespace (*p) || *p == '\n' || *p == '\r')
 	    p++;
 
           if (*p != '\n' && *p)
@@ -3469,7 +3469,7 @@ md_assemble (char *str)
     }
 
   /* Find the opcode definition given its name.  */
-  opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash, name);
+  opc = str_hash_find (m68hc11_hash, name);
 
   /* If it's not recognized, look for 'jbsr' and 'jbxx'.  These are
      pseudo insns for relative branch.  For these branches, we always
@@ -3477,8 +3477,7 @@ md_assemble (char *str)
      is given.  */
   if (opc == NULL && name[0] == 'j' && name[1] == 'b')
     {
-      opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash,
-							 &name[1]);
+      opc = str_hash_find (m68hc11_hash, &name[1]);
       if (opc
 	  && (!(opc->format & M6811_OP_JUMP_REL)
 	      || (opc->format & M6811_OP_BITMASK)))
@@ -3491,15 +3490,15 @@ md_assemble (char *str)
      to Motorola assembler specs.  */
   if (opc == NULL && flag_mri)
     {
-      if (*op_end == ' ' || *op_end == '\t')
+      if (is_whitespace (*op_end))
 	{
-	  while (*op_end == ' ' || *op_end == '\t')
+	  while (is_whitespace (*op_end))
 	    op_end++;
 
 	  if (nlen < 19
 	      && (*op_end &&
-		  (is_end_of_line[op_end[1]]
-		   || op_end[1] == ' ' || op_end[1] == '\t'
+		  (is_end_of_stmt (op_end[1])
+		   || is_whitespace (op_end[1])
 		   || !ISALNUM (op_end[1])))
 	      && (*op_end == 'a' || *op_end == 'b'
 		  || *op_end == 'A' || *op_end == 'B'
@@ -3509,8 +3508,7 @@ md_assemble (char *str)
 	    {
 	      name[nlen++] = TOLOWER (*op_end++);
 	      name[nlen] = 0;
-	      opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash,
-								 name);
+	      opc = str_hash_find (m68hc11_hash, name);
 	    }
 	}
     }
@@ -3534,7 +3532,7 @@ md_assemble (char *str)
       return;
     }
   save = input_line_pointer;
-  input_line_pointer = (char *) op_end;
+  input_line_pointer = op_end;
 
   if (opc)
     {
@@ -3548,7 +3546,7 @@ md_assemble (char *str)
     {
       char *p = input_line_pointer;
 
-      while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+      while (is_whitespace (*p) || *p == '\n' || *p == '\r')
 	p++;
 
       if (*p != '\n' && *p)
@@ -3715,7 +3713,7 @@ s_m68hc11_mode (int x ATTRIBUTE_UNUSED)
 {
   char *name = input_line_pointer, ch;
 
-  while (!is_end_of_line[(unsigned char) *input_line_pointer])
+  while (!is_end_of_stmt (*input_line_pointer))
     input_line_pointer++;
   ch = *input_line_pointer;
   *input_line_pointer = '\0';

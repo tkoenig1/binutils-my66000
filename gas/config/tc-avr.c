@@ -146,9 +146,9 @@ static struct
 
   /* Set and used during parse from chunk 1 (Prologue) up to chunk 0 (Done).
      Set by `avr_update_gccisr' and used by `avr_patch_gccisr_frag'.  */
-  int need_reg_tmp;
-  int need_reg_zero;
-  int need_sreg;
+  bool need_reg_tmp;
+  bool need_reg_zero;
+  bool need_sreg;
 } avr_isr;
 
 static void avr_gccisr_operands (struct avr_opcodes_s*, char**);
@@ -618,7 +618,7 @@ show_mcu_list (FILE *stream)
 static inline char *
 skip_space (char *s)
 {
-  while (*s == ' ' || *s == '\t')
+  while (is_whitespace (*s))
     ++s;
   return s;
 }
@@ -841,12 +841,10 @@ md_begin (void)
   for (i = 0; i < ARRAY_SIZE (avr_no_sreg); ++i)
     {
       gas_assert (str_hash_find (avr_hash, avr_no_sreg[i]));
-      str_hash_insert (avr_no_sreg_hash, avr_no_sreg[i],
-		       (void *) 4 /* dummy */, 0);
+      str_hash_insert_int (avr_no_sreg_hash, avr_no_sreg[i], 0 /* dummy */, 0);
     }
 
-  avr_gccisr_opcode = (struct avr_opcodes_s*) str_hash_find (avr_hash,
-							     "__gcc_isr");
+  avr_gccisr_opcode = str_hash_find (avr_hash, "__gcc_isr");
   gas_assert (avr_gccisr_opcode);
 
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, avr_mcu->mach);
@@ -1885,7 +1883,7 @@ md_assemble (char *str)
   if (!op[0])
     as_bad (_("can't find opcode "));
 
-  opcode = (struct avr_opcodes_s *) str_hash_find (avr_hash, op);
+  opcode = str_hash_find (avr_hash, op);
 
   if (opcode && !avr_opt.all_opcodes)
     {
@@ -1915,8 +1913,8 @@ md_assemble (char *str)
       return;
     }
 
-    if (opcode == avr_gccisr_opcode
-	&& !avr_opt.have_gccisr)
+  if (opcode == avr_gccisr_opcode
+      && !avr_opt.have_gccisr)
     {
       as_bad (_("pseudo instruction `%s' not supported"), op);
       return;
@@ -2464,7 +2462,7 @@ avr_update_gccisr (struct avr_opcodes_s *opcode, int reg1, int reg2)
   /* SREG: Look up instructions that don't clobber SREG.  */
 
   if (!avr_isr.need_sreg
-      && !str_hash_find (avr_no_sreg_hash, opcode->name))
+      && str_hash_find_int (avr_no_sreg_hash, opcode->name) < 0)
     {
       avr_isr.need_sreg = 1;
     }
@@ -2500,23 +2498,30 @@ avr_update_gccisr (struct avr_opcodes_s *opcode, int reg1, int reg2)
    of octets written.  INSN specifies the desired instruction and REG is the
    register used by it.  This function is only used with restricted subset of
    instructions as might be emit by `__gcc_isr'.  IN / OUT will use SREG
-   and LDI loads 0.  */
+   and LDI loads 0.  MOV sets R1.  */
 
 static void
 avr_emit_insn (const char *insn, int reg, char **pwhere)
 {
   const int sreg = 0x3f;
   unsigned bin = 0;
-  const struct avr_opcodes_s *op
-    = (struct avr_opcodes_s*) str_hash_find (avr_hash, insn);
+  const struct avr_opcodes_s *op = str_hash_find (avr_hash, insn);
 
-  /* We only have to deal with: IN, OUT, PUSH, POP, CLR, LDI 0.  All of
-     these deal with at least one Reg and are 1-word instructions.  */
+  /* We only have to deal with: IN, OUT, PUSH, POP, CLR, LDI 0, MOV R1.
+     All of these deal with at least one Reg and are 1-word instructions.  */
 
   gas_assert (op && 1 == op->insn_size);
   gas_assert (reg >= 0 && reg <= 31);
 
-  if (strchr (op->constraints, 'r'))
+  if (!strcmp (insn, "mov"))
+    {
+      const int reg1 = 1;
+      /* AVR_INSN (mov, "r,r", "001011rdddddrrrr", ...) */
+      bin = op->bin_opcode | (reg1 << 4);
+      bin |= reg & 0xf;
+      bin |= (reg & 0x10) << 5;
+    }
+  else if (strchr (op->constraints, 'r'))
     {
       bin = op->bin_opcode | (reg << 4);
     }
@@ -2538,10 +2543,66 @@ avr_emit_insn (const char *insn, int reg, char **pwhere)
     }
   else
     gas_assert (0 == strcmp ("r", op->constraints)
+		|| 0 == strcmp ("mov", op->name)
 		|| 0 == strcmp ("ldi", op->name));
 
   bfd_putl16 ((bfd_vma) bin, *pwhere);
   (*pwhere) += 2 * op->insn_size;
+}
+
+typedef struct
+{
+  unsigned reg_mask;
+  int n_pushed;
+  int slot[5];
+} avr_isr_stack_t;
+
+/* Encode / decode that the register operation is on behalf of SREG.  */
+#define FOR_SREG(x) (-(x) - 1)
+
+
+static void
+avr_emit_push (avr_isr_stack_t *st, int r, char **pwhere, bool emit_code_p)
+{
+  const bool for_sreg = r < 0;
+  const int reg = for_sreg ? FOR_SREG (r) : r;
+
+  /* When REG has already been pushed, don't push it again
+     (except it is for SREG).  */
+
+  if (!for_sreg && (st->reg_mask & (1u << reg)))
+    return;
+
+  st->slot[st->n_pushed] = r;
+  st->n_pushed += 1;
+  st->reg_mask |= 1u << reg;
+
+  if (emit_code_p)
+    {
+      if (for_sreg)
+	{
+	  avr_emit_insn ("in",   reg, pwhere);
+	  avr_emit_insn ("push", reg, pwhere);
+	}
+      else
+	avr_emit_insn ("push", reg, pwhere);
+    }
+}
+
+
+static void
+avr_emit_pop (int r, char **pwhere)
+{
+  const bool for_sreg = r < 0;
+  const int reg = for_sreg ? FOR_SREG (r) : r;
+
+  if (for_sreg)
+    {
+      avr_emit_insn ("pop", reg, pwhere);
+      avr_emit_insn ("out", reg, pwhere);
+    }
+  else
+    avr_emit_insn ("pop", reg, pwhere);
 }
 
 
@@ -2553,15 +2614,29 @@ static void
 avr_patch_gccisr_frag (fragS *fr, int reg)
 {
   int treg;
-  int n_pushed = 0;
   char *where = fr->fr_literal;
-  const int tiny_p = avr_mcu->mach == bfd_mach_avrtiny;
+  const bool in_prologue = fr->fr_subtype == ISR_CHUNK_Prologue;
+  const bool in_epilogue = fr->fr_subtype == ISR_CHUNK_Epilogue;
+  const bool tiny_p = avr_mcu->mach == bfd_mach_avrtiny;
   const int reg_tmp = tiny_p ? 16 : 0;
   const int reg_zero = 1 + reg_tmp;
+  /* Whether to use  MOV R1,*  to set zero_reg on non-Tiny.  */
+  bool mov_r1_p = false;
+  avr_isr_stack_t st = { 0, 0, { 0 } };
 
-  /* Clearing ZERO_REG on non-Tiny needs CLR which clobbers SREG.  */
+  gas_assert (in_prologue ^ in_epilogue);
 
-  avr_isr.need_sreg |= !tiny_p && avr_isr.need_reg_zero;
+  /* Clearing ZERO_REG on non-Tiny needs CLR which clobbers SREG.  Hence
+     when ZERO_REG is needed but SREG is not already clobbererd, and we have
+     a d-reg to play with, then use LDI + MOV to set ZERO_REG (PR32704).  */
+
+  if (!tiny_p && avr_isr.need_reg_zero && !avr_isr.need_sreg)
+    {
+      if (reg >= 16)
+	mov_r1_p = true;
+      else
+	avr_isr.need_sreg = true;
+    }
 
   /* A working register to PUSH / POP the SREG.  We might use the register
      as supplied by ISR_CHUNK_Done for that purpose as GCC wants to push
@@ -2569,7 +2644,8 @@ avr_patch_gccisr_frag (fragS *fr, int reg)
      no additional regs to safe) and we use that reg.  */
 
   treg
-    = avr_isr.need_reg_tmp   ? reg_tmp
+    = mov_r1_p               ? reg
+    : avr_isr.need_reg_tmp   ? reg_tmp
     : avr_isr.need_reg_zero  ? reg_zero
     : avr_isr.need_sreg      ? reg
     : reg > reg_zero         ? reg
@@ -2577,68 +2653,57 @@ avr_patch_gccisr_frag (fragS *fr, int reg)
 
   if (treg >= 0)
     {
-      /* Non-empty prologue / epilogue */
+      /* Non-empty prologue / epilogue.
 
-      if (ISR_CHUNK_Prologue == fr->fr_subtype)
+	 This code runs for prologue AND epilogue but only outputs insns
+	 when in prologue.  When in epilogue, still record which pushes
+	 have been performed.  */
+
+      avr_emit_push (&st, treg, &where, in_prologue);
+
+      if (avr_isr.need_sreg)
+	avr_emit_push (&st, FOR_SREG (treg), &where, in_prologue);
+
+      if (avr_isr.need_reg_zero)
 	{
-	  avr_emit_insn ("push", treg, &where);
-	  n_pushed++;
+	  avr_emit_push (&st, reg_zero, &where, in_prologue);
 
-	  if (avr_isr.need_sreg)
+	  if (in_prologue)
 	    {
-	      avr_emit_insn ("in",   treg, &where);
-	      avr_emit_insn ("push", treg, &where);
-	      n_pushed++;
-	    }
-
-	  if (avr_isr.need_reg_zero)
-	    {
-	      if (reg_zero != treg)
+	      if (mov_r1_p)
 		{
-		  avr_emit_insn ("push", reg_zero, &where);
-		  n_pushed++;
+		  avr_emit_insn ("ldi", treg, &where);
+		  avr_emit_insn ("mov", treg, &where);
 		}
-	      avr_emit_insn (tiny_p ? "ldi" : "clr", reg_zero, &where);
-	    }
-
-	  if (reg > reg_zero && reg != treg)
-	    {
-	      avr_emit_insn ("push", reg, &where);
-	      n_pushed++;
+	      else
+		avr_emit_insn (tiny_p ? "ldi" : "clr", reg_zero, &where);
 	    }
 	}
-      else if (ISR_CHUNK_Epilogue == fr->fr_subtype)
+
+      if (avr_isr.need_reg_tmp)
+	avr_emit_push (&st, reg_tmp, &where, in_prologue);
+
+      if (reg > reg_zero)
+	avr_emit_push (&st, reg, &where, in_prologue);
+
+      /* Same logic like in Prologue but in reverse order and with counter-
+	 parts of either instruction:  POP instead of PUSH and OUT instead
+	 of IN.  Clearing ZERO_REG has no counterpart.  */
+
+      if (in_epilogue)
 	{
-	  /* Same logic as in Prologue but in reverse order and with counter
-	     parts of either instruction:  POP instead of PUSH and OUT instead
-	     of IN.  Clearing ZERO_REG has no couter part.  */
-
-	  if (reg > reg_zero && reg != treg)
-	    avr_emit_insn ("pop", reg, &where);
-
-	  if (avr_isr.need_reg_zero
-	      && reg_zero != treg)
-	    avr_emit_insn ("pop", reg_zero, &where);
-
-	  if (avr_isr.need_sreg)
-	    {
-	      avr_emit_insn ("pop", treg, &where);
-	      avr_emit_insn ("out", treg, &where);
-	    }
-
-	  avr_emit_insn ("pop", treg, &where);
+	  for (int i = st.n_pushed - 1; i >= 0; --i)
+	    avr_emit_pop (st.slot[i], &where);
 	}
-      else
-	abort();
     } /* treg >= 0 */
 
-  if (ISR_CHUNK_Prologue == fr->fr_subtype
+  if (in_prologue
       && avr_isr.sym_n_pushed)
     {
       symbolS *sy = avr_isr.sym_n_pushed;
       /* Turn magic `__gcc_isr.n_pushed' into its now known value.  */
 
-      S_SET_VALUE (sy, n_pushed);
+      S_SET_VALUE (sy, st.n_pushed);
       S_SET_SEGMENT (sy, expr_section);
       avr_isr.sym_n_pushed = NULL;
     }

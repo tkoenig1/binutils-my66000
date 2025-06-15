@@ -1,6 +1,6 @@
 /* Target-dependent code for GNU/Linux on CSKY.
 
-   Copyright (C) 2012-2024 Free Software Foundation, Inc.
+   Copyright (C) 2012-2025 Free Software Foundation, Inc.
 
    Contributed by C-SKY Microsystems and Mentor Graphics.
 
@@ -190,7 +190,7 @@ csky_supply_fregset (const struct regset *regset,
     }
   else
     {
-      warning (_("Unknow size %s of section .reg2, can not get value"
+      warning (_("Unknown size %s of section .reg2, can not get value"
 		 " of float registers."), pulongest (len));
     }
 }
@@ -271,7 +271,7 @@ csky_collect_fregset (const struct regset *regset,
     }
   else
     {
-      warning (_("Unknow size %s of section .reg2, will not set value"
+      warning (_("Unknown size %s of section .reg2, will not set value"
 		 " of float registers."), pulongest (len));
     }
 }

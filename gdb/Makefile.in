@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2024 Free Software Foundation, Inc.
+# Copyright (C) 1989-2025 Free Software Foundation, Inc.
 
 # This file is part of GDB.
 
@@ -265,7 +265,7 @@ INCSUPPORT = \
 	-I..
 
 #
-# CLI sub directory definitons
+# CLI sub directory definitions
 #
 SUBDIR_CLI_SRCS = \
 	cli/cli-cmds.c \
@@ -282,7 +282,7 @@ SUBDIR_CLI_SRCS = \
 SUBDIR_CLI_OBS = $(patsubst %.c,%.o,$(SUBDIR_CLI_SRCS))
 
 #
-# MI sub directory definitons
+# MI sub directory definitions
 #
 SUBDIR_MI_SRCS = \
 	mi/mi-cmd-break.c \
@@ -350,7 +350,7 @@ SUBDIR_GCC_COMPILE_SRCS = \
 SUBDIR_GCC_COMPILE_OBS = $(patsubst %.c,%.o,$(filter %.c,$(SUBDIR_GCC_COMPILE_SRCS)))
 
 #
-# Guile sub directory definitons for guile support.
+# Guile sub directory definitions for guile support.
 #
 SUBDIR_GUILE_SRCS = \
 	guile/guile.c \
@@ -359,6 +359,7 @@ SUBDIR_GUILE_SRCS = \
 	guile/scm-block.c \
 	guile/scm-breakpoint.c \
 	guile/scm-cmd.c \
+	guile/scm-color.c \
 	guile/scm-disasm.c \
 	guile/scm-exception.c \
 	guile/scm-frame.c \
@@ -386,7 +387,7 @@ SUBDIR_GUILE_LDFLAGS =
 SUBDIR_GUILE_CFLAGS =
 
 #
-# python sub directory definitons
+# python sub directory definitions
 #
 SUBDIR_PYTHON_SRCS = \
 	python/py-arch.c \
@@ -395,6 +396,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-bpevent.c \
 	python/py-breakpoint.c \
 	python/py-cmd.c \
+	python/py-color.c \
 	python/py-connection.c \
 	python/py-continueevent.c \
 	python/py-dap.c \
@@ -477,6 +479,7 @@ SELFTESTS_SRCS = \
 	unittests/ptid-selftests.c \
 	unittests/main-thread-selftests.c \
 	unittests/mkdir-recursive-selftests.c \
+	unittests/remote-arg-selftests.c \
 	unittests/rsp-low-selftests.c \
 	unittests/scoped_fd-selftests.c \
 	unittests/scoped_ignore_signal-selftests.c \
@@ -489,7 +492,6 @@ SELFTESTS_SRCS = \
 	unittests/ui-file-selftests.c \
 	unittests/unique_xmalloc_ptr_char.c \
 	unittests/unpack-selftests.c \
-	unittests/utils-selftests.c \
 	unittests/vec-utils-selftests.c \
 	unittests/xml-utils-selftests.c
 
@@ -739,6 +741,7 @@ ALL_64_TARGET_OBS = \
 	amd64-darwin-tdep.o \
 	amd64-dicos-tdep.o \
 	amd64-fbsd-tdep.o \
+	amd64-gnu-tdep.o \
 	amd64-linux-tdep.o \
 	amd64-netbsd-tdep.o \
 	amd64-obsd-tdep.o \
@@ -766,6 +769,7 @@ ALL_64_TARGET_OBS = \
 	mips-sde-tdep.o \
 	mips-tdep.o \
 	mips64-obsd-tdep.o \
+	riscv-canonicalize-syscall-gen.o \
 	riscv-fbsd-tdep.o \
 	riscv-linux-tdep.o \
 	riscv-none-tdep.o \
@@ -893,6 +897,7 @@ ALL_TARGET_OBS = \
 	sparc-ravenscar-thread.o \
 	sparc-sol2-tdep.o \
 	sparc-tdep.o \
+	svr4-tls-tdep.o \
 	symfile-mem.o \
 	tic6x-linux-tdep.o \
 	tic6x-tdep.o \
@@ -1087,31 +1092,6 @@ COMMON_SFILES = \
 	disasm.c \
 	displaced-stepping.c \
 	dummy-frame.c \
-	dwarf2/abbrev.c \
-	dwarf2/abbrev-table-cache.c \
-	dwarf2/ada-imported.c \
-	dwarf2/aranges.c \
-	dwarf2/attribute.c \
-	dwarf2/comp-unit-head.c \
-	dwarf2/cooked-index.c \
-	dwarf2/cu.c \
-	dwarf2/die.c \
-	dwarf2/dwz.c \
-	dwarf2/expr.c \
-	dwarf2/frame-tailcall.c \
-	dwarf2/frame.c \
-	dwarf2/index-cache.c \
-	dwarf2/index-common.c \
-	dwarf2/index-write.c \
-	dwarf2/leb.c \
-	dwarf2/line-header.c \
-	dwarf2/loc.c \
-	dwarf2/macro.c \
-	dwarf2/read.c \
-	dwarf2/read-debug-names.c \
-	dwarf2/read-gdb-index.c \
-	dwarf2/section.c \
-	dwarf2/stringify.c \
 	extract-store-integer.c \
 	eval.c \
 	event-top.c \
@@ -1162,7 +1142,6 @@ COMMON_SFILES = \
 	maint.c \
 	maint-test-options.c \
 	maint-test-settings.c \
-	mdebugread.c \
 	mem-break.c \
 	memattr.c \
 	memory-map.c \
@@ -1350,6 +1329,10 @@ HFILES_NO_SRCDIR = \
 	dummy-frame.h \
 	dwarf2/aranges.h \
 	dwarf2/cooked-index.h \
+	dwarf2/cooked-index-entry.h \
+	dwarf2/cooked-index-shard.h \
+	dwarf2/cooked-index-worker.h \
+	dwarf2/cooked-indexer.h \
 	dwarf2/cu.h \
 	dwarf2/frame-tailcall.h \
 	dwarf2/frame.h \
@@ -1497,7 +1480,6 @@ HFILES_NO_SRCDIR = \
 	solib-darwin.h \
 	solib-svr4.h \
 	solib-target.h \
-	solist.h \
 	source.h \
 	source-cache.h \
 	sparc-nat.h \
@@ -1508,6 +1490,7 @@ HFILES_NO_SRCDIR = \
 	stabsread.h \
 	stack.h \
 	stap-probe.h \
+	svr4-tls-tdep.h \
 	symfile.h \
 	symtab.h \
 	target.h \
@@ -1698,6 +1681,7 @@ ALLDEPFILES = \
 	amd64-dicos-tdep.c \
 	amd64-fbsd-nat.c \
 	amd64-fbsd-tdep.c \
+	amd64-gnu-tdep.c \
 	amd64-linux-nat.c \
 	amd64-linux-tdep.c \
 	amd64-nat.c \
@@ -1753,7 +1737,6 @@ ALLDEPFILES = \
 	i386-dicos-tdep.c \
 	i386-fbsd-nat.c \
 	i386-fbsd-tdep.c \
-	i386-gnu-nat.c \
 	i386-gnu-tdep.c \
 	i386-linux-nat.c \
 	i386-linux-tdep.c \
@@ -1871,6 +1854,7 @@ ALLDEPFILES = \
 	sparc64-obsd-tdep.c \
 	sparc64-sol2-tdep.c \
 	sparc64-tdep.c \
+	svr4-tls-tdep.c \
 	tilegx-linux-nat.c \
 	tilegx-linux-tdep.c \
 	tilegx-tdep.c \
@@ -1880,6 +1864,7 @@ ALLDEPFILES = \
 	vax-tdep.c \
 	windows-nat.c \
 	windows-tdep.c \
+	x86-gnu-nat.c \
 	x86-nat.c \
 	x86-tdep.c \
 	xcoffread.c \
@@ -1896,6 +1881,40 @@ TAGFILES_NO_SRCDIR = $(SFILES) $(HFILES_NO_SRCDIR) $(ALLDEPFILES) \
 	$(CONFIG_SRCS)
 TAGFILES_WITH_SRCDIR = $(HFILES_WITH_SRCDIR)
 
+# Files that are used to support certain debuginfo formats
+DWARF2_SRCS = \
+	dwarf2/abbrev.c \
+	dwarf2/abbrev-table-cache.c \
+	dwarf2/ada-imported.c \
+	dwarf2/aranges.c \
+	dwarf2/attribute.c \
+	dwarf2/cooked-index.c \
+	dwarf2/cooked-index-entry.c \
+	dwarf2/cooked-index-shard.c \
+	dwarf2/cooked-index-worker.c \
+	dwarf2/cooked-indexer.c \
+	dwarf2/cu.c \
+	dwarf2/die.c \
+	dwarf2/dwz.c \
+	dwarf2/expr.c \
+	dwarf2/frame-tailcall.c \
+	dwarf2/frame.c \
+	dwarf2/index-cache.c \
+	dwarf2/index-common.c \
+	dwarf2/index-write.c \
+	dwarf2/leb.c \
+	dwarf2/line-header.c \
+	dwarf2/loc.c \
+	dwarf2/macro.c \
+	dwarf2/parent-map.c \
+	dwarf2/read.c \
+	dwarf2/read-debug-names.c \
+	dwarf2/read-gdb-index.c \
+	dwarf2/section.c \
+	dwarf2/stringify.c \
+	dwarf2/unit-head.c
+DWARF2_OBS = $(patsubst %.c,%.o, $(DWARF2_SRCS))
+
 COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	mi/mi-common.o \
 	version.o \
@@ -1903,8 +1922,7 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	$(patsubst %.c,%.o,$(COMMON_SFILES)) \
 	$(SUBDIR_CLI_OBS) \
 	$(SUBDIR_MI_OBS) \
-	$(SUBDIR_TARGET_OBS) \
-	$(SUBDIR_GCC_COMPILE_OBS)
+	$(SUBDIR_TARGET_OBS)
 
 SUBDIRS = doc @subdirs@ data-directory
 CLEANDIRS = $(SUBDIRS)
@@ -1947,7 +1965,7 @@ generated_files = \
 # Flags needed to compile Python code
 PYTHON_CFLAGS = @PYTHON_CFLAGS@
 
-all: gdb$(EXEEXT) $(CONFIG_ALL) gdb-gdb.py gdb-gdb.gdb gcore gstack
+all: gdb$(EXEEXT) $(CONFIG_ALL) gdb-gdb.py gdb-gdb.gdb gcore gstack gdb-add-index
 	@$(MAKE) $(FLAGS_TO_PASS) DO=all "DODIRS=$(SUBDIRS)" subdir_do
 
 # Rule for compiling .c files in the top-level gdb directory.
@@ -2126,7 +2144,7 @@ install-only: $(CONFIG_INSTALL)
 	else \
 	  true ; \
 	fi ; \
-	$(INSTALL_SCRIPT) $(srcdir)/contrib/gdb-add-index.sh \
+	$(INSTALL_SCRIPT) gdb-add-index \
 		$(DESTDIR)$(bindir)/$$transformed_name
 	@$(MAKE) DO=install "DODIRS=$(SUBDIRS)" $(FLAGS_TO_PASS) subdir_do
 
@@ -2343,17 +2361,17 @@ run: Makefile
 jit-reader.h: $(srcdir)/jit-reader.in config.status
 	$(ECHO_GEN) $(SHELL) config.status $(SILENT_FLAG) $@
 
-gcore: $(srcdir)/gcore.in config.status
+gstack.in gcore.in: %.in : $(srcdir)/%-1.in config.status
 	$(ECHO_GEN) $(SHELL) config.status $(SILENT_FLAG) $@
 
-gstack: gstack.in version.c
+gdb-add-index.in : $(srcdir)/contrib/gdb-add-index.sh config.status
+	$(ECHO_GEN) $(SHELL) config.status $(SILENT_FLAG) $@
+
+gstack gcore gdb-add-index: % : %.in version.c
 	$(ECHO_GEN) \
 	vv=`grep 'version\[\] = ' version.c | grep -o '".*"' | tr -d \"`; \
 	sed -e "s,@VERSION@,$$vv," $< > $@
 	@chmod +x $@
-
-gstack.in: $(srcdir)/gstack-1.in config.status
-	$(ECHO_GEN) $(SHELL) config.status $(SILENT_FLAG) $@
 
 gdb-gdb.py: $(srcdir)/gdb-gdb.py.in config.status
 	$(ECHO_GEN) $(SHELL) config.status $(SILENT_FLAG) $@

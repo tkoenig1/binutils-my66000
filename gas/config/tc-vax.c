@@ -1278,13 +1278,13 @@ vip_op (char *optext, struct vop *vopP)
 
   p = optext;
 
-  if (*p == ' ')		/* Expect all whitespace reduced to ' '.  */
+  if (is_whitespace (*p))
     p++;			/* skip over whitespace */
 
   if ((at = INDIRECTP (*p)) != 0)
     {				/* 1 if *p=='@'(or '*' for Un*x) */
       p++;			/* at is determined */
-      if (*p == ' ')		/* Expect all whitespace reduced to ' '.  */
+      if (is_whitespace (*p))
 	p++;			/* skip over whitespace */
     }
 
@@ -1302,7 +1302,7 @@ vip_op (char *optext, struct vop *vopP)
       len = ' ';		/* Len is determined.  */
   }
 
-  if (*p == ' ')		/* Expect all whitespace reduced to ' '.  */
+  if (is_whitespace (*p))
     p++;
 
   if ((hash = IMMEDIATEP (*p)) != 0)	/* 1 if *p=='#' ('$' for Un*x) */
@@ -1318,7 +1318,7 @@ vip_op (char *optext, struct vop *vopP)
     ;
   q--;				/* Now q points at last char of text.  */
 
-  if (*q == ' ' && q >= p)	/* Expect all whitespace reduced to ' '.  */
+  if (is_whitespace (*q) && q >= p)
     q--;
 
   /* Reverse over whitespace, but don't.  */
@@ -1368,7 +1368,7 @@ vip_op (char *optext, struct vop *vopP)
      Otherwise ndx == -1 if there was no "[...]".
      Otherwise, ndx is index register number, and q points before "[...]".  */
 
-  if (*q == ' ' && q >= p)	/* Expect all whitespace reduced to ' '.  */
+  if (is_whitespace (*q) && q >= p)
     q--;
   /* Reverse over whitespace, but don't.  */
   /* Run back over *p.  */
@@ -1454,7 +1454,7 @@ vip_op (char *optext, struct vop *vopP)
 	     We remember to save q, in case we didn't want "Rn" anyway.  */
 	  if (!paren)
 	    {
-	      if (*q == ' ' && q >= p)	/* Expect all whitespace reduced to ' '.  */
+	      if (is_whitespace (*q) && q >= p)
 		q--;
 	      /* Reverse over whitespace, but don't.  */
 	      /* Run back over *p.  */
@@ -1860,11 +1860,11 @@ vip (struct vit *vitP,		/* We build an exploded instruction here.  */
   /* Op-code of this instruction.  */
   vax_opcodeT oc;
 
-  if (*instring == ' ')
+  if (is_whitespace (*instring))
     ++instring;
 
   /* MUST end in end-of-string or exactly 1 space.  */
-  for (p = instring; *p && *p != ' '; p++)
+  for (p = instring; *p && !is_whitespace (*p); p++)
     ;
 
   /* Scanned up to end of operation-code.  */
@@ -1882,7 +1882,7 @@ vip (struct vit *vitP,		/* We build an exploded instruction here.  */
       /* Here with instring pointing to what better be an op-name, and p
          pointing to character just past that.
          We trust instring points to an op-name, with no whitespace.  */
-      vwP = (struct vot_wot *) str_hash_find (op_hash, instring);
+      vwP = str_hash_find (op_hash, instring);
       /* Restore char after op-code.  */
       *p = c;
       if (vwP == 0)
@@ -1939,7 +1939,7 @@ vip (struct vit *vitP,		/* We build an exploded instruction here.  */
 	    }
 	  if (!*alloperr)
 	    {
-	      if (*instring == ' ')
+	      if (is_whitespace (*instring))
 		instring++;
 	      if (*instring)
 		alloperr = _("Too many operands");
@@ -3293,7 +3293,7 @@ vax_cons (expressionS *exp, int size)
 	      char *end = ++input_line_pointer;
 	      int npar = 0;
 
-	      while (! is_end_of_line[(c = *end)])
+	      while (! is_end_of_stmt (c = *end))
 		{
 		  if (c == '(')
 	  	    npar++;
@@ -3324,7 +3324,7 @@ vax_cons (expressionS *exp, int size)
 		      input_line_pointer++;
 		      SKIP_WHITESPACE ();
 		      c = *input_line_pointer;
-		      if (! is_end_of_line[c] && c != ',')
+		      if (! is_end_of_stmt (c) && c != ',')
 			as_bad (_("Illegal operands: garbage after %%r_%s%d()"),
 			        vax_cons_special_reloc, size * 8);
 		    }

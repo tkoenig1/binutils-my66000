@@ -1520,6 +1520,7 @@ riscv_elf_late_size_sections (bfd *output_bfd, struct bfd_link_info *info)
 	  BFD_ASSERT (s != NULL);
 	  s->size = strlen (ELFNN_DYNAMIC_INTERPRETER) + 1;
 	  s->contents = (unsigned char *) ELFNN_DYNAMIC_INTERPRETER;
+	  s->alloced = 1;
 	}
     }
 
@@ -1704,6 +1705,7 @@ riscv_elf_late_size_sections (bfd *output_bfd, struct bfd_link_info *info)
       s->contents = (bfd_byte *) bfd_zalloc (dynobj, s->size);
       if (s->contents == NULL)
 	return false;
+      s->alloced = 1;
     }
 
   /* Add dynamic entries.  */
@@ -2261,6 +2263,7 @@ riscv_elf_relocate_section (bfd *output_bfd,
       reloc_howto_type *howto = riscv_elf_rtype_to_howto (input_bfd, r_type);
       const char *msg = NULL;
       bool resolved_to_zero;
+      bool via_plt = false;
 
       if (howto == NULL)
 	continue;
@@ -2563,6 +2566,12 @@ riscv_elf_relocate_section (bfd *output_bfd,
       resolved_to_zero = (h != NULL
 			  && UNDEFWEAK_NO_DYNAMIC_RELOC (info, h));
 
+      /* Refer to the PLT entry.  This check has to match the check in
+	 _bfd_riscv_relax_section.  */
+      via_plt = (htab->elf.splt != NULL
+		 && h != NULL
+		 && h->plt.offset != MINUS_ONE);
+
       switch (r_type)
 	{
 	case R_RISCV_NONE:
@@ -2774,8 +2783,7 @@ riscv_elf_relocate_section (bfd *output_bfd,
 	case R_RISCV_CALL_PLT:
 	  /* Handle a call to an undefined weak function.  This won't be
 	     relaxed, so we have to handle it here.  */
-	  if (h != NULL && h->root.type == bfd_link_hash_undefweak
-	      && (!bfd_link_pic (info) || h->plt.offset == MINUS_ONE))
+	  if (h != NULL && h->root.type == bfd_link_hash_undefweak && !via_plt)
 	    {
 	      /* We can use x0 as the base register.  */
 	      bfd_vma insn = bfd_getl32 (contents + rel->r_offset + 4);
@@ -2789,42 +2797,40 @@ riscv_elf_relocate_section (bfd *output_bfd,
 
 	case R_RISCV_JAL:
 	case R_RISCV_RVC_JUMP:
-	  if (bfd_link_pic (info) && h != NULL)
+	  if (via_plt)
 	    {
-	      if (h->plt.offset != MINUS_ONE)
-		{
-		  /* Refer to the PLT entry.  This check has to match the
-		     check in _bfd_riscv_relax_section.  */
-		  relocation = sec_addr (htab->elf.splt) + h->plt.offset;
-		  unresolved_reloc = false;
-		}
-	      else if (!SYMBOL_REFERENCES_LOCAL (info, h)
-		       && (input_section->flags & SEC_ALLOC) != 0
-		       && (input_section->flags & SEC_READONLY) != 0
-		       && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
-		{
-		  /* PR 28509, when generating the shared object, these
-		     referenced symbols may bind externally, which means
-		     they will be exported to the dynamic symbol table,
-		     and are preemptible by default.  These symbols cannot
-		     be referenced by the non-pic relocations, like
-		     R_RISCV_JAL and R_RISCV_RVC_JUMP relocations.
+	      relocation = sec_addr (htab->elf.splt) + h->plt.offset;
+	      unresolved_reloc = false;
+	    }
+	  else if (bfd_link_pic (info)
+		   && h != NULL
+		   && h->plt.offset == MINUS_ONE
+		   && !SYMBOL_REFERENCES_LOCAL (info, h)
+		   && (input_section->flags & SEC_ALLOC) != 0
+		   && (input_section->flags & SEC_READONLY) != 0
+		   && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
+	    {
+	      /* PR 28509, when generating the shared object, these
+		 referenced symbols may bind externally, which means
+		 they will be exported to the dynamic symbol table,
+		 and are preemptible by default.  These symbols cannot
+		 be referenced by the non-pic relocations, like
+		 R_RISCV_JAL and R_RISCV_RVC_JUMP relocations.
 
-		     However, consider that linker may relax the R_RISCV_CALL
-		     relocations to R_RISCV_JAL or R_RISCV_RVC_JUMP, if
-		     these relocations are relocated to the plt entries,
-		     then we won't report error for them.
+		 However, consider that linker may relax the R_RISCV_CALL
+		 relocations to R_RISCV_JAL or R_RISCV_RVC_JUMP, if
+		 these relocations are relocated to the plt entries,
+		 then we won't report error for them.
 
-		     Perhaps we also need the similar checks for the
-		     R_RISCV_BRANCH and R_RISCV_RVC_BRANCH relocations.  */
-		  msg = bfd_asprintf (_("%%X%%P: relocation %s against `%s'"
-					" which may bind externally"
-					" can not be used"
-					" when making a shared object;"
-					" recompile with -fPIC\n"),
-				      howto->name, h->root.root.string);
-		  r = bfd_reloc_notsupported;
-		}
+		 Perhaps we also need the similar checks for the
+		 R_RISCV_BRANCH and R_RISCV_RVC_BRANCH relocations.  */
+	      msg = bfd_asprintf (_("%%X%%P: relocation %s against `%s'"
+				    " which may bind externally"
+				    " can not be used"
+				    " when making a shared object;"
+				    " recompile with -fPIC\n"),
+				  howto->name, h->root.root.string);
+	      r = bfd_reloc_notsupported;
 	    }
 	  break;
 
@@ -3658,13 +3664,47 @@ riscv_elf_plt_sym_val (bfd_vma i, const asection *plt,
   return plt->vma + PLT_HEADER_SIZE + i * PLT_ENTRY_SIZE;
 }
 
+/* Used to decide how to sort relocs in an optimal manner for the
+   dynamic linker, before writing them out.  */
+
 static enum elf_reloc_type_class
-riscv_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
+riscv_reloc_type_class (const struct bfd_link_info *info,
 			const asection *rel_sec ATTRIBUTE_UNUSED,
 			const Elf_Internal_Rela *rela)
 {
+  struct riscv_elf_link_hash_table *htab = riscv_elf_hash_table (info);
+
+  if (htab->elf.dynsym != NULL
+      && htab->elf.dynsym->contents != NULL)
+    {
+      /* Check relocation against STT_GNU_IFUNC symbol if there are
+	 dynamic symbols.  */
+      bfd *abfd = info->output_bfd;
+      const struct elf_backend_data *bed = get_elf_backend_data (abfd);
+      unsigned long r_symndx = ELFNN_R_SYM (rela->r_info);
+      if (r_symndx != STN_UNDEF)
+	{
+	  Elf_Internal_Sym sym;
+	  if (!bed->s->swap_symbol_in (abfd,
+				       (htab->elf.dynsym->contents
+					+ r_symndx * bed->s->sizeof_sym),
+				       0, &sym))
+	    {
+	      /* xgettext:c-format */
+	      _bfd_error_handler (_("%pB symbol number %lu references"
+				    " nonexistent SHT_SYMTAB_SHNDX section"),
+				  abfd, r_symndx);
+	      /* Ideally an error class should be returned here.  */
+	    }
+	  else if (ELF_ST_TYPE (sym.st_info) == STT_GNU_IFUNC)
+	    return reloc_class_ifunc;
+	}
+    }
+
   switch (ELFNN_R_TYPE (rela->r_info))
     {
+    case R_RISCV_IRELATIVE:
+      return reloc_class_ifunc;
     case R_RISCV_RELATIVE:
       return reloc_class_relative;
     case R_RISCV_JUMP_SLOT:
@@ -3900,7 +3940,7 @@ static char *
 riscv_merge_arch_attr_info (bfd *ibfd, char *in_arch, char *out_arch)
 {
   riscv_subset_t *in, *out;
-  char *merged_arch_str;
+  static char *merged_arch_str = NULL;
 
   unsigned xlen_in, xlen_out;
   merged_subsets.head = NULL;
@@ -3961,7 +4001,11 @@ riscv_merge_arch_attr_info (bfd *ibfd, char *in_arch, char *out_arch)
       return NULL;
     }
 
-  merged_arch_str = riscv_arch_str (ARCH_SIZE, &merged_subsets);
+  /* Free the previous merged_arch_str which called xmalloc.  */
+  free (merged_arch_str);
+
+  merged_arch_str = riscv_arch_str (ARCH_SIZE, &merged_subsets,
+				    false/* update */);
 
   /* Release the subset lists.  */
   riscv_release_subset_list (&in_subsets);
@@ -5329,9 +5373,9 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 	      undefined_weak = true;
 	    }
 
-	  /* This line has to match the check in riscv_elf_relocate_section
-	     in the R_RISCV_CALL[_PLT] case.  */
-	  if (bfd_link_pic (info) && h->plt.offset != MINUS_ONE)
+	  /* This line has to match the via_pltcheck in
+	     riscv_elf_relocate_section in the R_RISCV_CALL[_PLT] case.  */
+	  if (h->plt.offset != MINUS_ONE)
 	    {
 	      sym_sec = htab->elf.splt;
 	      symval = h->plt.offset;

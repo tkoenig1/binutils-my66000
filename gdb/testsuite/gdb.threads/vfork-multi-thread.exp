@@ -1,4 +1,4 @@
-# Copyright 2022-2024 Free Software Foundation, Inc.
+# Copyright 2022-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 # crosses a breakpoint.  A buggy GDB would let the main thread run while
 # breakpoints are removed, so the main thread would miss the breakpoint and run
 # until exit.
+
+require allow_fork_tests
 
 standard_testfile
 

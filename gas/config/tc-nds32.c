@@ -3452,7 +3452,7 @@ nds32_lookup_pseudo_opcode (const char *str)
 
   for (i = 0; i < maxlen; i++)
     {
-      if (ISSPACE (op[i] = str[i]))
+      if (is_whitespace (op[i] = str[i]))
 	break;
     }
   op[i] = '\0';
@@ -4093,7 +4093,7 @@ nds32_relax_relocs (int relax)
     {"", "",};
 
   name = input_line_pointer;
-  while (*input_line_pointer && !ISSPACE (*input_line_pointer))
+  while (*input_line_pointer && !is_whitespace (*input_line_pointer))
     input_line_pointer++;
   saved_char = *input_line_pointer;
   *input_line_pointer = 0;
@@ -4230,7 +4230,7 @@ nds32_relax_hint (int mode ATTRIBUTE_UNUSED)
   struct relax_hint_id *record_id;
 
   name = input_line_pointer;
-  while (*input_line_pointer && !ISSPACE (*input_line_pointer))
+  while (*input_line_pointer && !is_whitespace (*input_line_pointer))
     input_line_pointer++;
   saved_char = *input_line_pointer;
   *input_line_pointer = 0;
@@ -4363,7 +4363,7 @@ nds32_flag (int ignore ATTRIBUTE_UNUSED)
 
   /* Skip whitespaces.  */
   name = input_line_pointer;
-  while (*input_line_pointer && !ISSPACE (*input_line_pointer))
+  while (*input_line_pointer && !is_whitespace (*input_line_pointer))
     input_line_pointer++;
   saved_char = *input_line_pointer;
   *input_line_pointer = 0;
@@ -4400,7 +4400,7 @@ ict_model (int ignore ATTRIBUTE_UNUSED)
 
   /* Skip whitespaces.  */
   name = input_line_pointer;
-  while (*input_line_pointer && !ISSPACE (*input_line_pointer))
+  while (*input_line_pointer && !is_whitespace (*input_line_pointer))
     input_line_pointer++;
   saved_char = *input_line_pointer;
   *input_line_pointer = 0;
@@ -4633,16 +4633,15 @@ nds32_handle_align (fragS *fragp)
 {
   static const unsigned char nop16[] = { 0x92, 0x00 };
   static const unsigned char nop32[] = { 0x40, 0x00, 0x00, 0x09 };
-  int bytes;
-  char *p;
 
   if (fragp->fr_type != rs_align_code)
     return;
 
-  bytes = fragp->fr_next->fr_address - fragp->fr_address - fragp->fr_fix;
-  p = fragp->fr_literal + fragp->fr_fix;
+  int bytes = fragp->fr_next->fr_address - fragp->fr_address - fragp->fr_fix;
+  char *p = fragp->fr_literal + fragp->fr_fix;
+  int fix = bytes & 1;
 
-  if (bytes & 1)
+  if (fix != 0)
     {
       *p++ = 0;
       bytes--;
@@ -4659,17 +4658,15 @@ nds32_handle_align (fragS *fragp)
       memcpy (p, nop16, 2);
       p += 2;
       bytes -= 2;
+      fix += 2;
     }
+  fragp->fr_fix += fix;
 
-  while (bytes >= 4)
+  if (bytes != 0)
     {
+      fragp->fr_var = 4;
       memcpy (p, nop32, 4);
-      p += 4;
-      bytes -= 4;
     }
-
-  bytes = fragp->fr_next->fr_address - fragp->fr_address - fragp->fr_fix;
-  fragp->fr_fix += bytes;
 }
 
 /* md_flush_pending_output  */
@@ -6268,7 +6265,7 @@ static int
 nds32_elf_append_relax_relocs_traverse (void **slot, void *arg ATTRIBUTE_UNUSED)
 {
   string_tuple_t *tuple = *((string_tuple_t **) slot);
-  nds32_elf_append_relax_relocs (tuple->key, tuple->value);
+  nds32_elf_append_relax_relocs (tuple->key, (void *) tuple->value);
   return 1;
 }
 

@@ -1,6 +1,6 @@
 /* Target-dependent code for the LoongArch architecture, for GDB.
 
-   Copyright (C) 2022-2024 Free Software Foundation, Inc.
+   Copyright (C) 2022-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -74,7 +74,9 @@ loongarch_insn_is_cond_branch (insn_t insn)
       || (insn & 0xfc000000) == 0x68000000	/* bltu  */
       || (insn & 0xfc000000) == 0x6c000000	/* bgeu  */
       || (insn & 0xfc000000) == 0x40000000	/* beqz  */
-      || (insn & 0xfc000000) == 0x44000000)	/* bnez  */
+      || (insn & 0xfc000000) == 0x44000000	/* bnez  */
+      || (insn & 0xfc000300) == 0x48000000	/* bceqz  */
+      || (insn & 0xfc000300) == 0x48000100)	/* bcnez  */
     return true;
   return false;
 }
@@ -314,6 +316,20 @@ loongarch_next_pc (struct regcache *regcache, CORE_ADDR cur_pc)
       if (rj != 0)
 	next_pc = cur_pc + loongarch_decode_imm ("0:5|10:16<<2", insn, 1);
     }
+  else if ((insn & 0xfc000300) == 0x48000000)		/* bceqz cj, offs21  */
+    {
+      LONGEST cj = regcache_raw_get_signed (regcache,
+		     loongarch_decode_imm ("5:3", insn, 0) + LOONGARCH_FIRST_FCC_REGNUM);
+      if (cj == 0)
+	next_pc = cur_pc + loongarch_decode_imm ("0:5|10:16<<2", insn, 1);
+    }
+  else if ((insn & 0xfc000300) == 0x48000100)		/* bcnez cj, offs21  */
+    {
+      LONGEST cj = regcache_raw_get_signed (regcache,
+		     loongarch_decode_imm ("5:3", insn, 0) + LOONGARCH_FIRST_FCC_REGNUM);
+      if (cj != 0)
+	next_pc = cur_pc + loongarch_decode_imm ("0:5|10:16<<2", insn, 1);
+    }
   else if ((insn & 0xffff8000) == 0x002b0000)		/* syscall  */
     {
       if (tdep->syscall_next_pc != nullptr)
@@ -351,11 +367,13 @@ loongarch_deal_with_atomic_sequence (struct regcache *regcache, CORE_ADDR cur_pc
 	{
 	  return {};
 	}
-      /* Look for a conditional branch instruction, put a breakpoint in its destination address.  */
+      /* Look for a conditional branch instruction, put a breakpoint in its destination address
+	 which is outside of the ll/sc atomic instruction sequence.  */
       else if (loongarch_insn_is_cond_branch (insn))
 	{
 	  next_pc = loongarch_next_pc (regcache, cur_pc);
-	  next_pcs.push_back (next_pc);
+	  if (next_pc != cur_pc + insn_len)
+	    next_pcs.push_back (next_pc);
 	}
       /* Look for a Store Conditional instruction which closes the atomic sequence.  */
       else if (loongarch_insn_is_sc (insn))
@@ -454,17 +472,18 @@ loongarch_frame_prev_register (const frame_info_ptr &this_frame,
   return trad_frame_get_register (info, this_frame, regnum);
 }
 
-static const struct frame_unwind loongarch_frame_unwind = {
+static const struct frame_unwind_legacy loongarch_frame_unwind (
   "loongarch prologue",
   /*.type	   =*/NORMAL_FRAME,
+  /*.unwinder_class=*/FRAME_UNWIND_ARCH,
   /*.stop_reason   =*/default_frame_unwind_stop_reason,
   /*.this_id	   =*/loongarch_frame_this_id,
   /*.prev_register =*/loongarch_frame_prev_register,
   /*.unwind_data   =*/nullptr,
   /*.sniffer	   =*/default_frame_sniffer,
   /*.dealloc_cache =*/nullptr,
-  /*.prev_arch	   =*/nullptr,
-};
+  /*.prev_arch	   =*/nullptr
+);
 
 /* Write the contents of buffer VAL into the general-purpose argument
    register defined by GAR in REGCACHE.  GAR indicates the available

@@ -2013,7 +2013,7 @@ pa_parse_number (char **s, int is_float)
   bool have_prefix;
 
   /* Skip whitespace before the number.  */
-  while (*p == ' ' || *p == '\t')
+  while (is_whitespace (*p))
     p = p + 1;
 
   pa_number = -1;
@@ -2229,12 +2229,12 @@ pa_parse_fp_cmp_cond (char **s)
 	  *s += strlen (fp_cond_map[i].string);
 	  /* If not a complete match, back up the input string and
 	     report an error.  */
-	  if (**s != ' ' && **s != '\t')
+	  if (!is_whitespace (**s))
 	    {
 	      *s -= strlen (fp_cond_map[i].string);
 	      break;
 	    }
-	  while (**s == ' ' || **s == '\t')
+	  while (is_whitespace (**s))
 	    *s = *s + 1;
 	  return cond;
 	}
@@ -2243,7 +2243,7 @@ pa_parse_fp_cmp_cond (char **s)
   as_bad (_("Invalid FP Compare Condition: %s"), *s);
 
   /* Advance over the bogus completer.  */
-  while (**s != ',' && **s != ' ' && **s != '\t')
+  while (**s != ',' && !is_whitespace (**s))
     *s += 1;
 
   return 0;
@@ -2416,18 +2416,18 @@ pa_chk_field_selector (char **str)
   char *s = *str;
 
   /* Read past any whitespace.  */
-  while (*s == ' ' || *s == '\t')
+  while (is_whitespace (*s))
     s++;
   *str = s;
 
-  if (is_end_of_line [(unsigned char) s[0]])
+  if (is_end_of_stmt (s[0]))
     return e_fsel;
   else if (s[1] == '\'' || s[1] == '%')
     {
       name[0] = TOLOWER (s[0]);
       name[1] = 0;
     }
-  else if (is_end_of_line [(unsigned char) s[1]])
+  else if (is_end_of_stmt (s[1]))
     return e_fsel;
   else if (s[2] == '\'' || s[2] == '%')
     {
@@ -2435,7 +2435,7 @@ pa_chk_field_selector (char **str)
       name[1] = TOLOWER (s[1]);
       name[2] = 0;
     }
-  else if (is_end_of_line [(unsigned char) s[2]])
+  else if (is_end_of_stmt (s[2]))
     return e_fsel;
   else if (s[3] == '\'' || s[3] == '%')
     {
@@ -2547,7 +2547,7 @@ pa_get_number (struct pa_it *insn, char **strp)
      contain no whitespace.  */
 
   s = *strp;
-  while (*s != ',' && *s != ' ' && *s != '\t')
+  while (*s != ',' && !is_whitespace (*s))
     s++;
 
   c = *s;
@@ -2627,7 +2627,7 @@ pa_parse_nonneg_cmpsub_cmpltr (char **s)
   if (**s == ',')
     {
       *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
+      while (**s != ',' && !is_whitespace (**s))
 	*s += 1;
       c = **s;
       **s = 0x00;
@@ -2697,7 +2697,7 @@ pa_parse_neg_cmpsub_cmpltr (char **s)
   if (**s == ',')
     {
       *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
+      while (**s != ',' && !is_whitespace (**s))
 	*s += 1;
       c = **s;
       **s = 0x00;
@@ -2772,7 +2772,7 @@ pa_parse_cmpb_64_cmpltr (char **s)
   if (**s == ',')
     {
       *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
+      while (**s != ',' && !is_whitespace (**s))
 	*s += 1;
       c = **s;
       **s = 0x00;
@@ -2865,7 +2865,7 @@ pa_parse_cmpib_64_cmpltr (char **s)
   if (**s == ',')
     {
       *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
+      while (**s != ',' && !is_whitespace (**s))
 	*s += 1;
       c = **s;
       **s = 0x00;
@@ -2928,7 +2928,7 @@ pa_parse_nonneg_add_cmpltr (char **s)
   if (**s == ',')
     {
       *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
+      while (**s != ',' && !is_whitespace (**s))
 	*s += 1;
       c = **s;
       **s = 0x00;
@@ -2997,7 +2997,7 @@ pa_parse_neg_add_cmpltr (char **s)
   if (**s == ',')
     {
       *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
+      while (**s != ',' && !is_whitespace (**s))
 	*s += 1;
       c = **s;
       **s = 0x00;
@@ -3070,7 +3070,7 @@ pa_parse_addb_64_cmpltr (char **s)
   if (**s == ',')
     {
       *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
+      while (**s != ',' && !is_whitespace (**s))
 	*s += 1;
       c = **s;
       **s = 0x00;
@@ -3178,7 +3178,7 @@ pa_ip (char *str)
 
   /* Convert everything up to the first whitespace character into lower
      case.  */
-  for (s = str; *s != ' ' && *s != '\t' && *s != '\n' && *s != '\0'; s++)
+  for (s = str; !is_whitespace (*s) && !is_end_of_stmt (*s); s++)
     *s = TOLOWER (*s);
 
   /* Skip to something interesting.  */
@@ -3198,17 +3198,19 @@ pa_ip (char *str)
 
       /*FALLTHROUGH */
 
-    case ' ':
+    zap_char:
       *s++ = '\0';
       break;
 
     default:
+      if (is_whitespace (*s))
+	goto zap_char;
       as_bad (_("Unknown opcode: `%s'"), str);
       return;
     }
 
   /* Look up the opcode in the hash table.  */
-  if ((insn = (struct pa_opcode *) str_hash_find (op_hash, str)) == NULL)
+  if ((insn = str_hash_find (op_hash, str)) == NULL)
     {
       as_bad (_("Unknown opcode: `%s'"), str);
       return;
@@ -3239,7 +3241,7 @@ pa_ip (char *str)
       for (args = insn->args;; ++args)
 	{
 	  /* Absorb white space in instruction.  */
-	  while (*s == ' ' || *s == '\t')
+	  while (is_whitespace (*s))
 	    s++;
 
 	  switch (*args)
@@ -3264,8 +3266,12 @@ pa_ip (char *str)
 	    case '(':
 	    case ')':
 	    case ',':
-	    case ' ':
 	      if (*s++ == *args)
+		continue;
+	      break;
+
+	    case ' ':
+	      if (is_whitespace (*s++))
 		continue;
 	      break;
 
@@ -3282,7 +3288,7 @@ pa_ip (char *str)
 	       is there.  */
 	    case '!':
 	      /* Skip whitespace before register.  */
-	      while (*s == ' ' || *s == '\t')
+	      while (is_whitespace (*s))
 		s = s + 1;
 
 	      if (!strncasecmp (s, "%sar", 4))
@@ -3956,7 +3962,7 @@ pa_ip (char *str)
 			  break;
 
 			name = s;
-			while (*s != ',' && *s != ' ' && *s != '\t')
+			while (*s != ',' && !is_whitespace (*s))
 			  s += 1;
 			c = *s;
 			*s = 0x00;
@@ -4131,7 +4137,7 @@ pa_ip (char *str)
 			  break;
 
 			name = s;
-			while (*s != ',' && *s != ' ' && *s != '\t')
+			while (*s != ',' && !is_whitespace (*s))
 			  s += 1;
 			c = *s;
 			*s = 0x00;
@@ -4279,7 +4285,7 @@ pa_ip (char *str)
 			  break;
 
 			name = s;
-			while (*s != ',' && *s != ' ' && *s != '\t')
+			while (*s != ',' && !is_whitespace (*s))
 			  s += 1;
 			c = *s;
 			*s = 0x00;
@@ -4353,7 +4359,7 @@ pa_ip (char *str)
 			  break;
 
 			name = s;
-			while (*s != ',' && *s != ' ' && *s != '\t')
+			while (*s != ',' && !is_whitespace (*s))
 			  s += 1;
 			c = *s;
 			*s = 0x00;
@@ -4497,7 +4503,7 @@ pa_ip (char *str)
 			    s += 3;
 			  }
 			/* ",*" is a valid condition.  */
-			else if (*args != 'U' || (*s != ' ' && *s != '\t'))
+			else if (*args != 'U' || !is_whitespace (*s))
 			  as_bad (_("Invalid Unit Instruction Condition."));
 		      }
 		    /* 32-bit is default for no condition.  */

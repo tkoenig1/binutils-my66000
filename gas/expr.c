@@ -298,7 +298,7 @@ integer_constant (int radix, expressionS *expressionP)
 #define valuesize 32
 #endif
 
-  if (is_end_of_line[(unsigned char) *input_line_pointer])
+  if (is_end_of_stmt (*input_line_pointer))
     {
       expressionP->X_op = O_absent;
       return;
@@ -632,6 +632,7 @@ integer_constant (int radix, expressionS *expressionP)
       /* Not a small number.  */
       expressionP->X_op = O_big;
       expressionP->X_add_number = number;	/* Number of littlenums.  */
+      expressionP->X_unsigned = 1;
       input_line_pointer--;	/* -> char following number.  */
     }
 }
@@ -707,6 +708,7 @@ mri_char_constant (expressionS *expressionP)
     {
       expressionP->X_op = O_big;
       expressionP->X_add_number = i;
+      expressionP->X_unsigned = 1;
     }
   else
     {
@@ -738,7 +740,7 @@ current_location (expressionS *expressionp, enum expr_mode mode)
   else
     {
       expressionp->X_op = O_symbol;
-      if (mode != expr_defer)
+      if (mode != expr_defer_incl_dot)
 	{
 	  expressionp->X_add_symbol = symbol_temp_new_now ();
 #ifdef tc_new_dot_label
@@ -767,6 +769,16 @@ expr_build_dot (void)
     }
 
   return expr_build_uconstant (abs_section_offset);
+}
+
+/* Copy an expression, preserving X_md.  */
+
+static void expr_copy (expressionS *dst, const expressionS *src)
+{
+  unsigned short md = dst->X_md;
+
+  *dst = *src;
+  dst->X_md = md;
 }
 
 #ifndef md_register_arithmetic
@@ -803,7 +815,7 @@ operand (expressionS *expressionP, enum expr_mode mode)
   SKIP_WHITESPACE ();		/* Leading whitespace is part of operand.  */
   c = *input_line_pointer++;	/* input_line_pointer -> past char in c.  */
 
-  if (is_end_of_line[(unsigned char) c])
+  if (is_end_of_stmt (c))
     goto eol;
 
   switch (c)
@@ -946,7 +958,7 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      /* If it says "0f" and it could possibly be a floating point
 		 number, make it one.  Otherwise, make it a local label,
 		 and try to deal with parsing the rest later.  */
-	      if (!is_end_of_line[(unsigned char) input_line_pointer[1]]
+	      if (!is_end_of_stmt (input_line_pointer[1])
 		  && strchr (FLT_CHARS, 'f') != NULL)
 		{
 		  char *cp = input_line_pointer + 1;
@@ -1154,6 +1166,8 @@ operand (expressionS *expressionP, enum expr_mode mode)
 		      if (generic_bignum[i])
 			break;
 		    }
+
+		expressionP->X_unsigned = 0;
 	      }
 	    else if (op == O_logical_not)
 	      {
@@ -1387,17 +1401,26 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	  /* If we have an absolute symbol or a reg, then we know its
 	     value now.  */
 	  segment = S_GET_SEGMENT (symbolP);
-	  if (mode != expr_defer
+	  if (!expr_defer_p (mode)
 	      && segment == absolute_section
 	      && !S_FORCE_RELOC (symbolP, 0))
 	    {
 	      expressionP->X_op = O_constant;
 	      expressionP->X_add_number = S_GET_VALUE (symbolP);
 	    }
-	  else if (mode != expr_defer && segment == reg_section)
+	  else if (!expr_defer_p (mode) && segment == reg_section)
 	    {
-	      expressionP->X_op = O_register;
-	      expressionP->X_add_number = S_GET_VALUE (symbolP);
+	      if (md_register_arithmetic)
+		{
+		  expressionP->X_op = O_register;
+		  expressionP->X_add_number = S_GET_VALUE (symbolP);
+		}
+	      else
+		{
+		  expr_copy (expressionP,
+			     symbol_get_value_expression (symbolP));
+		  resolve_register (expressionP);
+		}
 	    }
 	  else
 	    {
@@ -1432,13 +1455,13 @@ operand (expressionS *expressionP, enum expr_mode mode)
      created.  Doing it here saves lines of code.  */
   clean_up_expression (expressionP);
   SKIP_ALL_WHITESPACE ();		/* -> 1st char after operand.  */
-  know (*input_line_pointer != ' ');
+  know (!is_whitespace (*input_line_pointer));
 
   /* The PA port needs this information.  */
   if (expressionP->X_add_symbol)
     symbol_mark_used (expressionP->X_add_symbol);
 
-  if (mode != expr_defer)
+  if (!expr_defer_p (mode))
     {
       expressionP->X_add_symbol
 	= symbol_clone_if_forward_ref (expressionP->X_add_symbol);
@@ -1668,7 +1691,7 @@ operatorf (int *num_chars)
   c = *input_line_pointer & 0xff;
   *num_chars = 1;
 
-  if (is_end_of_line[c])
+  if (is_end_of_stmt (c))
     return O_illegal;
 
 #ifdef md_operator
@@ -1849,15 +1872,12 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 
   /* Save the value of dot for the fixup code.  */
   if (rank == 0)
-    {
-      dot_value = frag_now_fix ();
-      dot_frag = frag_now;
-    }
+    symbol_set_value_now (&dot_symbol);
 
   retval = operand (resultP, mode);
 
   /* operand () gobbles spaces.  */
-  know (*input_line_pointer != ' ');
+  know (!is_whitespace (*input_line_pointer));
 
   op_left = operatorf (&op_chars);
   while (op_left != O_illegal && op_rank[(int) op_left] > rank)
@@ -1879,7 +1899,7 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	  right.X_op_symbol = NULL;
 	}
 
-      know (*input_line_pointer != ' ');
+      know (!is_whitespace (*input_line_pointer));
 
       if (op_left == O_index)
 	{
@@ -1933,7 +1953,7 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 
       is_unsigned = resultP->X_unsigned && right.X_unsigned;
 
-      if (mode == expr_defer
+      if (expr_defer_p (mode)
 	  && ((resultP->X_add_symbol != NULL
 	       && S_IS_FORWARD_REF (resultP->X_add_symbol))
 	      || (right.X_add_symbol != NULL
@@ -2492,6 +2512,8 @@ void resolve_register (expressionS *expP)
 
   do
     {
+      if (!md_register_arithmetic && e->X_add_number)
+	break;
       sym = e->X_add_symbol;
       acc += e->X_add_number;
       e = symbol_get_value_expression (sym);
@@ -2500,7 +2522,7 @@ void resolve_register (expressionS *expP)
 
   if (e->X_op == O_register)
     {
-      *expP = *e;
+      expr_copy (expP, e);
       expP->X_add_number += acc;
     }
 }

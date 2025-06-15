@@ -63,9 +63,7 @@ enum aarch64_field_kind
   FLD_SME_ZAda_1b,
   FLD_SME_ZAda_2b,
   FLD_SME_ZAda_3b,
-  FLD_SME_ZdnT,
   FLD_SME_Zdn2,
-  FLD_SME_Zdn2_0,
   FLD_SME_Zdn4,
   FLD_SME_Zm,
   FLD_SME_Zm2,
@@ -328,7 +326,7 @@ verify_constraints (const struct aarch64_inst *, const aarch64_insn, bfd_vma,
 #define F_REG_ALIAS	(1 << 6)  /* Register name aliases another.  */
 
 #undef F_REG_128
-#define F_REG_128	(1 << 7) /* System regsister implementable as 128-bit wide.  */
+#define F_REG_128	(1 << 7) /* System register implementable as 128-bit wide.  */
 
 
 /* PSTATE field name for the MSR instruction this is encoded in "op1:op2:CRm".
@@ -553,6 +551,11 @@ static inline int
 select_operand_for_sf_field_coding (const aarch64_opcode *opcode)
 {
   int idx = -1;
+  if (opcode->iclass == fprcvtfloat2int)
+    return 0;
+  else if (opcode->iclass == fprcvtint2float)
+    return 1;
+
   if (aarch64_get_operand_class (opcode->operands[0])
       == AARCH64_OPND_CLASS_INT_REG)
     /* normal case.  */
@@ -574,6 +577,11 @@ static inline int
 select_operand_for_fptype_field_coding (const aarch64_opcode *opcode)
 {
   int idx;
+  if (opcode->iclass == fprcvtfloat2int)
+    return 1;
+  else if (opcode->iclass == fprcvtint2float)
+    return 0;
+
   if (aarch64_get_operand_class (opcode->operands[1])
       == AARCH64_OPND_CLASS_FP_REG)
     /* normal case.  */
@@ -604,7 +612,7 @@ select_operand_for_scalar_size_field_coding (const aarch64_opcode *opcode)
     src_size = aarch64_get_qualifier_esize (opcode->qualifiers_list[0][1]);
   if (src_size == dst_size && src_size == 0)
     { assert (0); abort (); }
-  /* When the result is not a sisd register or it is a long operantion.  */
+  /* When the result is not a sisd register or it is a long operation.  */
   if (dst_size == 0 || dst_size == src_size << 1)
     return 1;
   else

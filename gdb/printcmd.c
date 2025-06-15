@@ -1,6 +1,6 @@
 /* Print values for GNU debugger GDB.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -43,7 +43,6 @@
 #include "disasm.h"
 #include "target-float.h"
 #include "observable.h"
-#include "solist.h"
 #include "parser-defs.h"
 #include "charset.h"
 #include "arch-utils.h"
@@ -56,7 +55,6 @@
 #include "gdbsupport/byte-vector.h"
 #include <optional>
 #include "gdbsupport/gdb-safe-ctype.h"
-#include "gdbsupport/rsp-low.h"
 #include "inferior.h"
 
 /* Chain containing all defined memory-tag subcommands.  */
@@ -1322,7 +1320,9 @@ process_print_command_args (const char *args, value_print_options *print_opts,
 	 value, so invert it for parse_expression.  */
       parser_flags flags = 0;
       if (!voidprint)
-	flags = PARSER_VOID_CONTEXT;
+	flags |= PARSER_VOID_CONTEXT;
+      if (parser_debug)
+	flags |= PARSER_DEBUG;
       expression_up expr = parse_expression (exp, nullptr, flags);
       return expr->evaluate ();
     }
@@ -2394,7 +2394,7 @@ printf_c_string (struct ui_file *stream, const char *format,
     }
   else
     {
-      CORE_ADDR tem = value_as_address (value);;
+      CORE_ADDR tem = value_as_address (value);
 
       if (tem == 0)
 	{
@@ -2885,7 +2885,7 @@ static void
 printf_command (const char *arg, int from_tty)
 {
   ui_printf (arg, gdb_stdout);
-  gdb_stdout->reset_style ();
+  gdb_stdout->emit_style_escape (ui_file_style ());
   gdb_stdout->wrap_here (0);
   gdb_stdout->flush ();
 }
@@ -2920,14 +2920,6 @@ show_memory_tagging_unsupported (void)
 {
   error (_("Memory tagging not supported or disabled by the current"
 	   " architecture."));
-}
-
-/* Implement the "memory-tag" prefix command.  */
-
-static void
-memory_tag_command (const char *arg, int from_tty)
-{
-  help_list (memory_tag_list, "memory-tag ", all_commands, gdb_stdout);
 }
 
 /* Helper for print-logical-tag and print-allocation-tag.  */
@@ -3386,7 +3378,7 @@ Convert the arguments to a string as \"printf\" would, but then\n\
 treat this string as a command line, and evaluate it."));
 
   /* Memory tagging commands.  */
-  add_prefix_cmd ("memory-tag", class_vars, memory_tag_command, _("\
+  add_basic_prefix_cmd ("memory-tag", class_vars, _("\
 Generic command for printing and manipulating memory tag properties."),
 		  &memory_tag_list, 0, &cmdlist);
   add_cmd ("print-logical-tag", class_vars,

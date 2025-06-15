@@ -1,5 +1,37 @@
 -*- text -*-
 
+* Support for x86 AVX10.2 256 bit rounding has been dropped, as all the
+  hardware would directly support 512 bit vecotr width.
+
+* For RISC-V, stop generating mapping symbols $x and replace with $x<isa>.  The
+  $x was defined to have the same ISA as previous $x<isa>, but now is defined
+  to have the same ISA as elf architecture attribute.  Once used .option arch
+  directives, the file need to be rebuilt since 2.45.
+
+* Add support for RISC-V privileged version 1.13, Profiles.
+
+* Add support for RISC-V standard extensions:
+  ssqosid v1.0, ssnpm v1.0, smnpm v1.0, smmpm v1.0, sspm v1.0, supm v1.0,
+  sha v1.0, zce v1.0, smcdeleg v1.0, ssccfg v1.0, svvptc v1.0.
+
+* Add support for RISC-V vendor extensions:
+  T-Head: xtheadvdot v1.0.
+  MIPS: xmipscbop v1.0, xmipscmov v1.0, xmipsexectl v1.0, xmipslsp v1.0.
+
+* Add support for the x86 Zhaoxin PadLock XMODX instructions.
+
+Changes in 2.44:
+
+* Add support for the x86 Intel Diamond Rapids AMX instructions, including
+  AMX-AVX512, AMX-FP8, AMX-MOVRS, AMX-TF32 and AMX-TRANSPOSE.
+
+* Add support for the x86 Intel MOVRS instructions.
+
+* Add support for the x86 Zhaoxin PadLock PHE2 and RNG2 instructions.
+
+* Add support for AArch64 SME and SVE non-widening BFloat16 (SVE_B16B16 and
+  SME_B16B16) instructions.
+
 * Add support for the x86 Intel AVX10.2 instructions.
 
 * Add support for the x86 Intel SM4 AVX10.2 instructions.
@@ -13,9 +45,18 @@
 
 * On x86 emulation support (for secondary targets) was dropped.
 
-* Add support for RISC-V Zcmp (cm.mva01s, cm.mvsa01), Smrnmi, S[sm]dbltrp,
-  CORE-V (xcvbitmanip, xcvsimd) extensions with version 1.0 and more SiFive
-  extensions (xsfvqmaccdod, xsfvqmaccqoq and xsfvfnrclipxfqf).
+* Add support for RISC-V standard extensions,
+  Zicfiss v1.0, Zicfilp v1.0, Zcmp v1.0 (cm.mva01s and cm.mvsa01 instructions),
+  Zcmt v1.0, Smrnmi v1.0, S[sm]dbltrp v1.0 and S[sm]ctr v1.0 (replaced the
+  dropped sfence.vm encoding since privileged spec v1.10).
+
+* Add support for RISC-V vendor extensions,
+  CORE-V, xcvbitmanip v1.0 and xcvsimd v1.0.
+  SiFive, xsfvqmaccdod v1.0, xsfvqmaccqoqv1.0 and xsfvfnrclipxfqf v1.0.
+
+* Add support for 4 formats of .cfi directives register aliases for LoongArch,
+  for example, .cfi_offset r1,8, .cfi_offset ra,8, .cfi_offset $r1,8,
+  .cfi_offset $ra,8.
 
 Changes in 2.43:
 

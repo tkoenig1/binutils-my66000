@@ -1,6 +1,6 @@
 /* Target-dependent code for NetBSD/sparc.
 
-   Copyright (C) 2002-2024 Free Software Foundation, Inc.
+   Copyright (C) 2002-2025 Free Software Foundation, Inc.
    Contributed by Wasabi Systems, Inc.
 
    This file is part of GDB.
@@ -248,16 +248,16 @@ sparc32nbsd_sigcontext_frame_sniffer (const struct frame_unwind *self,
   return 0;
 }
 
-static const struct frame_unwind sparc32nbsd_sigcontext_frame_unwind =
-{
+static const struct frame_unwind_legacy sparc32nbsd_sigcontext_frame_unwind (
   "sparc32 netbsd sigcontext",
   SIGTRAMP_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   sparc32nbsd_sigcontext_frame_this_id,
   sparc32nbsd_sigcontext_frame_prev_register,
   NULL,
   sparc32nbsd_sigcontext_frame_sniffer
-};
+);
 
 /* Return the address of a system call's alternative return
    address.  */

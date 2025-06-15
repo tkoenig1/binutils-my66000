@@ -259,7 +259,7 @@ const size_t md_longopts_size = sizeof (md_longopts);
 #define s3_BAD_SKIP_COMMA            s3_BAD_ARGS
 #define s3_BAD_GARBAGE               _("garbage following instruction");
 
-#define s3_skip_whitespace(str)  while (*(str) == ' ') ++(str)
+#define s3_skip_whitespace(str)  while (is_whitespace (*(str))) ++(str)
 
 /* The name of the readonly data section.  */
 #define s3_RDATA_SECTION_NAME (OUTPUT_FLAVOR == bfd_target_aout_flavour \
@@ -1040,7 +1040,7 @@ s3_score_reg_parse (char **ccp, htab_t htab)
     c = *p++;
 
   *--p = 0;
-  reg = (struct s3_reg_entry *) str_hash_find (htab, start);
+  reg = str_hash_find (htab, start);
   *p = c;
 
   if (reg)
@@ -1099,7 +1099,7 @@ s3_skip_past_comma (char **str)
   char c;
   int comma = 0;
 
-  while ((c = *p) == ' ' || c == ',')
+  while (is_whitespace (c = *p) || c == ',')
     {
       p++;
       if (c == ',' && comma++)
@@ -1376,7 +1376,7 @@ s3_data_op2 (char **str, int shift, enum score_data_type data_type)
       for (; *dataptr != '\0'; dataptr++)
         {
           *dataptr = TOLOWER (*dataptr);
-          if (*dataptr == '!' || *dataptr == ' ')
+          if (*dataptr == '!' || is_whitespace (*dataptr))
             break;
         }
       dataptr = (char *)data_exp;
@@ -2199,8 +2199,7 @@ s3_dependency_type_from_insn (char *insn_name)
   const struct s3_insn_to_dependency *tmp;
 
   strcpy (name, insn_name);
-  tmp = (const struct s3_insn_to_dependency *)
-    str_hash_find (s3_dependency_insn_hsh, name);
+  tmp = str_hash_find (s3_dependency_insn_hsh, name);
 
   if (tmp)
     return tmp->type;
@@ -2650,7 +2649,7 @@ s3_parse_16_32_inst (char *insnstr, bool gen_frag_p)
   s3_skip_whitespace (operator);
 
   for (p = operator; *p != '\0'; p++)
-    if ((*p == ' ') || (*p == '!'))
+    if (is_whitespace (*p) || (*p == '!'))
       break;
 
   if (*p == '!')
@@ -2659,8 +2658,7 @@ s3_parse_16_32_inst (char *insnstr, bool gen_frag_p)
   c = *p;
   *p = '\0';
 
-  opcode = (const struct s3_asm_opcode *) str_hash_find (s3_score_ops_hsh,
-							 operator);
+  opcode = str_hash_find (s3_score_ops_hsh, operator);
   *p = c;
 
   memset (&s3_inst, '\0', sizeof (s3_inst));
@@ -2700,14 +2698,13 @@ s3_parse_48_inst (char *insnstr, bool gen_frag_p)
   s3_skip_whitespace (operator);
 
   for (p = operator; *p != '\0'; p++)
-    if (*p == ' ')
+    if (is_whitespace (*p))
       break;
 
   c = *p;
   *p = '\0';
 
-  opcode = (const struct s3_asm_opcode *) str_hash_find (s3_score_ops_hsh,
-							 operator);
+  opcode = str_hash_find (s3_score_ops_hsh, operator);
   *p = c;
 
   memset (&s3_inst, '\0', sizeof (s3_inst));
@@ -5767,7 +5764,7 @@ s3_s_score_end (int x ATTRIBUTE_UNUSED)
   expressionS exp;
   char *fragp;
 
-  if (!is_end_of_line[(unsigned char)*input_line_pointer])
+  if (!is_end_of_stmt (*input_line_pointer))
     {
       p = s3_get_symbol ();
       demand_empty_rest_of_line ();
@@ -5837,7 +5834,7 @@ s3_s_score_set (int x ATTRIBUTE_UNUSED)
   char name[s3_MAX_LITERAL_POOL_SIZE];
   char * orig_ilp = input_line_pointer;
 
-  while (!is_end_of_line[(unsigned char)*input_line_pointer])
+  while (!is_end_of_stmt (*input_line_pointer))
     {
       name[i] = (char) * input_line_pointer;
       i++;
@@ -6085,7 +6082,7 @@ s3_s_score_lcomm (int bytes_p)
       SKIP_WHITESPACE ();
     }
 
-  if (is_end_of_line[(unsigned char)*input_line_pointer])
+  if (is_end_of_stmt (*input_line_pointer))
     {
       as_bad (_("missing size expression"));
       return;
@@ -6119,7 +6116,7 @@ s3_s_score_lcomm (int bytes_p)
       ++input_line_pointer;
       SKIP_WHITESPACE ();
 
-      if (is_end_of_line[(unsigned char)*input_line_pointer])
+      if (is_end_of_stmt (*input_line_pointer))
         {
           as_bad (_("missing alignment"));
           return;

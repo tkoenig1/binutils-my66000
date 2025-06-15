@@ -2479,8 +2479,8 @@ elf32_avr_relax_section (bfd *abfd,
     shrinkable = false;
 
   if (bfd_link_relocatable (link_info))
-    (*link_info->callbacks->einfo)
-      (_("%P%F: --relax and -r may not be used together\n"));
+    link_info->callbacks->fatal
+      (_("%P: --relax and -r may not be used together\n"));
 
   htab = avr_link_hash_table (link_info);
   if (htab == NULL)
@@ -3893,6 +3893,7 @@ elf32_avr_build_stubs (struct bfd_link_info *info)
       stub_sec->contents = bfd_zalloc (htab->stub_bfd, size);
       if (stub_sec->contents == NULL && size != 0)
 	return false;
+      stub_sec->alloced = 1;
       stub_sec->size = 0;
     }
 

@@ -343,7 +343,7 @@ s390_parse_cpu (const char *arg,
       S390_INSTR_FLAG_HTM | S390_INSTR_FLAG_VX },
     { STRING_COMMA_LEN ("z16"), STRING_COMMA_LEN ("arch14"),
       S390_INSTR_FLAG_HTM | S390_INSTR_FLAG_VX },
-    { STRING_COMMA_LEN (""), STRING_COMMA_LEN ("arch15"),
+    { STRING_COMMA_LEN ("z17"), STRING_COMMA_LEN ("arch15"),
       S390_INSTR_FLAG_HTM | S390_INSTR_FLAG_VX }
   };
   static struct
@@ -1429,7 +1429,7 @@ md_gather_operands (char *str,
   char *f;
   int fc, i;
 
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     str++;
 
   /* Gather the operands.  */
@@ -1452,6 +1452,11 @@ md_gather_operands (char *str,
 
       if (omitted_index && (operand->flags & S390_OPERAND_INDEX))
 	{
+	  /* Do not skip an omitted vector index register in D(VX,B).  */
+	  if (operand->flags & S390_OPERAND_VR)
+	    as_bad (_("operand %d: missing vector index register operand"),
+		    operand_number);
+
 	  /* Skip omitted optional index register operand in D(X,B) due to
 	     D(,B) or D(B). Skip comma, if D(,B).  */
 	  if (*str == ',')
@@ -1506,6 +1511,7 @@ md_gather_operands (char *str,
 		as_bad (_("operand %d: invalid length field specified"),
 			operand_number);
 	      if ((operand->flags & S390_OPERAND_INDEX)
+		  && !(operand->flags & S390_OPERAND_VR)
 		  && ex.X_add_number == 0
 		  && warn_areg_zero)
 		as_warn (_("operand %d: index register specified but zero"),
@@ -1674,9 +1680,12 @@ md_gather_operands (char *str,
 	      /* There is no opening parentheses. Check if operands of
 		 parenthesized block can be skipped. Only index and base
 		 register operands as well as optional operands may be
-		 skipped. A length operand may not be skipped.  */
+		 skipped. Neither vector index nor length operands may
+		 be skipped.  */
 	      operand = s390_operands + *(++opindex_ptr);
-	      if (!(operand->flags & (S390_OPERAND_INDEX|S390_OPERAND_BASE)))
+	      if (!(((operand->flags & S390_OPERAND_INDEX) &&
+		     !(operand->flags & S390_OPERAND_VR))
+		    || (operand->flags & S390_OPERAND_BASE)))
 		as_bad (_("operand %d: syntax error; missing '(' after displacement"),
 			operand_number);
 
@@ -1811,7 +1820,7 @@ md_gather_operands (char *str,
 	}
     }
 
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     str++;
 
   /* Check for tls instruction marker.  */
@@ -1916,14 +1925,14 @@ md_assemble (char *str)
   char *s;
 
   /* Get the opcode.  */
-  for (s = str; *s != '\0' && ! ISSPACE (*s); s++)
+  for (s = str; ! is_end_of_stmt (*s) && ! is_whitespace (*s); s++)
     ;
   if (*s != '\0')
     *s++ = '\0';
 
   /* Look up the opcode in the hash table.  */
-  opcode = (struct s390_opcode *) str_hash_find (s390_opcode_hash, str);
-  if (opcode == (const struct s390_opcode *) NULL)
+  opcode = str_hash_find (s390_opcode_hash, str);
+  if (opcode == NULL)
     {
       as_bad (_("Unrecognized opcode: `%s'"), str);
       return;
@@ -1972,16 +1981,15 @@ s390_insn (int ignore ATTRIBUTE_UNUSED)
 
   /* Get the opcode format.  */
   s = input_line_pointer;
-  while (*s != '\0' && *s != ',' && ! ISSPACE (*s))
+  while (! is_end_of_stmt (*s) && *s != ',' && ! is_whitespace (*s))
     s++;
   if (*s != ',')
     as_bad (_("Invalid .insn format\n"));
   *s++ = '\0';
 
   /* Look up the opcode in the hash table.  */
-  opformat = (struct s390_opcode *)
-    str_hash_find (s390_opformat_hash, input_line_pointer);
-  if (opformat == (const struct s390_opcode *) NULL)
+  opformat = str_hash_find (s390_opformat_hash, input_line_pointer);
+  if (opformat == NULL)
     {
       as_bad (_("Unrecognized opcode format: `%s'"), input_line_pointer);
       return;
@@ -2146,32 +2154,21 @@ s390_machine (int ignore ATTRIBUTE_UNUSED)
 
   SKIP_WHITESPACE ();
 
-  if (*input_line_pointer == '"')
-    {
-      int len;
-      cpu_string = demand_copy_C_string (&len);
-    }
-  else
-    {
-      char c;
+  {
+    char c;
 
-      cpu_string = input_line_pointer;
-      do
-	{
-	  char * str;
+    c = get_symbol_name (&cpu_string);
+    while (c == '+')
+      {
+	char *str;
 
-	  c = get_symbol_name (&str);
-	  c = restore_line_pointer (c);
-	  if (c == '+')
-	    ++ input_line_pointer;
-	}
-      while (c == '+');
-
-      c = *input_line_pointer;
-      *input_line_pointer = 0;
-      cpu_string = xstrdup (cpu_string);
-      (void) restore_line_pointer (c);
-    }
+	c = restore_line_pointer (c);
+	input_line_pointer++;
+	c = get_symbol_name (&str);
+      }
+    cpu_string = xstrdup (cpu_string);
+    (void) restore_line_pointer (c);
+  }
 
   if (cpu_string != NULL)
     {
@@ -2217,6 +2214,7 @@ s390_machine (int ignore ATTRIBUTE_UNUSED)
 	}
     }
 
+  xfree (cpu_string);
   demand_empty_rest_of_line ();
 }
 
@@ -2287,6 +2285,7 @@ s390_machinemode (int ignore ATTRIBUTE_UNUSED)
 	s390_setup_opcodes ();
     }
 
+  xfree (mode_string);
   demand_empty_rest_of_line ();
 }
 

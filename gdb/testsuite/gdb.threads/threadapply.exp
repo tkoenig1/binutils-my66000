@@ -1,6 +1,6 @@
 # This testcase is part of GDB, the GNU debugger.
 
-# Copyright 2004-2024 Free Software Foundation, Inc.
+# Copyright 2004-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -224,6 +224,8 @@ proc kill_and_remove_inferior {thread_set} {
 
 # Test both "all" and a thread list, because those are implemented as
 # different commands in GDB.
-foreach_with_prefix thread_set {"all" "1.1"} {
-    kill_and_remove_inferior $thread_set
+if {[allow_multi_inferior_tests]} {
+    foreach_with_prefix thread_set {"all" "1.1"} {
+	kill_and_remove_inferior $thread_set
+    }
 }

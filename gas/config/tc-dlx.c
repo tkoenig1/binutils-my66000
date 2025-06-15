@@ -217,7 +217,7 @@ s_proc (int end_p)
 
       current_name = current_label = NULL;
       SKIP_WHITESPACE ();
-      while (!is_end_of_line[(unsigned char) *input_line_pointer])
+      while (!is_end_of_stmt (*input_line_pointer))
         input_line_pointer++;
     }
   else
@@ -499,12 +499,12 @@ dlx_parse_storeop (char * str)
 	pb = comma;
 
       /* Duplicate the first register.  */
-      for (i = comma + 1; (str[i] == ' ' || str[i] == '\t'); i++)
+      for (i = comma + 1; is_whitespace (str[i]); i++)
 	;
 
       for (m2 = 0; (m2 < 7 && str[i] != '\0'); i++, m2++)
 	{
-	  if (str[i] != ' ' && str[i] != '\t')
+	  if (!is_whitespace (str[i]))
 	    rd[m2] = str[i];
 	  else
 	    goto badoperand_store;
@@ -672,18 +672,18 @@ machine_ip (char *str)
     case '\0':
       break;
 
-      /* FIXME-SOMEDAY more whitespace.  */
-    case ' ':
-      *s++ = '\0';
-      break;
-
     default:
+      if (is_whitespace (*s))
+	{
+	  *s++ = '\0';
+	  break;
+	}
       as_bad (_("Unknown opcode: `%s'"), str);
       return;
     }
 
   /* Hash the opcode, insn will have the string from opcode table.  */
-  if ((insn = (struct machine_opcode *) str_hash_find (op_hash, str)) == NULL)
+  if ((insn = str_hash_find (op_hash, str)) == NULL)
     {
       /* Handle the ret and return macro here.  */
       if ((strcmp (str, "ret") == 0) || (strcmp (str, "return") == 0))

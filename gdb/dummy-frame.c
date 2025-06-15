@@ -1,6 +1,6 @@
 /* Code dealing with dummy stack frames, for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -375,16 +375,16 @@ dummy_frame_this_id (const frame_info_ptr &this_frame,
   (*this_id) = cache->this_id;
 }
 
-const struct frame_unwind dummy_frame_unwind =
-{
+const struct frame_unwind_legacy dummy_frame_unwind (
   "dummy",
   DUMMY_FRAME,
+  FRAME_UNWIND_GDB,
   default_frame_unwind_stop_reason,
   dummy_frame_this_id,
   dummy_frame_prev_register,
   NULL,
-  dummy_frame_sniffer,
-};
+  dummy_frame_sniffer
+);
 
 /* See dummy-frame.h.  */
 

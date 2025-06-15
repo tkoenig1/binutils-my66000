@@ -1,6 +1,6 @@
 /* Target-dependent code for OpenBSD/amd64.
 
-   Copyright (C) 2003-2024 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -402,19 +402,19 @@ amd64obsd_trapframe_sniffer (const struct frame_unwind *self,
 		   || (startswith (name, "Xintr"))));
 }
 
-static const struct frame_unwind amd64obsd_trapframe_unwind =
-{
+static const struct frame_unwind_legacy amd64obsd_trapframe_unwind (
   /* FIXME: kettenis/20051219: This really is more like an interrupt
      frame, but SIGTRAMP_FRAME would print <signal handler called>,
      which really is not what we want here.  */
   "amd64 openbsd trap",
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   amd64obsd_trapframe_this_id,
   amd64obsd_trapframe_prev_register,
   NULL,
   amd64obsd_trapframe_sniffer
-};
+);
 
 
 static void

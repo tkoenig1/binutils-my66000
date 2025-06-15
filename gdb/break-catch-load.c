@@ -1,6 +1,6 @@
 /* Everything about load/unload catchpoints, for GDB.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,7 +24,7 @@
 #include "cli/cli-decode.h"
 #include "mi/mi-common.h"
 #include "progspace.h"
-#include "solist.h"
+#include "solib.h"
 #include "target.h"
 #include "valprint.h"
 
@@ -119,7 +119,7 @@ solib_catchpoint::check_status (struct bpstat *bs)
       for (solib *iter : current_program_space->added_solibs)
 	{
 	  if (!regex
-	      || compiled->exec (iter->so_name.c_str (), 0, nullptr, 0) == 0)
+	      || compiled->exec (iter->name.c_str (), 0, nullptr, 0) == 0)
 	    return;
 	}
     }

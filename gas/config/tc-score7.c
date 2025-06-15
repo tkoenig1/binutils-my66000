@@ -104,7 +104,7 @@ static void s7_do_lw_pic (char *);
 #define s7_BAD_SKIP_COMMA            s7_BAD_ARGS
 #define s7_BAD_GARBAGE               _("garbage following instruction");
 
-#define s7_skip_whitespace(str)  while (*(str) == ' ') ++(str)
+#define s7_skip_whitespace(str)  while (is_whitespace (*(str))) ++(str)
 
 /* The name of the readonly data section.  */
 #define s7_RDATA_SECTION_NAME (OUTPUT_FLAVOR == bfd_target_aout_flavour \
@@ -1129,7 +1129,7 @@ s7_score_reg_parse (char **ccp, htab_t htab)
     c = *p++;
 
   *--p = 0;
-  reg = (struct s7_reg_entry *) str_hash_find (htab, start);
+  reg = str_hash_find (htab, start);
   *p = c;
 
   if (reg)
@@ -1187,7 +1187,7 @@ s7_skip_past_comma (char **str)
   char c;
   int comma = 0;
 
-  while ((c = *p) == ' ' || c == ',')
+  while (is_whitespace (c = *p) || c == ',')
     {
       p++;
       if (c == ',' && comma++)
@@ -1501,7 +1501,7 @@ s7_data_op2 (char **str, int shift, enum score_data_type data_type)
       for (; *dataptr != '\0'; dataptr++)
         {
           *dataptr = TOLOWER (*dataptr);
-          if (*dataptr == '!' || *dataptr == ' ')
+          if (*dataptr == '!' || is_whitespace (*dataptr))
             break;
         }
       dataptr = (char *) data_exp;
@@ -2321,8 +2321,7 @@ s7_dependency_type_from_insn (char *insn_name)
   const struct s7_insn_to_dependency *tmp;
 
   strcpy (name, insn_name);
-  tmp = (const struct s7_insn_to_dependency *)
-    str_hash_find (s7_dependency_insn_hsh, name);
+  tmp = str_hash_find (s7_dependency_insn_hsh, name);
 
   if (tmp)
     return tmp->type;
@@ -2781,7 +2780,7 @@ s7_parse_16_32_inst (char *insnstr, bool gen_frag_p)
   s7_skip_whitespace (operator);
 
   for (p = operator; *p != '\0'; p++)
-    if ((*p == ' ') || (*p == '!'))
+    if (is_whitespace (*p) || (*p == '!'))
       break;
 
   if (*p == '!')
@@ -2790,8 +2789,7 @@ s7_parse_16_32_inst (char *insnstr, bool gen_frag_p)
   c = *p;
   *p = '\0';
 
-  opcode = (const struct s7_asm_opcode *) str_hash_find (s7_score_ops_hsh,
-							 operator);
+  opcode = str_hash_find (s7_score_ops_hsh, operator);
   *p = c;
 
   memset (&s7_inst, '\0', sizeof (s7_inst));
@@ -5608,7 +5606,7 @@ s7_s_score_end (int x ATTRIBUTE_UNUSED)
   expressionS exp;
   char *fragp;
 
-  if (!is_end_of_line[(unsigned char)*input_line_pointer])
+  if (!is_end_of_stmt (*input_line_pointer))
     {
       p = s7_get_symbol ();
       demand_empty_rest_of_line ();
@@ -5679,7 +5677,7 @@ s7_s_score_set (int x ATTRIBUTE_UNUSED)
   char name[s7_MAX_LITERAL_POOL_SIZE];
   char * orig_ilp = input_line_pointer;
 
-  while (!is_end_of_line[(unsigned char)*input_line_pointer])
+  while (!is_end_of_stmt (*input_line_pointer))
     {
       name[i] = (char) * input_line_pointer;
       i++;
@@ -5931,7 +5929,7 @@ s7_s_score_lcomm (int bytes_p)
       SKIP_WHITESPACE ();
     }
 
-  if (is_end_of_line[(unsigned char)*input_line_pointer])
+  if (is_end_of_stmt (*input_line_pointer))
     {
       as_bad (_("missing size expression"));
       return;
@@ -5965,7 +5963,7 @@ s7_s_score_lcomm (int bytes_p)
       ++input_line_pointer;
       SKIP_WHITESPACE ();
 
-      if (is_end_of_line[(unsigned char)*input_line_pointer])
+      if (is_end_of_stmt (*input_line_pointer))
         {
           as_bad (_("missing alignment"));
           return;
@@ -6845,7 +6843,7 @@ s7_gen_reloc (asection * section ATTRIBUTE_UNUSED, fixS * fixp)
       s7_number_to_chars (buf, newval, s7_INSN_SIZE);
 
       retval[1] = notes_alloc (sizeof (arelent));
-      retval[2]->sym_ptr_ptr = notes_alloc (sizeof (asymbol *));
+      retval[1]->sym_ptr_ptr = notes_alloc (sizeof (asymbol *));
       retval[2] = NULL;
       *retval[1]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
       retval[1]->address = (reloc->address + s7_RELAX_RELOC2 (fixp->fx_frag->fr_subtype));

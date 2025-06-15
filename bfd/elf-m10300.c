@@ -2646,8 +2646,8 @@ mn10300_elf_relax_section (bfd *abfd,
   bfd_vma align_gap_adjustment;
 
   if (bfd_link_relocatable (link_info))
-    (*link_info->callbacks->einfo)
-      (_("%P%F: --relax and -r may not be used together\n"));
+    link_info->callbacks->fatal
+      (_("%P: --relax and -r may not be used together\n"));
 
   /* Assume nothing changes.  */
   *again = false;
@@ -5034,6 +5034,7 @@ _bfd_mn10300_elf_late_size_sections (bfd * output_bfd,
 	  BFD_ASSERT (s != NULL);
 	  s->size = sizeof ELF_DYNAMIC_INTERPRETER;
 	  s->contents = (unsigned char *) ELF_DYNAMIC_INTERPRETER;
+	  s->alloced = 1;
 	}
     }
   else
@@ -5120,6 +5121,7 @@ _bfd_mn10300_elf_late_size_sections (bfd * output_bfd,
       s->contents = bfd_zalloc (dynobj, s->size);
       if (s->contents == NULL)
 	return false;
+      s->alloced = 1;
     }
 
   return _bfd_elf_add_dynamic_tags (output_bfd, info, relocs);

@@ -180,7 +180,7 @@ md_begin (void)
 	if (ISALPHA (c) || c == '_' || c == '.' || ISDIGIT (c))
 	  identifier_chars[c] = c;
 
-	if (c == ' ' || c == '\t')
+	if (is_whitespace (c))
 	  space_chars[c] = c;
 
 	if (c == '_')
@@ -287,7 +287,7 @@ tic30_find_parallel_insn (char *current_line, char *next_line)
   char *parallel_insn;
 
   debug ("In tic30_find_parallel_insn()\n");
-  while (!is_end_of_line[(unsigned char) *next_line])
+  while (!is_end_of_stmt (*next_line))
     {
       if (*next_line == PARALLEL_SEPARATOR
 	  && *(next_line + 1) == PARALLEL_SEPARATOR)
@@ -326,7 +326,7 @@ tic30_find_parallel_insn (char *current_line, char *next_line)
 	  int char_ptr = 0;
 	  char c;
 
-	  while (!is_end_of_line[(unsigned char) (c = *line)])
+	  while (!is_end_of_stmt (c = *line))
 	    {
 	      if (is_opcode_char (c) && search_status == NONE)
 		{
@@ -516,7 +516,7 @@ tic30_operand (char *token)
 	  return NULL;
 	}
 
-      ind_addr_op = (ind_addr_type *) str_hash_find (ind_hash, ind_buffer);
+      ind_addr_op = str_hash_find (ind_hash, ind_buffer);
       if (ind_addr_op)
 	{
 	  debug ("Found indirect reference: %s\n", ind_addr_op->syntax);
@@ -555,7 +555,7 @@ tic30_operand (char *token)
     }
   else
     {
-      reg *regop = (reg *) str_hash_find (reg_hash, token);
+      reg *regop = str_hash_find (reg_hash, token);
 
       if (regop)
 	{
@@ -652,7 +652,7 @@ tic30_parallel_insn (char *token)
     /* Find instruction.  */
     save_char = *current_posn;
     *current_posn = '\0';
-    p_opcode = (partemplate *) str_hash_find (parop_hash, token);
+    p_opcode = str_hash_find (parop_hash, token);
     if (p_opcode)
       {
 	debug ("Found instruction %s\n", p_opcode->name);
@@ -697,7 +697,7 @@ tic30_parallel_insn (char *token)
 	debug ("first_opcode = %s\n", first_opcode);
 	debug ("second_opcode = %s\n", second_opcode);
 	sprintf (token, "q_%s_%s", second_opcode, first_opcode);
-	p_opcode = (partemplate *) str_hash_find (parop_hash, token);
+	p_opcode = str_hash_find (parop_hash, token);
 
 	if (p_opcode)
 	  {
@@ -1206,7 +1206,7 @@ md_atof (int what_statement_type,
   debug ("literal = %s\n", literalP);
   debug ("line = ");
   token = input_line_pointer;
-  while (!is_end_of_line[(unsigned char) *input_line_pointer]
+  while (!is_end_of_stmt (*input_line_pointer)
 	 && (*input_line_pointer != ','))
     {
       debug ("%c", *input_line_pointer);
@@ -1443,7 +1443,7 @@ md_assemble (char *line)
     /* Find instruction.  */
     save_char = *current_posn;
     *current_posn = '\0';
-    op = (insn_template *) str_hash_find (op_hash, token_start);
+    op = str_hash_find (op_hash, token_start);
     if (op)
       {
 	debug ("Found instruction %s\n", op->name);

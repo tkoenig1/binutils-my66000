@@ -1,6 +1,6 @@
 /* Target-dependent code for the Toshiba MeP for GDB, the GNU debugger.
 
-   Copyright (C) 2001-2024 Free Software Foundation, Inc.
+   Copyright (C) 2001-2025 Free Software Foundation, Inc.
 
    Contributed by Red Hat, Inc.
 
@@ -2061,15 +2061,16 @@ mep_frame_prev_register (const frame_info_ptr &this_frame,
 }
 
 
-static const struct frame_unwind mep_frame_unwind = {
+static const struct frame_unwind_legacy mep_frame_unwind (
   "mep prologue",
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   mep_frame_this_id,
   mep_frame_prev_register,
   NULL,
   default_frame_sniffer
-};
+);
 
 
 /* Return values.  */

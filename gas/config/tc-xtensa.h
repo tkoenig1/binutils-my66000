@@ -378,8 +378,8 @@ extern void xtensa_init (int, char **);
 #define TEXT_SECTION_NAME		xtensa_section_rename (".text")
 #define DATA_SECTION_NAME		xtensa_section_rename (".data")
 #define BSS_SECTION_NAME		xtensa_section_rename (".bss")
-#define HANDLE_ALIGN(fragP)		xtensa_handle_align (fragP)
-#define MAX_MEM_FOR_RS_ALIGN_CODE	1
+#define HANDLE_ALIGN(sec, fragP)	xtensa_handle_align (fragP)
+#define MAX_MEM_FOR_RS_ALIGN_CODE(p2align, max) 1
 
 
 /* The renumber_section function must be mapped over all the sections

@@ -1,6 +1,6 @@
 /* Target-dependent code for OpenBSD/sparc64.
 
-   Copyright (C) 2004-2024 Free Software Foundation, Inc.
+   Copyright (C) 2004-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -220,16 +220,16 @@ sparc64obsd_sigtramp_frame_sniffer (const struct frame_unwind *self,
   return 0;
 }
 
-static const struct frame_unwind sparc64obsd_frame_unwind =
-{
+static const struct frame_unwind_legacy sparc64obsd_frame_unwind (
   "sparc64 openbsd sigtramp",
   SIGTRAMP_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   sparc64obsd_frame_this_id,
   sparc64obsd_frame_prev_register,
   NULL,
   sparc64obsd_sigtramp_frame_sniffer
-};
+);
 
 /* Kernel debugging support.  */
 
@@ -304,21 +304,21 @@ sparc64obsd_trapframe_sniffer (const struct frame_unwind *self,
   return 0;
 }
 
-static const struct frame_unwind sparc64obsd_trapframe_unwind =
-{
+static const struct frame_unwind_legacy sparc64obsd_trapframe_unwind (
   "sparc64 openbsd trap",
   NORMAL_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   sparc64obsd_trapframe_this_id,
   sparc64obsd_trapframe_prev_register,
   NULL,
   sparc64obsd_trapframe_sniffer
-};
+);
 
 
 /* Threads support.  */
 
-/* Offset wthin the thread structure where we can find %fp and %i7.  */
+/* Offset within the thread structure where we can find %fp and %i7.  */
 #define SPARC64OBSD_UTHREAD_FP_OFFSET	232
 #define SPARC64OBSD_UTHREAD_PC_OFFSET	240
 

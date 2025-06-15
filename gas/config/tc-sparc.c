@@ -979,9 +979,9 @@ md_begin (void)
     {
       const struct sparc_opcode *insn;
       const char *name = ((sparc_arch_size == 32)
-		    ? native_op_table[i].name32
-		    : native_op_table[i].name64);
-      insn = (struct sparc_opcode *) str_hash_find (op_hash, name);
+			  ? native_op_table[i].name32
+			  : native_op_table[i].name64);
+      insn = str_hash_find (op_hash, name);
       if (insn == NULL)
 	{
 	  as_bad (_("Internal error: can't find opcode `%s' for `%s'\n"),
@@ -1743,18 +1743,20 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 
     case ',':
       comma = 1;
-      /* Fall through.  */
-
-    case ' ':
       *s++ = '\0';
       break;
 
     default:
+      if (is_whitespace (*s))
+	{
+	  *s++ = '\0';
+	  break;
+	}
       as_bad (_("Unknown opcode: `%s'"), str);
       *pinsn = NULL;
       return special_case;
     }
-  insn = (struct sparc_opcode *) str_hash_find (op_hash, str);
+  insn = str_hash_find (op_hash, str);
   *pinsn = insn;
   if (insn == NULL)
     {
@@ -1798,11 +1800,11 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 			    goto error;
 			  }
 			kmask |= jmask;
-			while (*s == ' ')
+			while (is_whitespace (*s))
 			  ++s;
 			if (*s == '|' || *s == '+')
 			  ++s;
-			while (*s == ' ')
+			while (is_whitespace (*s))
 			  ++s;
 		      }
 		  }
@@ -2039,7 +2041,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      goto immediate;
 
 	    case ')':
-	      if (*s == ' ')
+	      if (is_whitespace (*s))
 		s++;
 	      if ((s[0] == '0' && s[1] == 'x' && ISXDIGIT (s[2]))
 		  || ISDIGIT (*s))
@@ -2131,7 +2133,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      break;
 
 	    case 'z':
-	      if (*s == ' ')
+	      if (is_whitespace (*s))
 		{
 		  ++s;
 		}
@@ -2144,7 +2146,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      break;
 
 	    case 'Z':
-	      if (*s == ' ')
+	      if (is_whitespace (*s))
 		{
 		  ++s;
 		}
@@ -2157,7 +2159,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      break;
 
 	    case '6':
-	      if (*s == ' ')
+	      if (is_whitespace (*s))
 		{
 		  ++s;
 		}
@@ -2169,7 +2171,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      break;
 
 	    case '7':
-	      if (*s == ' ')
+	      if (is_whitespace (*s))
 		{
 		  ++s;
 		}
@@ -2181,7 +2183,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      break;
 
 	    case '8':
-	      if (*s == ' ')
+	      if (is_whitespace (*s))
 		{
 		  ++s;
 		}
@@ -2193,7 +2195,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      break;
 
 	    case '9':
-	      if (*s == ' ')
+	      if (is_whitespace (*s))
 		{
 		  ++s;
 		}
@@ -2303,8 +2305,12 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	    case '[':		/* These must match exactly.  */
 	    case ']':
 	    case ',':
-	    case ' ':
 	      if (*s++ == *args)
+		continue;
+	      break;
+
+	    case ' ':
+	      if (is_whitespace (*s++))
 		continue;
 	      break;
 
@@ -2680,7 +2686,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      /* fallthrough */
 
 	    immediate:
-	      if (*s == ' ')
+	      if (is_whitespace (*s))
 		s++;
 
 	      {
@@ -3454,7 +3460,7 @@ void
 md_apply_fix (fixS *fixP, valueT *valP, segT segment ATTRIBUTE_UNUSED)
 {
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
-  offsetT val = * (offsetT *) valP;
+  offsetT val = *valP;
   long insn;
 
   gas_assert (fixP->fx_r_type < BFD_RELOC_UNUSED);
@@ -4444,7 +4450,7 @@ s_data1 (void)
 static void
 s_proc (int ignore ATTRIBUTE_UNUSED)
 {
-  while (!is_end_of_line[(unsigned char) *input_line_pointer])
+  while (!is_end_of_stmt (*input_line_pointer))
     {
       ++input_line_pointer;
     }
@@ -4811,7 +4817,7 @@ sparc_cons (expressionS *exp, int size)
 	      char *end = ++input_line_pointer;
 	      int npar = 0;
 
-	      while (! is_end_of_line[(c = *end)])
+	      while (! is_end_of_stmt (c = *end))
 		{
 		  if (c == '(')
 	  	    npar++;
@@ -4842,7 +4848,7 @@ sparc_cons (expressionS *exp, int size)
 		      input_line_pointer++;
 		      SKIP_WHITESPACE ();
 		      c = *input_line_pointer;
-		      if (! is_end_of_line[c] && c != ',')
+		      if (! is_end_of_stmt (c) && c != ',')
 			as_bad (_("Illegal operands: garbage after %%r_%s%d()"),
 			        sparc_cons_special_reloc, size * 8);
 		    }

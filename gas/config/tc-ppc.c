@@ -902,7 +902,7 @@ ppc_parse_name (const char *name, expressionS *exp, enum expr_mode mode)
   /* If we have an absolute symbol or a reg, then we know its value
      now.  Copy the symbol value expression to propagate X_md.  */
   bool done = false;
-  if (mode != expr_defer
+  if (!expr_defer_p (mode)
       && !S_FORCE_RELOC (sym, 0))
     {
       segT segment = S_GET_SEGMENT (sym);
@@ -3325,14 +3325,14 @@ md_assemble (char *str)
   unsigned int insn_length;
 
   /* Get the opcode.  */
-  for (s = str; *s != '\0' && ! ISSPACE (*s); s++)
+  for (s = str; ! is_end_of_stmt (*s) && ! is_whitespace (*s); s++)
     ;
   if (*s != '\0')
     *s++ = '\0';
 
   /* Look up the opcode in the hash table.  */
-  opcode = (const struct powerpc_opcode *) str_hash_find (ppc_hash, str);
-  if (opcode == (const struct powerpc_opcode *) NULL)
+  opcode = str_hash_find (ppc_hash, str);
+  if (opcode == NULL)
     {
       as_bad (_("unrecognized opcode: `%s'"), str);
       ppc_clear_labels ();
@@ -3351,7 +3351,7 @@ md_assemble (char *str)
     }
 
   str = s;
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     ++str;
 
 #ifdef OBJ_XCOFF
@@ -3967,7 +3967,7 @@ md_assemble (char *str)
 	    {
 	      do
 		++str;
-	      while (ISSPACE (*str));
+	      while (is_whitespace (*str));
 	      endc = ',';
 	    }
 	}
@@ -3996,7 +3996,7 @@ md_assemble (char *str)
 	}
     }
 
-  while (ISSPACE (*str))
+  while (is_whitespace (*str))
     ++str;
 
   if (*str != '\0')
@@ -4082,12 +4082,14 @@ md_assemble (char *str)
 	 a label attached to the instruction.  By "attached" we mean
 	 on the same source line as the instruction and without any
 	 intervening semicolons.  */
-      dot_value = frag_now_fix ();
-      dot_frag = frag_now;
+      symbol_set_value_now (&dot_symbol);
       for (l = insn_labels; l != NULL; l = l->next)
 	{
-	  symbol_set_frag (l->label, dot_frag);
-	  S_SET_VALUE (l->label, dot_value);
+	  addressT value;
+
+	  symbol_set_frag (l->label,
+			   symbol_get_frag_and_value (&dot_symbol, &value));
+	  S_SET_VALUE (l->label, value);
 	}
     }
 
@@ -5036,7 +5038,7 @@ ppc_ref (int ignore ATTRIBUTE_UNUSED)
 	{
 	  input_line_pointer++;
 	  SKIP_WHITESPACE ();
-	  if (is_end_of_line[(unsigned char) *input_line_pointer])
+	  if (is_end_of_stmt (*input_line_pointer))
 	    {
 	      as_bad (_("missing symbol name"));
 	      ignore_rest_of_line ();
@@ -5794,7 +5796,7 @@ ppc_tc (int ignore ATTRIBUTE_UNUSED)
 	symbol_set_frag (label, symbol_get_frag (sym));
 	S_SET_VALUE (label, S_GET_VALUE (sym));
 
-	while (! is_end_of_line[(unsigned char) *input_line_pointer])
+	while (! is_end_of_stmt (*input_line_pointer))
 	  ++input_line_pointer;
 
 	return;
@@ -5829,7 +5831,7 @@ ppc_tc (int ignore ATTRIBUTE_UNUSED)
 
   /* Skip the TOC symbol name.  */
   while (is_part_of_name (*input_line_pointer)
-	 || *input_line_pointer == ' '
+	 || is_whitespace (*input_line_pointer)
 	 || *input_line_pointer == '['
 	 || *input_line_pointer == ']'
 	 || *input_line_pointer == '{'
@@ -5937,6 +5939,7 @@ ppc_machine (int ignore ATTRIBUTE_UNUSED)
       if (ppc_cpu != old_cpu)
 	ppc_setup_opcodes ();
     }
+  free (cpu_string);
 
   demand_empty_rest_of_line ();
 }
@@ -6137,9 +6140,6 @@ ppc_frob_symbol (symbolS *sym)
 
   if (SF_GET_FUNCTION (sym))
     {
-      /* Make sure coff_last_function is reset. Otherwise, we won't create
-         the auxent for the next function.  */
-      coff_last_function = 0;
       ppc_last_function = sym;
       if (symbol_get_tc (sym)->u.size != (symbolS *) NULL)
 	{
@@ -6167,10 +6167,6 @@ ppc_frob_symbol (symbolS *sym)
 	{
 	  set_end = ppc_last_function;
 	  ppc_last_function = NULL;
-
-	  /* We don't have a C_EFCN symbol, but we need to force the
-	     COFF backend to believe that it has seen one.  */
-	  coff_last_function = NULL;
 	}
     }
 
@@ -6887,10 +6883,13 @@ ppc_nop_select (void)
 }
 
 void
-ppc_handle_align (struct frag *fragP)
+ppc_handle_align (segT sec, struct frag *fragP)
 {
   valueT count = (fragP->fr_next->fr_address
 		  - (fragP->fr_address + fragP->fr_fix));
+  if (count == 0)
+    return;
+
   char *dest = fragP->fr_literal + fragP->fr_fix;
   enum ppc_nop_encoding_for_rs_align_code nop_select = *dest & 0xff;
 
@@ -6898,8 +6897,7 @@ ppc_handle_align (struct frag *fragP)
      We could pad with zeros up to an instruction boundary then follow
      with nops but odd counts indicate data in an executable section
      so padding with zeros is most appropriate.  */
-  if (count == 0
-      || (nop_select == PPC_NOP_VLE ? (count & 1) != 0 : (count & 3) != 0))
+  if (nop_select == PPC_NOP_VLE ? (count & 1) != 0 : (count & 3) != 0)
     {
       *dest = 0;
       return;
@@ -6917,26 +6915,13 @@ ppc_handle_align (struct frag *fragP)
 
       if (count > 4 * nop_limit && count < 0x2000000)
 	{
-	  struct frag *rest;
-
-	  /* Make a branch, then follow with nops.  Insert another
-	     frag to handle the nops.  */
+	  /* Make a branch, then follow with nops.  */
 	  md_number_to_chars (dest, 0x48000000 + count, 4);
+	  dest += 4;
+	  fragP->fr_fix += 4;
 	  count -= 4;
 	  if (count == 0)
 	    return;
-
-	  rest = xmalloc (SIZEOF_STRUCT_FRAG + 4);
-	  memcpy (rest, fragP, SIZEOF_STRUCT_FRAG);
-	  fragP->fr_next = rest;
-	  fragP = rest;
-	  rest->fr_address += rest->fr_fix + 4;
-	  rest->fr_fix = 0;
-	  /* If we leave the next frag as rs_align_code we'll come here
-	     again, resulting in a bunch of branches rather than a
-	     branch followed by nops.  */
-	  rest->fr_type = rs_align;
-	  dest = rest->fr_literal;
 	}
 
       md_number_to_chars (dest, 0x60000000, 4);
@@ -6950,7 +6935,9 @@ ppc_handle_align (struct frag *fragP)
 	     reduce the number of nops in the current frag by one.  */
 	  if (count > 4)
 	    {
-	      struct frag *group_nop = xmalloc (SIZEOF_STRUCT_FRAG + 4);
+	      segment_info_type *seginfo = seg_info (sec);
+	      struct obstack *ob = &seginfo->frchainP->frch_obstack;
+	      struct frag *group_nop = frag_alloc (ob, 4);
 
 	      memcpy (group_nop, fragP, SIZEOF_STRUCT_FRAG);
 	      group_nop->fr_address = group_nop->fr_next->fr_address - 4;
@@ -6977,7 +6964,7 @@ ppc_handle_align (struct frag *fragP)
 void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg)
 {
-  valueT value = * valP;
+  valueT value = *valP;
   offsetT fieldval;
   const struct powerpc_operand *operand;
 

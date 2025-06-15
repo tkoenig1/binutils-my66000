@@ -421,7 +421,7 @@ extern bool _bfd_vms_lib_ia64_mkarchive
 /* Routines to use for BFD_JUMP_TABLE_SYMBOLS where there is no symbol
    support.  Use BFD_JUMP_TABLE_SYMBOLS (_bfd_nosymbols).  */
 
-#define _bfd_nosymbols_get_symtab_upper_bound _bfd_long_bfd_n1_error
+#define _bfd_nosymbols_get_symtab_upper_bound _bfd_long_bfd_0
 extern long _bfd_nosymbols_canonicalize_symtab
   (bfd *, asymbol **) ATTRIBUTE_HIDDEN;
 #define _bfd_nosymbols_make_empty_symbol _bfd_generic_make_empty_symbol
@@ -650,12 +650,6 @@ extern bool _bfd_generic_link_add_archive_symbols
 
 /* Forward declaration to avoid prototype errors.  */
 typedef struct bfd_link_hash_entry _bfd_link_hash_entry;
-
-/* Generic routine to add a single symbol.  */
-extern bool _bfd_generic_link_add_one_symbol
-  (struct bfd_link_info *, bfd *, const char *name, flagword,
-   asection *, bfd_vma, const char *, bool copy,
-   bool constructor, struct bfd_link_hash_entry **) ATTRIBUTE_HIDDEN;
 
 /* Generic routine to mark section as supplying symbols only.  */
 extern void _bfd_generic_link_just_syms
@@ -3671,6 +3665,49 @@ bool _bfd_unrecognized_reloc
     unsigned int r_type) ATTRIBUTE_HIDDEN;
 
 /* Extracted from section.c.  */
+#define BFD_FAKE_SECTION(SEC, SYM, NAME, IDX, FLAGS)                   \
+  /* name, next, prev, id,  section_id, index, flags, user_set_vma, */ \
+  {  NAME, NULL, NULL, IDX, 0,          0,     FLAGS, 0,               \
+								       \
+  /* linker_mark, linker_has_input, gc_mark, decompress_status,     */ \
+     0,           0,                1,       0,                        \
+								       \
+  /* segment_mark, sec_info_type, use_rela_p, mmapped_p, alloced,   */ \
+     0,            0,             0,          0,         0,            \
+								       \
+  /* sec_flg0, sec_flg1, sec_flg2, sec_flg3, sec_flg4, sec_flg5,    */ \
+     0,        0,        0,        0,        0,        0,              \
+								       \
+  /* vma, lma, size, rawsize, compressed_size,                      */ \
+     0,   0,   0,    0,       0,                                       \
+								       \
+  /* output_offset, output_section, relocation, orelocation,        */ \
+     0,             &SEC,           NULL,       NULL,                  \
+								       \
+  /* reloc_count, alignment_power, filepos, rel_filepos,            */ \
+     0,           0,               0,       0,                         \
+								       \
+  /* line_filepos, userdata, contents, lineno, lineno_count,        */ \
+     0,            NULL,     NULL,     NULL,   0,                      \
+								       \
+  /* entsize, kept_section, moving_line_filepos,                    */ \
+     0,       NULL,         0,                                         \
+								       \
+  /* target_index, used_by_bfd, constructor_chain, owner,           */ \
+     0,            NULL,        NULL,              NULL,               \
+								       \
+  /* symbol,                                                        */ \
+     (struct bfd_symbol *) SYM,                                        \
+								       \
+  /* map_head, map_tail, already_assigned, type                     */ \
+     { NULL }, { NULL }, NULL,             0                           \
+								       \
+  }
+
+#define GLOBAL_SYM_INIT(NAME, SECTION)                                 \
+  /* the_bfd, name, value, attr,            section, udata  */         \
+  {  0,       NAME, 0,     BSF_SECTION_SYM, SECTION, { 0 } }
+
 /* Extracted from stabs.c.  */
 bool _bfd_link_section_stabs
    (bfd *, struct stab_info *, asection *, asection *, void **,

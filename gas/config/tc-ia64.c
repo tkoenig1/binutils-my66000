@@ -4476,13 +4476,14 @@ dot_endp (int dummy ATTRIBUTE_UNUSED)
 		    S_SET_SIZE (sym, frag_now_fix () - S_GET_VALUE (sym));
 		  else
 		    {
-		      symbol_get_obj (sym)->size = XNEW (expressionS);
-		      symbol_get_obj (sym)->size->X_op = O_subtract;
-		      symbol_get_obj (sym)->size->X_add_symbol
+		      OBJ_SYMFIELD_TYPE *obj = symbol_get_obj (sym);
+		      obj->size = notes_alloc (sizeof (*obj->size));
+		      obj->size->X_op = O_subtract;
+		      obj->size->X_add_symbol
 			= symbol_new (FAKE_LABEL_NAME, now_seg,
 				      frag_now, frag_now_fix ());
-		      symbol_get_obj (sym)->size->X_op_symbol = sym;
-		      symbol_get_obj (sym)->size->X_add_number = 0;
+		      obj->size->X_op_symbol = sym;
+		      obj->size->X_add_number = 0;
 		    }
 		}
 	    }
@@ -10645,7 +10646,7 @@ md_assemble (char *str)
 
   ch = get_symbol_name (&temp);
   mnemonic = temp;
-  pdesc = (struct pseudo_opcode *) str_hash_find (md.pseudo_hash, mnemonic);
+  pdesc = str_hash_find (md.pseudo_hash, mnemonic);
   if (pdesc)
     {
       (void) restore_line_pointer (ch);
@@ -11778,7 +11779,7 @@ dot_alias (int section)
 
   /* Check if alias has been used before.  */
 
-  h = (struct alias *) str_hash_find (ahash, alias);
+  h = str_hash_find (ahash, alias);
   if (h)
     {
       if (strcmp (h->name, name))
@@ -11789,7 +11790,7 @@ dot_alias (int section)
     }
 
   /* Check if name already has an alias.  */
-  a = (const char *) str_hash_find (nhash, name);
+  a = str_hash_find (nhash, name);
   if (a)
     {
       if (strcmp (a, alias))

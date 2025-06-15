@@ -436,11 +436,11 @@ del_spaces (char * s)
 {
   while (*s)
     {
-      if (ISSPACE (*s))
+      if (is_whitespace (*s))
 	{
 	  char *m = s + 1;
 
-	  while (ISSPACE (*m) && *m)
+	  while (is_whitespace (*m) && *m)
 	    m++;
 	  memmove (s, m, strlen (m) + 1);
 	}
@@ -452,7 +452,7 @@ del_spaces (char * s)
 static inline char *
 skip_space (char * s)
 {
-  while (ISSPACE (*s))
+  while (is_whitespace (*s))
     ++s;
   return s;
 }
@@ -1813,7 +1813,7 @@ extract_cmd (char * from, char * to, int limit)
 {
   int size = 0;
 
-  while (*from && ! ISSPACE (*from) && *from != '.' && limit > size)
+  while (*from && ! is_whitespace (*from) && *from != '.' && limit > size)
     {
       *(to + size) = *from;
       from++;
@@ -2833,14 +2833,12 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	  check = true;
 	  break;
 
-	case 0:
-	case ' ':
-	case '\n':
-	case '\r':
-	  as_warn (_("no size modifier after period, .w assumed"));
-	  break;
-
 	default:
+	  if (is_whitespace (*line) || is_end_of_stmt(*line))
+	    {
+	      as_warn (_("no size modifier after period, .w assumed"));
+	      break;
+	    }
 	  as_bad (_("unrecognised instruction size modifier .%c"),
 		   * line);
 	  return 0;
@@ -2853,7 +2851,7 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	}
     }
 
-  if (*line && ! ISSPACE (*line))
+  if (*line && ! is_whitespace (*line))
     {
       as_bad (_("junk found after instruction: %s.%s"),
 	      opcode->name, line);
@@ -3586,7 +3584,13 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 		if (op1.exp.X_op == O_constant)
 		  {
 		    n = op1.exp.X_add_number;
-		    if (n > 0xfffff || n < - (0x7ffff))
+		    /* Strictly speaking the positive value test should be for "n > 0x7ffff"
+		       but traditionally when specifying immediates as hex values any valid
+		       bit pattern is allowed.  Hence "suba #0xfffff, r6" is allowed, and so
+		       the positive value test has to be "n > 0xfffff".
+		       FIXME: We could pre-parse the expression to find out if it starts with
+		       0x and only then allow positive values > 0x7fffff.  */
+		    if (n > 0xfffff || n < -0x80000)
 		      {
 			as_bad (_("expected value of first argument of %s to fit into 20-bits"),
 				opcode->name);
@@ -4356,7 +4360,7 @@ md_assemble (char * str)
       return;
     }
 
-  opcode = (struct msp430_opcode_s *) str_hash_find (msp430_hash, cmd);
+  opcode = str_hash_find (msp430_hash, cmd);
 
   if (opcode == NULL)
     {

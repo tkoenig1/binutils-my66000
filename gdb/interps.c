@@ -1,6 +1,6 @@
 /* Manages interpreters for GDB, the GNU debugger.
 
-   Copyright (C) 2000-2024 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
 
    Written by Jim Ingham <jingham@apple.com> of Apple Computer, Inc.
 
@@ -496,9 +496,9 @@ interps_notify_solib_loaded (const solib &so)
 /* See interps.h.  */
 
 void
-interps_notify_solib_unloaded (const solib &so)
+interps_notify_solib_unloaded (const solib &so, bool still_in_use)
 {
-  interps_notify (&interp::on_solib_unloaded, so);
+  interps_notify (&interp::on_solib_unloaded, so, still_in_use);
 }
 
 /* See interps.h.  */

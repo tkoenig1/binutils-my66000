@@ -236,13 +236,13 @@ md_assemble (char *str)
   int nlen = 0;
 
   /* Drop leading whitespace.  */
-  while (*str == ' ')
+  while (is_whitespace (*str))
     str++;
 
   /* Find the op code end.  */
   op_start = str;
   for (op_end = str;
-       *op_end && !is_end_of_line[*op_end & 0xff] && *op_end != ' ';
+       !is_end_of_stmt (*op_end) && !is_whitespace (*op_end);
        op_end++)
     nlen++;
 
@@ -252,7 +252,7 @@ md_assemble (char *str)
   if (nlen == 0)
     as_bad (_("can't find opcode "));
 
-  opcode = (pj_opc_info_t *) str_hash_find (opcode_hash_control, op_start);
+  opcode = str_hash_find (opcode_hash_control, op_start);
   *op_end = pend;
 
   if (opcode == NULL)
@@ -301,7 +301,7 @@ md_assemble (char *str)
 	  pending_reloc = 0;
 	}
 
-      while (ISSPACE (*op_end))
+      while (is_whitespace (*op_end))
 	op_end++;
 
       if (*op_end != 0)

@@ -1,6 +1,6 @@
 /* Memory-access and commands for "inferior" process, for GDB.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -517,12 +517,6 @@ run_command (const char *args, int from_tty)
 static void
 start_command (const char *args, int from_tty)
 {
-  /* Some languages such as Ada need to search inside the program
-     minimal symbols for the location where to put the temporary
-     breakpoint before starting.  */
-  if (!have_minimal_symbols (current_program_space))
-    error (_("No symbol table loaded.  Use the \"file\" command."));
-
   /* Run the program until reaching the main procedure...  */
   run_command_1 (args, from_tty, RUN_STOP_AT_MAIN);
 }
@@ -536,8 +530,8 @@ starti_command (const char *args, int from_tty)
   run_command_1 (args, from_tty, RUN_STOP_AT_FIRST_INSN);
 } 
 
-static int
-proceed_thread_callback (struct thread_info *thread, void *arg)
+static bool
+proceed_thread_callback (struct thread_info *thread)
 {
   /* We go through all threads individually instead of compressing
      into a single target `resume_all' request, because some threads
@@ -549,15 +543,15 @@ proceed_thread_callback (struct thread_info *thread, void *arg)
      thread stopped until I say otherwise', then we can optimize
      this.  */
   if (thread->state != THREAD_STOPPED)
-    return 0;
+    return false;
 
   if (!thread->inf->has_execution ())
-    return 0;
+    return false;
 
   switch_to_thread (thread);
   clear_proceed_status (0);
   proceed ((CORE_ADDR) -1, GDB_SIGNAL_DEFAULT);
-  return 0;
+  return false;
 }
 
 static void
@@ -614,7 +608,7 @@ continue_1 (int all_threads)
       scoped_disable_commit_resumed disable_commit_resumed
 	("continue all threads in non-stop");
 
-      iterate_over_threads (proceed_thread_callback, nullptr);
+      iterate_over_threads (proceed_thread_callback);
 
       if (current_ui->prompt_state == PROMPT_BLOCKED)
 	{
@@ -2121,9 +2115,10 @@ static const char path_var_name[] = "PATH";
 static void
 path_info (const char *args, int from_tty)
 {
-  gdb_puts ("Executable and object file path: ");
-  gdb_puts (current_inferior ()->environment.get (path_var_name));
-  gdb_puts ("\n");
+  const char *env = current_inferior ()->environment.get (path_var_name);
+
+  gdb_printf (_("Executable and object file path: %s\n"),
+	      env != nullptr ? env : "");
 }
 
 /* Add zero or more directories to the front of the execution path.  */
@@ -2880,7 +2875,7 @@ stop_current_target_threads_ns (ptid_t ptid)
      all-stop mode, we will only get one stop event --- it's undefined
      which thread will report the event.  */
   set_stop_requested (current_inferior ()->process_target (),
-		      ptid, 1);
+		      ptid, true);
 }
 
 /* See inferior.h.  */

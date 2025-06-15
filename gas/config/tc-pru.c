@@ -134,12 +134,12 @@ typedef struct pru_insn_info
 /* Opcode hash table.  */
 static htab_t pru_opcode_hash = NULL;
 #define pru_opcode_lookup(NAME) \
-  ((struct pru_opcode *) str_hash_find (pru_opcode_hash, (NAME)))
+  (str_hash_find (pru_opcode_hash, (NAME)))
 
 /* Register hash table.  */
 static htab_t pru_reg_hash = NULL;
 #define pru_reg_lookup(NAME) \
-  ((struct pru_reg *) str_hash_find (pru_reg_hash, (NAME)))
+  (str_hash_find (pru_reg_hash, (NAME)))
 
 /* The known current alignment of the current section.  */
 static int pru_current_align;
@@ -423,7 +423,7 @@ s_pru_set (int equiv)
      trying a directive.  This prevents
      us from polluting the name space.  */
   SKIP_WHITESPACE ();
-  if (is_end_of_line[(unsigned char) *input_line_pointer])
+  if (is_end_of_stmt (*input_line_pointer))
     {
       bool done = true;
       *endline = 0;
@@ -1441,7 +1441,7 @@ pru_parse_args (pru_insn_infoS *insn ATTRIBUTE_UNUSED, char *argstr,
       /* Strip trailing whitespace.  */
       len = strlen (parsed_args[i]);
       for (char *temp = parsed_args[i] + len - 1;
-	   len && ISSPACE (*temp);
+	   len && is_whitespace (*temp);
 	   temp--, len--)
 	*temp = '\0';
 
@@ -1830,7 +1830,7 @@ pru_frob_label (symbolS *lab)
 static inline char *
 skip_space (char *s)
 {
-  while (*s == ' ' || *s == '\t')
+  while (is_whitespace (*s))
     ++s;
   return s;
 }

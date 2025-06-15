@@ -1,6 +1,6 @@
 /* Target-dependent code for OpenBSD/sparc.
 
-   Copyright (C) 2004-2024 Free Software Foundation, Inc.
+   Copyright (C) 2004-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -134,20 +134,20 @@ sparc32obsd_sigtramp_frame_sniffer (const struct frame_unwind *self,
 
   return 0;
 }
-static const struct frame_unwind sparc32obsd_sigtramp_frame_unwind =
-{
+static const struct frame_unwind_legacy sparc32obsd_sigtramp_frame_unwind (
   "sparc32 openbsd sigtramp",
   SIGTRAMP_FRAME,
+  FRAME_UNWIND_ARCH,
   default_frame_unwind_stop_reason,
   sparc32obsd_sigtramp_frame_this_id,
   sparc32obsd_sigtramp_frame_prev_register,
   NULL,
   sparc32obsd_sigtramp_frame_sniffer
-};
+);
 
 
 
-/* Offset wthin the thread structure where we can find %fp and %i7.  */
+/* Offset within the thread structure where we can find %fp and %i7.  */
 #define SPARC32OBSD_UTHREAD_FP_OFFSET	128
 #define SPARC32OBSD_UTHREAD_PC_OFFSET	132
 

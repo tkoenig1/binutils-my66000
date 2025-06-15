@@ -361,8 +361,8 @@ elf64_ia64_relax_section (bfd *abfd, asection *sec,
   *again = false;
 
   if (bfd_link_relocatable (link_info))
-    (*link_info->callbacks->einfo)
-      (_("%P%F: --relax and -r may not be used together\n"));
+    link_info->callbacks->fatal
+      (_("%P: --relax and -r may not be used together\n"));
 
   /* Don't even try to relax for non-ELF outputs.  */
   if (!is_elf_hash_table (link_info->hash))
@@ -1248,6 +1248,7 @@ create_ia64_vms_notes (bfd *abfd, struct bfd_link_info *info,
     }
 
   ia64_info->note_sec->contents = note_contents;
+  ia64_info->note_sec->alloced = 1;
   ia64_info->note_sec->size = note_size;
 
   free (module_name);
@@ -2761,6 +2762,7 @@ elf64_ia64_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  sec->contents = (bfd_byte *) bfd_zalloc (dynobj, sec->size);
 	  if (sec->contents == NULL && sec->size != 0)
 	    return false;
+	  sec->alloced = 1;
 	}
     }
 

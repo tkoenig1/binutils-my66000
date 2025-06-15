@@ -318,7 +318,7 @@ microblaze_s_weakext (int ignore ATTRIBUTE_UNUSED)
 
   SKIP_WHITESPACE ();
 
-  if (!is_end_of_line[(unsigned char) *input_line_pointer])
+  if (!is_end_of_stmt (*input_line_pointer))
     {
       if (S_IS_DEFINED (symbolP))
 	{
@@ -400,7 +400,7 @@ parse_reg (char * s, unsigned * reg)
   unsigned tmpreg = 0;
 
   /* Strip leading whitespace.  */
-  while (ISSPACE (* s))
+  while (is_whitespace (* s))
     ++ s;
 
   if (strncasecmp (s, "rpc", 3) == 0)
@@ -573,7 +573,7 @@ parse_exp (char *s, expressionS *e)
   char *new_pointer;
 
   /* Skip whitespace.  */
-  while (ISSPACE (* s))
+  while (is_whitespace (* s))
     ++ s;
 
   save = input_line_pointer;
@@ -680,7 +680,7 @@ parse_imm (char * s, expressionS * e, offsetT min, offsetT max)
 
   /* Find the start of "@GOT" or "@PLT" suffix (if any) */
   for (atp = s; *atp != '@'; atp++)
-    if (is_end_of_line[(unsigned char) *atp])
+    if (is_end_of_stmt (*atp))
       break;
 
   if (*atp == '@')
@@ -754,7 +754,7 @@ check_got (int * got_type, int * got_len)
 
   /* Find the start of "@GOT" or "@PLT" suffix (if any).  */
   for (atp = input_line_pointer; *atp != '@'; atp++)
-    if (is_end_of_line[(unsigned char) *atp])
+    if (is_end_of_stmt (*atp))
       return NULL;
 
   if (startswith (atp + 1, "GOTOFF"))
@@ -781,7 +781,7 @@ check_got (int * got_type, int * got_len)
   first = atp - input_line_pointer;
 
   past_got = atp + *got_len + 1;
-  for (new_pointer = past_got; !is_end_of_line[(unsigned char) *new_pointer++];)
+  for (new_pointer = past_got; !is_end_of_stmt (*new_pointer++); )
     ;
   second = new_pointer - past_got;
   /* One extra byte for ' ' and one for NUL.  */
@@ -892,12 +892,12 @@ md_assemble (char * str)
   char name[20];
 
   /* Drop leading whitespace.  */
-  while (ISSPACE (* str))
+  while (is_whitespace (* str))
     str ++;
 
   /* Find the op code end.  */
   for (op_start = op_end = str;
-       *op_end && !is_end_of_line[(unsigned char) *op_end] && *op_end != ' ';
+       !is_end_of_stmt (*op_end) && !is_whitespace (*op_end);
        op_end++)
     {
       name[nlen] = op_start[nlen];
@@ -914,7 +914,7 @@ md_assemble (char * str)
       return;
     }
 
-  opcode = (struct op_code_struct *) str_hash_find (opcode_hash_control, name);
+  opcode = str_hash_find (opcode_hash_control, name);
   if (opcode == NULL)
     {
       as_bad (_("unknown opcode \"%s\""), name);
@@ -1044,13 +1044,9 @@ md_assemble (char * str)
 
           count = 32 - reg1;
           if (streq (name, "lmi"))
-	    opcode
-	      = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-							 "lwi");
+	    opcode = str_hash_find (opcode_hash_control, "lwi");
           else
-	    opcode
-	      = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-							 "swi");
+	    opcode = str_hash_find (opcode_hash_control, "swi");
           if (opcode == NULL)
             {
               as_bad (_("unknown opcode \"%s\""), "lwi");
@@ -1082,9 +1078,7 @@ md_assemble (char * str)
           if ((temp != 0) && (temp != 0xFFFF8000))
 	    {
               /* Needs an immediate inst.  */
-	      opcode1
-		= (struct op_code_struct *) str_hash_find (opcode_hash_control,
-							   "imm");
+	      opcode1 = str_hash_find (opcode_hash_control, "imm");
               if (opcode1 == NULL)
                 {
                   as_bad (_("unknown opcode \"%s\""), "imm");
@@ -1618,9 +1612,7 @@ md_assemble (char * str)
       if ((temp != 0) && (temp != 0xFFFF8000))
 	{
           /* Needs an immediate inst.  */
-	  opcode1
-	    = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-						       "imm");
+	  opcode1 = str_hash_find (opcode_hash_control, "imm");
           if (opcode1 == NULL)
             {
               as_bad (_("unknown opcode \"%s\""), "imm");
@@ -1686,9 +1678,7 @@ md_assemble (char * str)
       if ((temp != 0) && (temp != 0xFFFF8000))
 	{
           /* Needs an immediate inst.  */
-          opcode1
-	    = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-						       "imm");
+          opcode1 = str_hash_find (opcode_hash_control, "imm");
           if (opcode1 == NULL)
             {
               as_bad (_("unknown opcode \"%s\""), "imm");
@@ -1761,9 +1751,7 @@ md_assemble (char * str)
       if ((temp != 0) && (temp != 0xFFFF8000))
 	{
           /* Needs an immediate inst.  */
-          opcode1
-	    = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-						       "imm");
+          opcode1 = str_hash_find (opcode_hash_control, "imm");
           if (opcode1 == NULL)
             {
               as_bad (_("unknown opcode \"%s\""), "imm");
@@ -1808,7 +1796,7 @@ md_assemble (char * str)
     }
 
   /* Drop whitespace after all the operands have been parsed.  */
-  while (ISSPACE (* op_end))
+  while (is_whitespace (* op_end))
     op_end ++;
 
   /* Give warning message if the insn has more operands than required.  */
@@ -2054,7 +2042,7 @@ md_apply_fix (fixS *   fixP,
   const char *       file = fixP->fx_file ? fixP->fx_file : _("unknown");
   const char * symname;
   /* Note: use offsetT because it is signed, valueT is unsigned.  */
-  offsetT      val  = (offsetT) * valp;
+  offsetT      val  = *valp;
   int          i;
   struct op_code_struct * opcode1;
   unsigned long inst1;
@@ -2185,8 +2173,7 @@ md_apply_fix (fixS *   fixP,
 	buf[i + INST_WORD_SIZE] = buf[i];
 
       /* Generate the imm instruction.  */
-      opcode1
-	= (struct op_code_struct *) str_hash_find (opcode_hash_control, "imm");
+      opcode1 = str_hash_find (opcode_hash_control, "imm");
       if (opcode1 == NULL)
 	{
 	  as_bad (_("unknown opcode \"%s\""), "imm");
@@ -2234,8 +2221,7 @@ md_apply_fix (fixS *   fixP,
 	buf[i + INST_WORD_SIZE] = buf[i];
 
       /* Generate the imm instruction.  */
-      opcode1
-	= (struct op_code_struct *) str_hash_find (opcode_hash_control, "imm");
+      opcode1 = str_hash_find (opcode_hash_control, "imm");
       if (opcode1 == NULL)
 	{
 	  as_bad (_("unknown opcode \"%s\""), "imm");

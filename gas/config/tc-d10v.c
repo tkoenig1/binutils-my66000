@@ -140,8 +140,7 @@ register_name (expressionS *expressionP)
   int reg_number;
   char c, *p = input_line_pointer;
 
-  while (*p
-	 && *p != '\n' && *p != '\r' && *p != ',' && *p != ' ' && *p != ')')
+  while (!is_end_of_stmt (*p) && *p != ',' && !is_whitespace (*p) && *p != ')')
     p++;
 
   c = *p;
@@ -356,9 +355,9 @@ get_operands (expressionS exp[])
 
   while (*p)
     {
-      while (*p == ' ' || *p == '\t' || *p == ',')
+      while (is_whitespace (*p) || *p == ',')
 	p++;
-      if (*p == 0 || *p == '\n' || *p == '\r')
+      if (is_end_of_stmt (*p))
 	break;
 
       if (*p == '@')
@@ -1410,12 +1409,12 @@ do_assemble (char *str, struct d10v_opcode **opcode)
   expressionS myops[6];
 
   /* Drop leading whitespace.  */
-  while (*str == ' ')
+  while (is_whitespace (*str))
     str++;
 
   /* Find the opcode end.  */
   for (op_start = op_end = (unsigned char *) str;
-       *op_end && !is_end_of_line[*op_end] && *op_end != ' ';
+       !is_end_of_stmt (*op_end) && !is_whitespace (*op_end);
        op_end++)
     {
       name[nlen] = TOLOWER (op_start[nlen]);
@@ -1429,7 +1428,7 @@ do_assemble (char *str, struct d10v_opcode **opcode)
     return -1;
 
   /* Find the first opcode with the proper name.  */
-  *opcode = (struct d10v_opcode *) str_hash_find (d10v_hash, name);
+  *opcode = str_hash_find (d10v_hash, name);
   if (*opcode == NULL)
     return -1;
 
@@ -1557,8 +1556,8 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	{
 	  struct d10v_opcode *rep, *repi;
 
-	  rep = (struct d10v_opcode *) str_hash_find (d10v_hash, "rep");
-	  repi = (struct d10v_opcode *) str_hash_find (d10v_hash, "repi");
+	  rep = str_hash_find (d10v_hash, "rep");
+	  repi = str_hash_find (d10v_hash, "repi");
 	  if ((insn & FM11) == FM11
 	      && ((repi != NULL
 		   && (insn & repi->mask) == (unsigned) repi->opcode)

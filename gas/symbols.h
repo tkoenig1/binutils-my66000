@@ -18,6 +18,9 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
+#ifndef GAS_SYMBOLS_H
+#define GAS_SYMBOLS_H
+
 extern struct obstack notes;	/* eg FixS live here.  */
 
 extern struct obstack cond_obstack;	/* this is where we track .ifdef/.endif
@@ -41,6 +44,12 @@ extern void *notes_memdup (const void *, size_t, size_t);
 extern char *notes_strdup (const char *);
 extern char *notes_concat (const char *, ...);
 extern void notes_free (void *);
+
+static inline char *
+notes_memdup0 (const char *in, size_t len)
+{
+  return notes_memdup (in, len, len + 1);
+}
 
 char * symbol_relc_make_expr  (expressionS *);
 char * symbol_relc_make_sym   (symbolS *);
@@ -189,6 +198,7 @@ extern offsetT *symbol_X_add_number (const symbolS *);
 extern void symbol_set_value_now (symbolS *);
 extern void symbol_set_frag (symbolS *, fragS *);
 extern fragS *symbol_get_frag (const symbolS *);
+extern fragS *symbol_get_frag_and_value (const symbolS *, addressT *);
 extern void symbol_mark_used (symbolS *);
 extern void symbol_clear_used (symbolS *);
 extern int symbol_used_p (const symbolS *);
@@ -227,3 +237,5 @@ void symbol_set_obj (symbolS *, OBJ_SYMFIELD_TYPE *);
 TC_SYMFIELD_TYPE *symbol_get_tc (symbolS *);
 void symbol_set_tc (symbolS *, TC_SYMFIELD_TYPE *);
 #endif
+
+#endif /* GAS_SYMBOLS_H */

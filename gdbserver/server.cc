@@ -1,5 +1,5 @@
 /* Main code for remote server for GDB.
-   Copyright (C) 1989-2024 Free Software Foundation, Inc.
+   Copyright (C) 1989-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -35,7 +35,7 @@
 #include "dll.h"
 #include "hostio.h"
 #include <vector>
-#include <unordered_map>
+#include "gdbsupport/unordered_map.h"
 #include "gdbsupport/common-inferior.h"
 #include "gdbsupport/job-control.h"
 #include "gdbsupport/environ.h"
@@ -50,6 +50,8 @@
 #include "gdbsupport/gdb_select.h"
 #include "gdbsupport/scoped_restore.h"
 #include "gdbsupport/search.h"
+#include "gdbsupport/gdb_argv_vec.h"
+#include "gdbsupport/remote-args.h"
 
 /* PBUFSIZ must also be at least as big as IPA_CMD_BUF_SIZE, because
    the client state data is passed directly to some agent
@@ -121,7 +123,11 @@ private:
   /* The program name, adjusted if needed.  */
   std::string m_path;
 } program_path;
-static std::vector<char *> program_args;
+
+/* All program arguments are merged into a single string.  */
+
+static std::string program_args;
+
 static std::string wrapper_argv;
 
 /* The PID of the originally created or attached inferior.  Used to
@@ -947,7 +953,7 @@ handle_general_set (char *own_buf)
 	 It's nicer if we only print the final options for each TID,
 	 and if we only print about it if the options changed compared
 	 to the options that were previously set on the thread.  */
-      std::unordered_map<thread_info *, gdb_thread_options> set_options;
+      gdb::unordered_map<thread_info *, gdb_thread_options> set_options;
 
       while (*p != '\0')
 	{
@@ -1965,29 +1971,6 @@ handle_qxfer_siginfo (const char *annex,
   return the_target->qxfer_siginfo (annex, readbuf, writebuf, offset, len);
 }
 
-/* Handle qXfer:statictrace:read.  */
-
-static int
-handle_qxfer_statictrace (const char *annex,
-			  gdb_byte *readbuf, const gdb_byte *writebuf,
-			  ULONGEST offset, LONGEST len)
-{
-  client_state &cs = get_client_state ();
-  ULONGEST nbytes;
-
-  if (writebuf != NULL)
-    return -2;
-
-  if (annex[0] != '\0' || current_thread == NULL 
-      || cs.current_traceframe == -1)
-    return -1;
-
-  if (traceframe_read_sdata (cs.current_traceframe, offset,
-			     readbuf, len, &nbytes))
-    return -1;
-  return nbytes;
-}
-
 /* Helper for handle_qxfer_threads_proper.
    Emit the XML to describe the thread of INF.  */
 
@@ -1999,6 +1982,7 @@ handle_qxfer_threads_worker (thread_info *thread, std::string *buffer)
   int core = target_core_of_thread (ptid);
   char core_s[21];
   const char *name = target_thread_name (ptid);
+  std::string id_str = target_thread_id_str (thread);
   int handle_len;
   gdb_byte *handle;
   bool handle_status = target_thread_handle (ptid, &handle, &handle_len);
@@ -2022,6 +2006,9 @@ handle_qxfer_threads_worker (thread_info *thread, std::string *buffer)
 
   if (name != NULL)
     string_xml_appendf (*buffer, " name=\"%s\"", name);
+
+  if (!id_str.empty ())
+    string_xml_appendf (*buffer, " id_str=\"%s\"", id_str.c_str ());
 
   if (handle_status)
     {
@@ -2324,7 +2311,6 @@ static const struct qxfer qxfer_packets[] =
     { "libraries-svr4", handle_qxfer_libraries_svr4 },
     { "osdata", handle_qxfer_osdata },
     { "siginfo", handle_qxfer_siginfo },
-    { "statictrace", handle_qxfer_statictrace },
     { "threads", handle_qxfer_threads },
     { "traceframe-info", handle_qxfer_traceframe_info },
   };
@@ -2777,7 +2763,7 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 	       "PacketSize=%x;QPassSignals+;QProgramSignals+;"
 	       "QStartupWithShell+;QEnvironmentHexEncoded+;"
 	       "QEnvironmentReset+;QEnvironmentUnset+;"
-	       "QSetWorkingDir+",
+	       "QSetWorkingDir+;binary-upload+",
 	       PBUFSIZ - 1);
 
       if (target_supports_catch_syscall ())
@@ -2842,9 +2828,7 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 	  strcat (own_buf, ";DisconnectedTracing+");
 	  if (gdb_supports_qRelocInsn && target_supports_fast_tracepoints ())
 	    strcat (own_buf, ";FastTracepoints+");
-	  strcat (own_buf, ";StaticTracepoints+");
 	  strcat (own_buf, ";InstallInTrace+");
-	  strcat (own_buf, ";qXfer:statictrace:read+");
 	  strcat (own_buf, ";qXfer:traceframe-info:read+");
 	  strcat (own_buf, ";EnableDisableTracepoints+");
 	  strcat (own_buf, ";QTBuffer:size+");
@@ -2880,7 +2864,7 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 	{
 	  char *end_buf = own_buf + strlen (own_buf);
 	  sprintf (end_buf, ";QThreadOptions=%s",
-		   phex_nz (supported_options, sizeof (supported_options)));
+		   phex_nz (supported_options));
 	}
 
       strcat (own_buf, ";QThreadEvents+");
@@ -3426,7 +3410,7 @@ handle_v_run (char *own_buf)
 {
   client_state &cs = get_client_state ();
   char *p, *next_p;
-  std::vector<char *> new_argv;
+  gdb::argv_vec new_argv;
   gdb::unique_xmalloc_ptr<char> new_program_name;
   int i;
 
@@ -3457,7 +3441,6 @@ handle_v_run (char *own_buf)
 	  if (arg == nullptr)
 	    {
 	      write_enn (own_buf);
-	      free_vector_argv (new_argv);
 	      return;
 	    }
 
@@ -3477,16 +3460,13 @@ handle_v_run (char *own_buf)
       if (program_path.get () == nullptr)
 	{
 	  write_enn (own_buf);
-	  free_vector_argv (new_argv);
 	  return;
 	}
     }
   else
     program_path.set (new_program_name.get ());
 
-  /* Free the old argv and install the new one.  */
-  free_vector_argv (program_args);
-  program_args = new_argv;
+  program_args = gdb::remote_args::join (new_argv.get ());
 
   try
     {
@@ -4092,7 +4072,34 @@ test_memory_tagging_functions (void)
 	      && tags.size () == 5);
 }
 
-} // namespace selftests
+/* Exercise the behavior of doing a 0-length comparison for a register in a
+   register buffer, which should return true.  */
+
+static void test_registers_raw_compare_zero_length ()
+{
+  /* Start off with a dummy target description.  */
+  target_desc dummy_tdesc;
+
+  /* Make it 8 bytes long.  */
+  dummy_tdesc.registers_size = 8;
+
+  /* Add a couple dummy 32-bit registers.  */
+  dummy_tdesc.reg_defs.emplace_back ("r0", 0, 32);
+  dummy_tdesc.reg_defs.emplace_back ("r1", 32, 32);
+
+  /* Create our dummy register cache so we can invoke the raw_compare method
+     we want to validate.  */
+  regcache dummy_regcache (&dummy_tdesc);
+
+  /* Create a dummy byte buffer we can pass to the raw_compare method.  */
+  gdb_byte dummy_buffer[8];
+
+  /* Validate the 0-length comparison (due to the comparison offset being
+     equal to the length of the register) returns true.  */
+  SELF_CHECK (dummy_regcache.raw_compare (0, dummy_buffer, 4));
+}
+
+} /* namespace selftests */
 #endif /* GDB_SELF_TEST */
 
 /* Main function.  This is called by the real "main" function,
@@ -4115,6 +4122,8 @@ captured_main (int argc, char *argv[])
 
   selftests::register_test ("remote_memory_tagging",
 			    selftests::test_memory_tagging_functions);
+  selftests::register_test ("test_registers_raw_compare_zero_length",
+			    selftests::test_registers_raw_compare_zero_length);
 #endif
 
   current_directory = getcwd (NULL, 0);
@@ -4372,12 +4381,11 @@ captured_main (int argc, char *argv[])
 
   if (pid == 0 && *next_arg != NULL)
     {
-      int i, n;
-
-      n = argc - (next_arg - argv);
       program_path.set (next_arg[0]);
-      for (i = 1; i < n; i++)
-	program_args.push_back (xstrdup (next_arg[i]));
+
+      int n = argc - (next_arg - argv);
+      program_args
+	= construct_inferior_arguments ({&next_arg[1], &next_arg[n]}, true);
 
       /* Wait till we are at first instruction in program.  */
       target_create_inferior (program_path.get (), program_args);
@@ -4703,15 +4711,13 @@ process_serial_event (void)
       require_running_or_break (cs.own_buf);
       if (cs.current_traceframe >= 0)
 	{
-	  struct regcache *regcache
-	    = new_register_cache (current_target_desc ());
+	  regcache a_regcache (current_target_desc ());
 
 	  if (fetch_traceframe_registers (cs.current_traceframe,
-					  regcache, -1) == 0)
-	    registers_to_string (regcache, cs.own_buf);
+					  &a_regcache, -1) == 0)
+	    registers_to_string (&a_regcache, cs.own_buf);
 	  else
 	    write_enn (cs.own_buf);
-	  free_register_cache (regcache);
 	}
       else
 	{
@@ -5145,5 +5151,5 @@ void
 reset ()
 {}
 
-} // namespace selftests
+} /* namespace selftests */
 #endif /* GDB_SELF_TEST */

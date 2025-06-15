@@ -232,6 +232,16 @@ AC_ARG_ENABLE(mark-plt,
   no) ac_default_ld_z_mark_plt=0 ;;
 esac])
 
+# Decide if -z memory-seal should be enabled in ELF linker by default.
+ac_default_ld_z_memory_seal=unset
+AC_ARG_ENABLE(memory-seal,
+	      AS_HELP_STRING([--enable-memory-seal],
+	      [enable -z memory-seal in ELF linker by default]),
+[case "${enableval}" in
+  yes) ac_default_ld_z_memory_seal=1 ;;
+  no) ac_default_ld_z_memory_seal=0 ;;
+esac])
+
 
 # By default warn when an executable stack is created due to object files
 # requesting such, not when the user specifies -z execstack.
@@ -404,7 +414,7 @@ AC_SUBST(NATIVE_LIB_DIRS)
 AC_CHECK_HEADERS(fcntl.h elf-hints.h limits.h inttypes.h stdint.h \
 		 sys/file.h sys/mman.h sys/param.h sys/stat.h sys/time.h \
 		 sys/types.h unistd.h)
-AC_CHECK_FUNCS(close glob lseek mkstemp open realpath waitpid)
+AC_CHECK_FUNCS(close getrusage glob lseek mkstemp open realpath waitpid)
 
 BFD_BINARY_FOPEN
 
@@ -485,11 +495,11 @@ do
       EMUL=$targ_emul
     fi
 
-    if test x${enable_64_bit_bfd} = xno; then
+    if test x${have_64_bit_bfd} = xno; then
       . ${srcdir}/../bfd/config.bfd
     fi
 
-    if test x${enable_64_bit_bfd} = xyes; then
+    if test x${have_64_bit_bfd} = xyes; then
       targ_extra_emuls="$targ_extra_emuls $targ64_extra_emuls"
       targ_extra_libpath="$targ_extra_libpath $targ64_extra_libpath"
     fi
@@ -617,6 +627,13 @@ AC_DEFINE_UNQUOTED(DEFAULT_LD_Z_MARK_PLT,
   $ac_default_ld_z_mark_plt,
   [Define to 1 if you want to enable -z mark-plt in ELF x86-64 linker by default.])
 
+if test "${ac_default_ld_z_memory_seal}" = unset; then
+  ac_default_ld_z_memory_seal=0
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_LD_Z_MEMORY_SEAL,
+  $ac_default_ld_z_memory_seal,
+  [Define to 1 if you want to enable -z memory_seal in ELF linker by default.])
+
 
 AC_DEFINE_UNQUOTED(DEFAULT_LD_WARN_EXECSTACK,
   $ac_default_ld_warn_execstack,
@@ -669,7 +686,7 @@ AC_SUBST(TDIRS)
 AM_SUBST_NOTMAKE(TDIRS)
 
 if test x${all_targets} = xtrue; then
-  if test x${enable_64_bit_bfd} = xyes; then
+  if test x${have_64_bit_bfd} = xyes; then
     EMULATION_OFILES='$(ALL_EMULATIONS) $(ALL_64_EMULATIONS)'
     EMUL_EXTRA_OFILES='$(ALL_EMUL_EXTRA_OFILES) $(ALL_64_EMUL_EXTRA_OFILES)'
   else

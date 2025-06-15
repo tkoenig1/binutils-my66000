@@ -190,10 +190,10 @@ struct list_info_struct
 
 typedef struct list_info_struct list_info_type;
 
-int listing_lhs_width        = LISTING_LHS_WIDTH;
-int listing_lhs_width_second = LISTING_LHS_WIDTH_SECOND;
-int listing_lhs_cont_lines   = LISTING_LHS_CONT_LINES;
-int listing_rhs_width        = LISTING_RHS_WIDTH;
+unsigned int listing_lhs_width        = LISTING_LHS_WIDTH;
+unsigned int listing_lhs_width_second = LISTING_LHS_WIDTH_SECOND;
+unsigned int listing_lhs_cont_lines   = LISTING_LHS_CONT_LINES;
+unsigned int listing_rhs_width        = LISTING_RHS_WIDTH;
 
 struct list_info_struct *        listing_tail;
 
@@ -201,8 +201,8 @@ static file_info_type *          file_info_head;
 static file_info_type *          last_open_file_info;
 static FILE *                    last_open_file;
 static struct list_info_struct * head;
-static int                       paper_width = 200;
-static int                       paper_height = 60;
+static unsigned int              paper_width = 200;
+static unsigned int              paper_height = 60;
 
 extern int                       listing;
 
@@ -219,17 +219,6 @@ static FILE *list_file;
    + 20)
 
 static char *data_buffer;
-
-/* Prototypes.  */
-static void listing_message (const char *, const char *);
-static file_info_type *file_info (const char *);
-static void new_frag (void);
-static void listing_page (list_info_type *);
-static unsigned int calc_hex (list_info_type *);
-static void print_lines (list_info_type *, unsigned int, const char *,
-			 unsigned int);
-static void list_symbol_table (void);
-static void listing_listing (char *);
 
 static void
 listing_message (const char *name, const char *message)
@@ -362,8 +351,7 @@ listing_newline (char *ps)
 	  int seen_slash = 0;
 
 	  for (copy = input_line_pointer;
-	       *copy && (seen_quote
-			 || is_end_of_line [(unsigned char) *copy] != 1);
+	       seen_quote ? *copy : !is_end_of_line (*copy);
 	       copy++)
 	    {
 	      if (seen_slash)
@@ -441,6 +429,51 @@ listing_newline (char *ps)
 	new_i->debugging = true;
     }
 #endif
+}
+
+/* Set listing context back to where it was when input was parsed, to allow
+   associating late code/data emission to segments with their origin.  */
+
+struct list_info_struct *listing_override_tail (struct list_info_struct *info)
+{
+  struct list_info_struct *prev = listing_tail;
+  const fragS *frag;
+
+  if (!info)
+    return NULL;
+
+  listing_tail = info;
+
+  /* The first frag created by listing_newline() is still associated with the
+     earlier line.  For the adjustment done below this property doesn't hold,
+     though.  */
+  frag = info->frag;
+  if (frag->line != info)
+    frag = frag->fr_next;
+
+  /* Check whether there's any other output data already for this line.  Replace
+     info->frag only if there's none.  This is to cover for contributions to
+     multiple sections from a single line not being properly represented in the
+     listing, at the time of writing.  Prefer the listing to show any "ordinary"
+     code/data contributions over any .eh_frame ones.  (This way multiple .cfi_*
+     on a single line will also have all their contributions listed, rather
+     than just those from the last such directive.)  */
+  for (; frag; frag = frag->fr_next)
+    if (frag->line != info
+	|| (frag->fr_type != rs_dummy
+	    && (frag->fr_type != rs_fill
+		|| frag->fr_fix
+		|| (frag->fr_var && frag->fr_offset))))
+      break;
+
+  if (!frag || frag->line != info)
+    {
+      new_frag ();
+      info->frag = frag_now;
+      new_frag ();
+    }
+
+  return prev;
 }
 
 /* Attach all current frags to the previous line instead of the
@@ -702,7 +735,7 @@ listing_page (list_info_type *list)
 {
   /* Grope around, see if we can see a title or subtitle edict coming up
      soon.  (we look down 10 lines of the page and see if it's there)  */
-  if ((eject || (on_page >= (unsigned int) paper_height))
+  if ((eject || (on_page >= paper_height))
       && paper_height != 0)
     {
       unsigned int c = 10;
@@ -760,7 +793,7 @@ emit_line (list_info_type * list, const char * format, ...)
 static unsigned int
 calc_hex (list_info_type *list)
 {
-  int data_buffer_size;
+  size_t data_buffer_size;
   list_info_type *first = list;
   unsigned int address = ~(unsigned int) 0;
   fragS *frag;
@@ -793,7 +826,7 @@ calc_hex (list_info_type *list)
 	  data_buffer_size += 2;
 	  octet_in_frag++;
 	}
-      if (frag_ptr->fr_type == rs_fill)
+      if (frag_ptr->fr_type == rs_fill || frag_ptr->fr_type == rs_fill_nop)
 	{
 	  unsigned int var_rep_max = octet_in_frag;
 	  unsigned int var_rep_idx = octet_in_frag;
@@ -817,28 +850,6 @@ calc_hex (list_info_type *list)
 	      if (var_rep_idx >= frag_ptr->fr_fix + frag_ptr->fr_var)
 		var_rep_idx = var_rep_max;
 	    }
-	}
-      else if (frag_ptr->fr_type == rs_fill_nop && frag_ptr->fr_opcode)
-	{
-	  gas_assert (!octet_in_frag);
-
-	  /* Print as many bytes from fr_opcode as is sensible.  */
-	  while (octet_in_frag < (unsigned int) frag_ptr->fr_offset
-		 && data_buffer_size < MAX_BYTES - 3)
-	    {
-	      if (address == ~(unsigned int) 0)
-		address = frag_ptr->fr_address / OCTETS_PER_BYTE;
-
-	      sprintf (data_buffer + data_buffer_size,
-		       "%02X",
-		       frag_ptr->fr_opcode[octet_in_frag] & 0xff);
-	      data_buffer_size += 2;
-
-	      octet_in_frag++;
-	    }
-
-	  free (frag_ptr->fr_opcode);
-	  frag_ptr->fr_opcode = NULL;
 	}
 
       frag_ptr = frag_ptr->fr_next;
@@ -909,7 +920,7 @@ print_lines (list_info_type *list, unsigned int lineno,
     emit_line (list, "****  %s\n", msg->message);
 
   for (lines = 0;
-       lines < (unsigned int) listing_lhs_cont_lines
+       lines < listing_lhs_cont_lines
 	 && src[cur];
        lines++)
     {
@@ -1152,7 +1163,7 @@ debugging_pseudo (list_info_type *list ATTRIBUTE_UNUSED, const char *line)
   in_debug = false;
 #endif
 
-  while (ISSPACE (*line))
+  while (is_whitespace (*line))
     line++;
 
   if (*line != '.')
@@ -1345,7 +1356,7 @@ print_timestamp (void)
 static void
 print_single_option (char * opt, int *pos)
 {
-  int opt_len = strlen (opt);
+  size_t opt_len = strlen (opt);
 
    if ((*pos + opt_len) < paper_width)
      {
@@ -1514,7 +1525,7 @@ listing_psize (int width_only)
     {
       paper_height = get_absolute_expression ();
 
-      if (paper_height < 0 || paper_height > 1000)
+      if (paper_height > 1000)
 	{
 	  paper_height = 0;
 	  as_warn (_("strange paper height, set to no form"));
@@ -1581,7 +1592,7 @@ listing_title (int depth)
     {
       if (quoted
 	  ? *input_line_pointer == '\"'
-	  : is_end_of_line[(unsigned char) *input_line_pointer])
+	  : is_end_of_stmt (*input_line_pointer))
 	{
 	  if (listing)
 	    {
@@ -1624,60 +1635,6 @@ listing_source_file (const char *file)
 {
   if (listing)
     listing_tail->hll_file = file_info (file);
-}
-
-#else
-
-/* Dummy functions for when compiled without listing enabled.  */
-
-void
-listing_list (int on)
-{
-  s_ignore (0);
-}
-
-void
-listing_eject (int ignore)
-{
-  s_ignore (0);
-}
-
-void
-listing_psize (int ignore)
-{
-  s_ignore (0);
-}
-
-void
-listing_nopage (int ignore)
-{
-  s_ignore (0);
-}
-
-void
-listing_title (int depth)
-{
-  s_ignore (0);
-}
-
-void
-listing_file (const char *name)
-{
-}
-
-void
-listing_newline (char *name)
-{
-}
-
-void
-listing_source_line (unsigned int n)
-{
-}
-
-void
-listing_source_file (const char *n)
-{
 }
 
 #endif

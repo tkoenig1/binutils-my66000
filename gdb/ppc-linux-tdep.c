@@ -1,6 +1,6 @@
 /* Target-dependent code for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -32,7 +32,6 @@
 #include "regset.h"
 #include "solib-svr4.h"
 #include "solib.h"
-#include "solist.h"
 #include "ppc-tdep.h"
 #include "ppc64-tdep.h"
 #include "ppc-linux-tdep.h"
@@ -49,6 +48,7 @@
 #include "arch-utils.h"
 #include "xml-syscall.h"
 #include "linux-tdep.h"
+#include "svr4-tls-tdep.h"
 #include "linux-record.h"
 #include "record-full.h"
 #include "infrun.h"
@@ -310,22 +310,22 @@ static const struct ppc_insn_pattern powerpc32_plt_stub_so_2[] =
    section.  For secure PLT, stub is in .text and we need to check
    instruction patterns.  */
 
-static int
+static bool
 powerpc_linux_in_dynsym_resolve_code (CORE_ADDR pc)
 {
   /* Check whether PC is in the dynamic linker.  This also checks
      whether it is in the .plt section, used by non-PIC executables.  */
   if (svr4_in_dynsym_resolve_code (pc))
-    return 1;
+    return true;
 
   /* Check if we are in the resolver.  */
   bound_minimal_symbol sym = lookup_minimal_symbol_by_pc (pc);
-  if (sym.minsym != NULL
-      && (strcmp (sym.minsym->linkage_name (), "__glink") == 0
-	  || strcmp (sym.minsym->linkage_name (), "__glink_PLTresolve") == 0))
-    return 1;
 
-  return 0;
+  if (sym.minsym == nullptr)
+    return false;
+
+  return (strcmp (sym.minsym->linkage_name (), "__glink") == 0
+	  || strcmp (sym.minsym->linkage_name (), "__glink_PLTresolve") == 0);
 }
 
 /* Follow PLT stub to actual routine.
@@ -1638,14 +1638,15 @@ ppc_linux_core_read_description (struct gdbarch *gdbarch,
    gdbarch.h.  This implementation is used for the ELFv2 ABI only.  */
 
 static void
-ppc_elfv2_elf_make_msymbol_special (asymbol *sym, struct minimal_symbol *msym)
+ppc_elfv2_elf_make_msymbol_special (const asymbol *sym,
+				    struct minimal_symbol *msym)
 {
   if ((sym->flags & BSF_SYNTHETIC) != 0)
     /* ELFv2 synthetic symbols (the PLT stubs and the __glink_PLTresolve
        trampoline) do not have a local entry point.  */
     return;
 
-  elf_symbol_type *elf_sym = (elf_symbol_type *)sym;
+  const elf_symbol_type *elf_sym = (const elf_symbol_type *)sym;
 
   /* If the symbol is marked as having a local entry point, set a target
      flag in the msymbol.  We currently only support local entry point
@@ -2070,6 +2071,63 @@ ppc64_linux_gcc_target_options (struct gdbarch *gdbarch)
   return "";
 }
 
+/* Fetch and return the TLS DTV (dynamic thread vector) address for PTID.
+   Throw a suitable TLS error if something goes wrong.  */
+
+static CORE_ADDR
+ppc64_linux_get_tls_dtv_addr (struct gdbarch *gdbarch, ptid_t ptid,
+			      enum svr4_tls_libc libc)
+{
+  /* On ppc64, the thread pointer is found in r13.  Fetch this
+     register.  */
+  regcache *regcache
+    = get_thread_arch_regcache (current_inferior (), ptid, gdbarch);
+  int thread_pointer_regnum = PPC_R0_REGNUM + 13;
+  target_fetch_registers (regcache, thread_pointer_regnum);
+  ULONGEST thr_ptr;
+  if (regcache->cooked_read (thread_pointer_regnum, &thr_ptr) != REG_VALID)
+    throw_error (TLS_GENERIC_ERROR, _("Unable to fetch thread pointer"));
+
+  /* The thread pointer (r13) is an address that is 0x7000 ahead of
+     the *end* of the TCB (thread control block).  The field
+     holding the DTV address is at the very end of the TCB.
+     Therefore, the DTV pointer address can be found by
+     subtracting (0x7000+8) from the thread pointer.  Compute the
+     address of the DTV pointer, fetch it, and convert it to an
+     address.  */
+  CORE_ADDR dtv_ptr_addr = thr_ptr - 0x7000 - 8;
+  gdb::byte_vector buf (gdbarch_ptr_bit (gdbarch) / TARGET_CHAR_BIT);
+  if (target_read_memory (dtv_ptr_addr, buf.data (), buf.size ()) != 0)
+    throw_error (TLS_GENERIC_ERROR, _("Unable to fetch DTV address"));
+
+  const struct builtin_type *builtin = builtin_type (gdbarch);
+  CORE_ADDR dtv_addr = gdbarch_pointer_to_address
+			 (gdbarch, builtin->builtin_data_ptr, buf.data ());
+  return dtv_addr;
+}
+
+/* For internal TLS lookup, return the DTP offset, which is the offset
+   to subtract from a DTV entry, in order to obtain the address of the
+   TLS block.  */
+
+static ULONGEST
+ppc_linux_get_tls_dtp_offset (struct gdbarch *gdbarch, ptid_t ptid,
+			      svr4_tls_libc libc)
+{
+  if (libc == svr4_tls_libc_musl)
+    {
+      /* This value is DTP_OFFSET, which represents the value to
+	 subtract from the DTV entry.  For PPC, it can be found in
+	 MUSL's arch/powerpc64/pthread_arch.h and
+	 arch/powerpc32/pthread_arch.h.  (Both values are the same.)
+	 It represents the value to subtract from the DTV entry, once
+	 it has been fetched from the DTV array.  */
+      return 0x8000;
+    }
+  else
+    return 0;
+}
+
 static displaced_step_prepare_status
 ppc_linux_displaced_step_prepare  (gdbarch *arch, thread_info *thread,
 				   CORE_ADDR &displaced_pc)
@@ -2283,6 +2341,11 @@ ppc_linux_init_abi (struct gdbarch_info info,
 	set_gdbarch_gnu_triplet_regexp (gdbarch, ppc64_gnu_triplet_regexp);
       /* Set GCC target options.  */
       set_gdbarch_gcc_target_options (gdbarch, ppc64_linux_gcc_target_options);
+      /* Internal thread local address support.  */
+      set_gdbarch_get_thread_local_address (gdbarch,
+					    svr4_tls_get_thread_local_address);
+      svr4_tls_register_tls_methods (info, gdbarch, ppc64_linux_get_tls_dtv_addr,
+				     ppc_linux_get_tls_dtp_offset);
     }
 
   set_gdbarch_core_read_description (gdbarch, ppc_linux_core_read_description);

@@ -1,6 +1,6 @@
 /* Definitions for dealing with stack frames, for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2024 Free Software Foundation, Inc.
+   Copyright (C) 1986-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -586,7 +586,7 @@ void set_current_sal_from_frame (const frame_info_ptr &);
    the old get_frame_base method was not sufficient.
 
    get_frame_base_address: get_frame_locals_address:
-   get_frame_args_address: A set of high-level debug-info dependant
+   get_frame_args_address: A set of high-level debug-info dependent
    addresses that fall within the frame.  These addresses almost
    certainly will not match the stack address part of a frame ID (as
    returned by get_frame_base).
@@ -685,14 +685,14 @@ const char *unwind_stop_reason_to_string (enum unwind_stop_reason);
 const char *frame_stop_reason_string (const frame_info_ptr &);
 
 /* Unwind the stack frame so that the value of REGNUM, in the previous
-   (up, older) frame is returned.  If VALUEP is NULL, don't
+   (up, older) frame is returned.  If VALUE is zero-sized, don't
    fetch/compute the value.  Instead just return the location of the
    value.  */
 extern void frame_register_unwind (const frame_info_ptr &frame, int regnum,
 				   int *optimizedp, int *unavailablep,
 				   enum lval_type *lvalp,
 				   CORE_ADDR *addrp, int *realnump,
-				   gdb_byte *valuep);
+				   gdb::array_view<gdb_byte> value = {});
 
 /* Fetch a register from this, or unwind a register from the next
    frame.  Note that the get_frame methods are wrappers to
@@ -701,9 +701,9 @@ extern void frame_register_unwind (const frame_info_ptr &frame, int regnum,
    do return a lazy value.  */
 
 extern void frame_unwind_register (const frame_info_ptr &next_frame,
-				   int regnum, gdb_byte *buf);
+				   int regnum, gdb::array_view<gdb_byte> buf);
 extern void get_frame_register (const frame_info_ptr &frame,
-				int regnum, gdb_byte *buf);
+				int regnum, gdb::array_view<gdb_byte> buf);
 
 struct value *frame_unwind_register_value (const frame_info_ptr &next_frame,
 					   int regnum);
@@ -889,7 +889,7 @@ extern void print_frame_info (const frame_print_options &fp_opts,
 extern frame_info_ptr block_innermost_frame (const struct block *);
 
 extern bool deprecated_frame_register_read (const frame_info_ptr &frame, int regnum,
-					    gdb_byte *buf);
+					    gdb::array_view<gdb_byte> buf);
 
 /* From stack.c.  */
 

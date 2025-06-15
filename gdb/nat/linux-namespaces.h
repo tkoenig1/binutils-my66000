@@ -1,6 +1,6 @@
 /* Linux namespaces(7) support.
 
-   Copyright (C) 2015-2024 Free Software Foundation, Inc.
+   Copyright (C) 2015-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,6 +23,12 @@
 /* Set to true to enable debugging of Linux namespaces code.  */
 
 extern bool debug_linux_namespaces;
+
+/* Print a "linux-namespaces" debug statement.  */
+
+#define linux_namespaces_debug_printf(fmt, ...) \
+  debug_prefixed_printf_cond (debug_linux_namespaces, "linux-namespaces", \
+			      fmt, ##__VA_ARGS__)
 
 /* Enumeration of Linux namespace types.  */
 

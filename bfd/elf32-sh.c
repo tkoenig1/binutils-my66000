@@ -1429,9 +1429,9 @@ sh_elf_swap_insns (bfd *abfd, asection *sec, void *relocs,
 
 	  off = irel->r_offset + 4 + irel->r_addend;
 	  if (off == addr)
-	    irel->r_offset += 2;
+	    irel->r_addend += 2;
 	  else if (off == addr + 2)
-	    irel->r_offset -= 2;
+	    irel->r_addend -= 2;
 	}
 
       if (irel->r_offset == addr)
@@ -2966,6 +2966,7 @@ sh_elf_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  BFD_ASSERT (s != NULL);
 	  s->size = sizeof ELF_DYNAMIC_INTERPRETER;
 	  s->contents = (unsigned char *) ELF_DYNAMIC_INTERPRETER;
+	  s->alloced = 1;
 	}
     }
 
@@ -3193,6 +3194,7 @@ sh_elf_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       s->contents = (bfd_byte *) bfd_zalloc (dynobj, s->size);
       if (s->contents == NULL)
 	return false;
+      s->alloced = 1;
     }
 
   return _bfd_elf_maybe_vxworks_add_dynamic_tags (output_bfd, info,

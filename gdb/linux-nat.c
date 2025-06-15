@@ -1,6 +1,6 @@
 /* GNU/Linux native-dependent code common to multiple platforms.
 
-   Copyright (C) 2001-2024 Free Software Foundation, Inc.
+   Copyright (C) 2001-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -133,7 +133,7 @@ process things as in sync mode, except that the we never block in
 sigsuspend.
 
 While processing an event, we may end up momentarily blocked in
-waitpid calls.  Those waitpid calls, while blocking, are guarantied to
+waitpid calls.  Those waitpid calls, while blocking, are guaranteed to
 return quickly.  E.g., in all-stop mode, before reporting to the core
 that an LWP hit a breakpoint, all LWPs are stopped by sending them
 SIGSTOP, and synchronously waiting for the SIGSTOP to be reported.
@@ -702,7 +702,7 @@ lwp_lwpid_htab_add_lwp (struct lwp_info *lp)
 
 /* Head of doubly-linked list of known LWPs.  Sorted by reverse
    creation order.  This order is assumed in some cases.  E.g.,
-   reaping status after killing alls lwps of a process: the leader LWP
+   reaping status after killing all lwps of a process: the leader LWP
    must be reaped last.  */
 
 static intrusive_list<lwp_info> lwp_list;
@@ -1558,13 +1558,13 @@ linux_nat_target::detach (inferior *inf, int from_tty)
   gdb_assert (num_lwps (pid) == 1
 	      || (target_is_non_stop_p () && num_lwps (pid) == 0));
 
-  if (pid == inferior_ptid.pid () && forks_exist_p ())
+  if (forks_exist_p (inf))
     {
       /* Multi-fork case.  The current inferior_ptid is being detached
 	 from, but there are other viable forks to debug.  Detach from
 	 the current fork, and context-switch to the first
 	 available.  */
-      linux_fork_detach (from_tty, find_lwp_pid (ptid_t (pid)));
+      linux_fork_detach (from_tty, find_lwp_pid (ptid_t (pid)), inf);
     }
   else
     {
@@ -2082,8 +2082,12 @@ linux_handle_extended_wait (struct lwp_info *lp, int status)
 	  detach_breakpoints (ptid_t (new_pid, new_pid));
 
 	  /* Retain child fork in ptrace (stopped) state.  */
-	  if (!find_fork_pid (new_pid))
-	    add_fork (new_pid);
+	  if (find_fork_pid (new_pid).first == nullptr)
+	    {
+	      struct inferior *inf = find_inferior_ptid (linux_target,
+							 lp->ptid);
+	      add_fork (new_pid, inf);
+	    }
 
 	  /* Report as spurious, so that infrun doesn't want to follow
 	     this fork.  We're actually doing an infcall in
@@ -3729,8 +3733,8 @@ linux_nat_target::kill ()
      parent will be sleeping if this is a vfork.  */
   iterate_over_lwps (pid_ptid, kill_unfollowed_child_callback);
 
-  if (forks_exist_p ())
-    linux_fork_killall ();
+  if (forks_exist_p (current_inferior ()))
+    linux_fork_killall (current_inferior ());
   else
     {
       /* Stop all threads before killing them, since ptrace requires
@@ -3761,7 +3765,7 @@ linux_nat_target::mourn_inferior ()
 
   close_proc_mem_file (pid);
 
-  if (! forks_exist_p ())
+  if (! forks_exist_p (current_inferior ()))
     /* Normal case, no other forks available.  */
     inf_ptrace_target::mourn_inferior ();
   else
@@ -4025,24 +4029,21 @@ linux_nat_target::pid_to_exec_file (int pid)
 class proc_mem_file
 {
 public:
-  proc_mem_file (ptid_t ptid, int fd)
-    : m_ptid (ptid), m_fd (fd)
+  proc_mem_file (ptid_t ptid, scoped_fd fd)
+    : m_ptid (ptid), m_fd (std::move (fd))
   {
-    gdb_assert (m_fd != -1);
+    gdb_assert (m_fd.get () != -1);
   }
 
   ~proc_mem_file ()
   {
     linux_nat_debug_printf ("closing fd %d for /proc/%d/task/%ld/mem",
-			    m_fd, m_ptid.pid (), m_ptid.lwp ());
-    close (m_fd);
+			    m_fd.get (), m_ptid.pid (), m_ptid.lwp ());
   }
 
-  DISABLE_COPY_AND_ASSIGN (proc_mem_file);
-
-  int fd ()
+  int fd () const noexcept
   {
-    return m_fd;
+    return m_fd.get ();
   }
 
 private:
@@ -4051,7 +4052,7 @@ private:
   ptid_t m_ptid;
 
   /* The file descriptor.  */
-  int m_fd = -1;
+  scoped_fd m_fd;
 };
 
 /* The map between an inferior process id, and the open /proc/PID/mem
@@ -4089,9 +4090,9 @@ open_proc_mem_file (ptid_t ptid)
   xsnprintf (filename, sizeof filename,
 	     "/proc/%d/task/%ld/mem", ptid.pid (), ptid.lwp ());
 
-  int fd = gdb_open_cloexec (filename, O_RDWR | O_LARGEFILE, 0).release ();
+  scoped_fd fd = gdb_open_cloexec (filename, O_RDWR | O_LARGEFILE, 0);
 
-  if (fd == -1)
+  if (fd.get () == -1)
     {
       warning (_("opening /proc/PID/mem file for lwp %d.%ld failed: %s (%d)"),
 	       ptid.pid (), ptid.lwp (),
@@ -4099,12 +4100,11 @@ open_proc_mem_file (ptid_t ptid)
       return;
     }
 
+  linux_nat_debug_printf ("opened fd %d for lwp %d.%ld",
+			  fd.get (), ptid.pid (), ptid.lwp ());
   proc_mem_file_map.emplace (std::piecewise_construct,
 			     std::forward_as_tuple (ptid.pid ()),
-			     std::forward_as_tuple (ptid, fd));
-
-  linux_nat_debug_printf ("opened fd %d for lwp %d.%ld",
-			  fd, ptid.pid (), ptid.lwp ());
+			     std::forward_as_tuple (ptid, std::move (fd)));
 }
 
 /* Helper for linux_proc_xfer_memory_partial and

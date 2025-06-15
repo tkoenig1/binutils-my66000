@@ -1,6 +1,6 @@
 /* Handle shared libraries for GDB, the GNU Debugger.
 
-   Copyright (C) 1990-2024 Free Software Foundation, Inc.
+   Copyright (C) 1990-2025 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -37,7 +37,6 @@
 #include "elf/common.h"
 #include "filenames.h"
 #include "exec.h"
-#include "solist.h"
 #include "observable.h"
 #include "readline/tilde.h"
 #include "solib.h"
@@ -68,7 +67,7 @@ show_solib_search_path (struct ui_file *file, int from_tty,
 	      value);
 }
 
-/* Same as HAVE_DOS_BASED_FILE_SYSTEM, but useable as an rvalue.  */
+/* Same as HAVE_DOS_BASED_FILE_SYSTEM, but usable as an rvalue.  */
 #if (HAVE_DOS_BASED_FILE_SYSTEM)
 #define DOS_BASED_FILE_SYSTEM 1
 #else
@@ -485,7 +484,7 @@ solib_map_sections (solib &so)
 {
   const solib_ops *ops = gdbarch_so_ops (current_inferior ()->arch ());
 
-  gdb::unique_xmalloc_ptr<char> filename (tilde_expand (so.so_name.c_str ()));
+  gdb::unique_xmalloc_ptr<char> filename (tilde_expand (so.name.c_str ()));
   gdb_bfd_ref_ptr abfd (ops->bfd_open (filename.get ()));
 
   /* If we have a core target then the core target might have some helpful
@@ -498,7 +497,7 @@ solib_map_sections (solib &so)
      its filename.  */
   std::optional<CORE_ADDR> solib_addr = ops->find_solib_addr (so);
   std::optional <const core_target_mapped_file_info> mapped_file_info
-    = core_target_find_mapped_file (so.so_name.c_str (), solib_addr);
+    = core_target_find_mapped_file (so.name.c_str (), solib_addr);
 
   /* If we already know the build-id of this solib from a core file, verify
      it matches ABFD's build-id.  If there is a mismatch or the solib wasn't
@@ -527,7 +526,7 @@ solib_map_sections (solib &so)
 	  if (abfd == nullptr)
 	    abfd = find_objfile_by_build_id (current_program_space,
 					     mapped_file_info->build_id (),
-					     so.so_name.c_str ());
+					     so.name.c_str ());
 
 	  if (abfd == nullptr && mismatch)
 	    {
@@ -545,14 +544,14 @@ solib_map_sections (solib &so)
   /* Leave bfd open, core_xfer_memory and "info files" need it.  */
   so.abfd = std::move (abfd);
 
-  /* Copy the full path name into so_name, allowing symbol_file_add
+  /* Copy the full path name into `so.name`, allowing symbol_file_add
      to find it later.  This also affects the =library-loaded GDB/MI
      event, and in particular the part of that notification providing
      the library's host-side path.  If we let the target dictate
      that objfile's path, and the target is different from the host,
      GDB/MI will not provide the correct host-side path.  */
 
-  so.so_name = bfd_get_filename (so.abfd.get ());
+  so.name = bfd_get_filename (so.abfd.get ());
   so.sections = build_section_table (so.abfd.get ());
 
   for (target_section &p : so.sections)
@@ -582,7 +581,7 @@ solib_map_sections (solib &so)
   return 1;
 }
 
-/* See solist.h.  */
+/* See solib.h.  */
 
 void
 solib::clear ()
@@ -600,7 +599,7 @@ solib::clear ()
 
   /* Restore the target-supplied file name.  SO_NAME may be the path
      of the symbol file.  */
-  this->so_name = this->so_original_name;
+  this->name = this->original_name;
 
   /* Do the same for target-specific data.  */
   if (ops->clear_so != NULL)
@@ -634,7 +633,7 @@ solib_read_symbols (solib &so, symfile_add_flags flags)
 	  so.objfile = nullptr;
 	  for (objfile *objfile : current_program_space->objfiles ())
 	    {
-	      if (filename_cmp (objfile_name (objfile), so.so_name.c_str ())
+	      if (filename_cmp (objfile_name (objfile), so.name.c_str ())
 		    == 0
 		  && objfile->addr_low == so.addr_low)
 		{
@@ -648,7 +647,7 @@ solib_read_symbols (solib &so, symfile_add_flags flags)
 		= build_section_addr_info_from_section_table (so.sections);
 	      gdb_bfd_ref_ptr tmp_bfd = so.abfd;
 	      so.objfile
-		= symbol_file_add_from_bfd (tmp_bfd, so.so_name.c_str (),
+		= symbol_file_add_from_bfd (tmp_bfd, so.name.c_str (),
 					    flags, &sap, OBJF_SHARED, nullptr);
 	      so.objfile->addr_low = so.addr_low;
 	    }
@@ -660,7 +659,7 @@ solib_read_symbols (solib &so, symfile_add_flags flags)
 	  exception_fprintf (gdb_stderr, e,
 			     _ ("Error while reading shared"
 				" library symbols for %s:\n"),
-			     so.so_name.c_str ());
+			     so.name.c_str ());
 	}
 
       return true;
@@ -691,13 +690,20 @@ notify_solib_loaded (solib &so)
   gdb::observers::solib_loaded.notify (so);
 }
 
-/* Notify interpreters and observers that solib SO has been unloaded.  */
+/* Notify interpreters and observers that solib SO has been unloaded.
+   When STILL_IN_USE is true, the objfile backing SO is still in use,
+   this indicates that SO was loaded multiple times, but only mapped
+   in once (the mapping was reused).
+
+   When SILENT is true, don't announce to the user if any breakpoints are
+   disabled as a result of unloading SO.  */
 
 static void
-notify_solib_unloaded (program_space *pspace, const solib &so)
+notify_solib_unloaded (program_space *pspace, const solib &so,
+		       bool still_in_use, bool silent)
 {
-  interps_notify_solib_unloaded (so);
-  gdb::observers::solib_unloaded.notify (pspace, so);
+  interps_notify_solib_unloaded (so, still_in_use);
+  gdb::observers::solib_unloaded.notify (pspace, so, still_in_use, silent);
 }
 
 /* See solib.h.  */
@@ -717,7 +723,8 @@ update_solib_list (int from_tty)
 	 have not opened a symbol file, we may be able to get its
 	 symbols now!  */
       if (inf->attach_flag
-	  && current_program_space->symfile_object_file == NULL)
+	  && current_program_space->symfile_object_file == nullptr
+	  && ops->open_symbol_file_object != nullptr)
 	{
 	  try
 	    {
@@ -758,8 +765,8 @@ update_solib_list (int from_tty)
 
   owning_intrusive_list<solib> inferior = ops->current_sos ();
   owning_intrusive_list<solib>::iterator gdb_iter
-    = current_program_space->so_list.begin ();
-  while (gdb_iter != current_program_space->so_list.end ())
+    = current_program_space->solibs ().begin ();
+  while (gdb_iter != current_program_space->solibs ().end ())
     {
       intrusive_list<solib>::iterator inferior_iter = inferior.begin ();
 
@@ -774,8 +781,8 @@ update_solib_list (int from_tty)
 	    }
 	  else
 	    {
-	      if (!filename_cmp (gdb_iter->so_original_name.c_str (),
-				 inferior_iter->so_original_name.c_str ()))
+	      if (!filename_cmp (gdb_iter->original_name.c_str (),
+				 inferior_iter->original_name.c_str ()))
 		break;
 	    }
 	}
@@ -792,23 +799,28 @@ update_solib_list (int from_tty)
       /* If it's not on the inferior's list, remove it from GDB's tables.  */
       else
 	{
+	  bool still_in_use
+	    = (gdb_iter->objfile != nullptr
+	       && solib_used (current_program_space, *gdb_iter));
+
 	  /* Notify any observer that the shared object has been
 	     unloaded before we remove it from GDB's tables.  */
-	  notify_solib_unloaded (current_program_space, *gdb_iter);
-
-	  current_program_space->deleted_solibs.push_back (gdb_iter->so_name);
+	  notify_solib_unloaded (current_program_space, *gdb_iter,
+				 still_in_use, false);
 
 	  /* Unless the user loaded it explicitly, free SO's objfile.  */
 	  if (gdb_iter->objfile != nullptr
 	      && !(gdb_iter->objfile->flags & OBJF_USERLOADED)
-	      && !solib_used (current_program_space, *gdb_iter))
+	      && !still_in_use)
 	    gdb_iter->objfile->unlink ();
+
+	  current_program_space->deleted_solibs.push_back (gdb_iter->name);
 
 	  /* Some targets' section tables might be referring to
 	     sections from so.abfd; remove them.  */
 	  current_program_space->remove_target_sections (&*gdb_iter);
 
-	  gdb_iter = current_program_space->so_list.erase (gdb_iter);
+	  gdb_iter = current_program_space->solibs ().erase (gdb_iter);
 	}
     }
 
@@ -832,7 +844,7 @@ update_solib_list (int from_tty)
 		{
 		  not_found++;
 		  if (not_found_filename == NULL)
-		    not_found_filename = new_so.so_original_name.c_str ();
+		    not_found_filename = new_so.original_name.c_str ();
 		}
 	    }
 
@@ -849,7 +861,7 @@ update_solib_list (int from_tty)
 	}
 
       /* Add the new shared objects to GDB's list.  */
-      current_program_space->so_list.splice (std::move (inferior));
+      current_program_space->solibs ().splice (std::move (inferior));
 
       /* If a library was not found, issue an appropriate warning
 	 message.  We have to use a single call to warning in case the
@@ -906,7 +918,7 @@ libpthread_name_p (const char *name)
 static bool
 libpthread_solib_p (const solib &so)
 {
-  return libpthread_name_p (so.so_name.c_str ());
+  return libpthread_name_p (so.name.c_str ());
 }
 
 /* Read in symbolic information for any shared objects whose names
@@ -956,7 +968,7 @@ solib_add (const char *pattern, int from_tty, int readsyms)
       add_flags |= SYMFILE_VERBOSE;
 
     for (solib &gdb : current_program_space->solibs ())
-      if (!pattern || re_exec (gdb.so_name.c_str ()))
+      if (!pattern || re_exec (gdb.name.c_str ()))
 	{
 	  /* Normally, we would read the symbols from that library
 	     only if READSYMS is set.  However, we're making a small
@@ -975,14 +987,14 @@ solib_add (const char *pattern, int from_tty, int readsyms)
 		  if (pattern && (from_tty || info_verbose))
 		    gdb_printf (_ ("Symbols already loaded for %ps\n"),
 				styled_string (file_name_style.style (),
-					       gdb.so_name.c_str ()));
+					       gdb.name.c_str ()));
 		}
 	      else if (solib_read_symbols (gdb, add_flags))
 		loaded_any_symbols = true;
 	    }
 	}
 
-    if (loaded_any_symbols)
+    if (loaded_any_symbols || !current_program_space->deleted_solibs.empty ())
       breakpoint_re_set ();
 
     if (from_tty && pattern && !any_matches)
@@ -998,6 +1010,100 @@ solib_add (const char *pattern, int from_tty, int readsyms)
   }
 }
 
+/* Helper function for "info sharedlibrary" and "info namespace".
+   This receives a list of solibs to be printed, and prints a table
+   with all the relevant data.  If PRINT_NAMESPACE is true, figure out
+   the solib_ops of the current gdbarch, to calculate the namespace
+   that contains an solib.
+   Returns true if one or more solibs are missing debug information,
+   false otherwise.  */
+
+static void
+print_solib_list_table (std::vector<const solib *> solib_list,
+			bool print_namespace)
+{
+  gdbarch *gdbarch = current_inferior ()->arch ();
+  /* "0x", a little whitespace, and two hex digits per byte of pointers.  */
+  int addr_width = 4 + (gdbarch_ptr_bit (gdbarch) / 4);
+  const solib_ops *ops = gdbarch_so_ops (gdbarch);
+  struct ui_out *uiout = current_uiout;
+  bool so_missing_debug_info = false;
+
+  /* There are 3 conditions for this command to print solib namespaces,
+     first PRINT_NAMESPACE has to be true, second the solib_ops has to
+     support multiple namespaces, and third there must be more than one
+     active namespace.  Fold all these into the PRINT_NAMESPACE condition.  */
+  print_namespace = print_namespace && ops->num_active_namespaces != nullptr
+		    && ops->num_active_namespaces () > 1;
+
+  int num_cols = 4;
+  if (print_namespace)
+    num_cols++;
+
+  {
+    ui_out_emit_table table_emitter (uiout, num_cols, solib_list.size (),
+				     "SharedLibraryTable");
+
+    /* The "- 1" is because ui_out adds one space between columns.  */
+    uiout->table_header (addr_width - 1, ui_left, "from", "From");
+    uiout->table_header (addr_width - 1, ui_left, "to", "To");
+    if (print_namespace)
+      uiout->table_header (5, ui_left, "namespace", "NS");
+    uiout->table_header (12 - 1, ui_left, "syms-read", "Syms Read");
+    uiout->table_header (0, ui_noalign, "name", "Shared Object Library");
+
+    uiout->table_body ();
+
+    for (const solib *so : solib_list)
+      {
+	if (so->name.empty ())
+	  continue;
+
+	ui_out_emit_tuple tuple_emitter (uiout, "lib");
+
+	if (so->addr_high != 0)
+	  {
+	    uiout->field_core_addr ("from", gdbarch, so->addr_low);
+	    uiout->field_core_addr ("to", gdbarch, so->addr_high);
+	  }
+	else
+	  {
+	    uiout->field_skip ("from");
+	    uiout->field_skip ("to");
+	  }
+
+	if (print_namespace)
+	  {
+	    try
+	      {
+		uiout->field_fmt ("namespace", "[[%d]]", ops->find_solib_ns (*so));
+	      }
+	    catch (const gdb_exception_error &er)
+	      {
+		uiout->field_skip ("namespace");
+	      }
+	  }
+
+	if (!top_level_interpreter ()->interp_ui_out ()->is_mi_like_p ()
+	    && so->symbols_loaded && !so->objfile->has_symbols ())
+	  {
+	    so_missing_debug_info = true;
+	    uiout->field_string ("syms-read", "Yes (*)");
+	  }
+	else
+	  uiout->field_string ("syms-read", so->symbols_loaded ? "Yes" : "No");
+
+	uiout->field_string ("name", so->name, file_name_style.style ());
+
+	uiout->text ("\n");
+      }
+  }
+
+  if (so_missing_debug_info)
+    uiout->message (_ ("(*): Shared library is missing "
+		       "debugging information.\n"));
+}
+
 /* Implement the "info sharedlibrary" command.  Walk through the
    shared library list and print information about each attached
    library matching PATTERN.  If PATTERN is elided, print them
@@ -1006,10 +1112,6 @@ solib_add (const char *pattern, int from_tty, int readsyms)
 static void
 info_sharedlibrary_command (const char *pattern, int from_tty)
 {
-  bool so_missing_debug_info = false;
-  int addr_width;
-  int nr_libs;
-  gdbarch *gdbarch = current_inferior ()->arch ();
   struct ui_out *uiout = current_uiout;
 
   if (pattern)
@@ -1020,84 +1122,120 @@ info_sharedlibrary_command (const char *pattern, int from_tty)
 	error (_ ("Invalid regexp: %s"), re_err);
     }
 
-  /* "0x", a little whitespace, and two hex digits per byte of pointers.  */
-  addr_width = 4 + (gdbarch_ptr_bit (gdbarch) / 4);
-
   update_solib_list (from_tty);
 
   /* ui_out_emit_table table_emitter needs to know the number of rows,
      so we need to make two passes over the libs.  */
 
-  nr_libs = 0;
+  std::vector<const solib *> print_libs;
   for (const solib &so : current_program_space->solibs ())
     {
-      if (!so.so_name.empty ())
+      if (!so.name.empty ())
 	{
-	  if (pattern && !re_exec (so.so_name.c_str ()))
+	  if (pattern && !re_exec (so.name.c_str ()))
 	    continue;
-	  ++nr_libs;
+	  print_libs.push_back (&so);
 	}
     }
 
-  {
-    ui_out_emit_table table_emitter (uiout, 4, nr_libs, "SharedLibraryTable");
+  print_solib_list_table (print_libs, true);
 
-    /* The "- 1" is because ui_out adds one space between columns.  */
-    uiout->table_header (addr_width - 1, ui_left, "from", "From");
-    uiout->table_header (addr_width - 1, ui_left, "to", "To");
-    uiout->table_header (12 - 1, ui_left, "syms-read", "Syms Read");
-    uiout->table_header (0, ui_noalign, "name", "Shared Object Library");
-
-    uiout->table_body ();
-
-    for (const solib &so : current_program_space->solibs ())
-      {
-	if (so.so_name.empty ())
-	  continue;
-
-	if (pattern && !re_exec (so.so_name.c_str ()))
-	  continue;
-
-	ui_out_emit_tuple tuple_emitter (uiout, "lib");
-
-	if (so.addr_high != 0)
-	  {
-	    uiout->field_core_addr ("from", gdbarch, so.addr_low);
-	    uiout->field_core_addr ("to", gdbarch, so.addr_high);
-	  }
-	else
-	  {
-	    uiout->field_skip ("from");
-	    uiout->field_skip ("to");
-	  }
-
-	if (!top_level_interpreter ()->interp_ui_out ()->is_mi_like_p ()
-	    && so.symbols_loaded && !objfile_has_symbols (so.objfile))
-	  {
-	    so_missing_debug_info = true;
-	    uiout->field_string ("syms-read", "Yes (*)");
-	  }
-	else
-	  uiout->field_string ("syms-read", so.symbols_loaded ? "Yes" : "No");
-
-	uiout->field_string ("name", so.so_name, file_name_style.style ());
-
-	uiout->text ("\n");
-      }
-  }
-
-  if (nr_libs == 0)
+  if (print_libs.size () == 0)
     {
       if (pattern)
 	uiout->message (_ ("No shared libraries matched.\n"));
       else
 	uiout->message (_ ("No shared libraries loaded at this time.\n"));
     }
+}
+
+/* Implement the "info linker-namespaces" command.  If the current
+   gdbarch's solib_ops object does not support multiple namespaces,
+   this command would just look like "info sharedlibrary", so point
+   the user to that command instead.
+   If solib_ops does support multiple namespaces, this command
+   will group the libraries by linker namespace, or only print the
+   libraries in the supplied namespace.  */
+static void
+info_linker_namespace_command (const char *pattern, int from_tty)
+{
+  const solib_ops *ops = gdbarch_so_ops (current_inferior ()->arch ());
+  /* This command only really makes sense for inferiors that support
+     linker namespaces, so we can leave early.  */
+  if (ops->num_active_namespaces == nullptr)
+    error (_("Current inferior does not support linker namespaces." \
+	     "Use \"info sharedlibrary\" instead"));
+
+  struct ui_out *uiout = current_uiout;
+  std::vector<std::pair<int, std::vector<const solib *>>> all_solibs_to_print;
+
+  if (pattern != nullptr)
+    while (*pattern == ' ')
+      pattern++;
+
+  if (pattern == nullptr || pattern[0] == '\0')
+    {
+      uiout->message (_ ("There are %d linker namespaces loaded\n"),
+		      ops->num_active_namespaces ());
+
+      int printed = 0;
+      for (int i = 0; printed < ops->num_active_namespaces (); i++)
+	{
+	  std::vector<const solib *> solibs_to_print
+	    = ops->get_solibs_in_ns (i);
+	  if (solibs_to_print.size () > 0)
+	    {
+	      all_solibs_to_print.push_back (std::make_pair
+					      (i, solibs_to_print));
+	      printed++;
+	    }
+	}
+    }
   else
     {
-      if (so_missing_debug_info)
-	uiout->message (_ ("(*): Shared library is missing "
-			   "debugging information.\n"));
+      int ns;
+      /* Check if the pattern includes the optional [[ and ]] decorators.
+	 To match multiple occurrences, '+' needs to be escaped, and every
+	 escape sequence must be doubled to survive the compiler pass.  */
+      re_comp ("^\\[\\[[0-9]\\+\\]\\]$");
+      if (re_exec (pattern))
+	ns = strtol (pattern+2, nullptr, 10);
+      else
+	{
+	  char * end = nullptr;
+	  ns = strtol (pattern, &end, 10);
+	  if (end[0] != '\0')
+	    error (_ ("Invalid linker namespace identifier: %s"), pattern);
+	}
+
+      all_solibs_to_print.push_back
+	(std::make_pair (ns, ops->get_solibs_in_ns (ns)));
+    }
+
+  bool ns_separator = false;
+
+  for (auto &solibs_pair : all_solibs_to_print)
+    {
+      if (ns_separator)
+	uiout->message ("\n\n");
+      else
+	ns_separator = true;
+      int ns = solibs_pair.first;
+      std::vector<const solib *> solibs_to_print = solibs_pair.second;
+      if (solibs_to_print.size () == 0)
+	{
+	  uiout->message (_("Linker namespace [[%d]] is not active.\n"), ns);
+	  /* If we got here, a specific namespace was requested, so there
+	     will only be one vector.  We can leave early.  */
+	  break;
+	}
+      uiout->message
+	(_ ("There are %zu libraries loaded in linker namespace [[%d]]\n"),
+	 solibs_to_print.size (), ns);
+      uiout->message
+	(_ ("Displaying libraries for linker namespace [[%d]]:\n"), ns);
+
+      print_solib_list_table (solibs_to_print, false);
     }
 }
 
@@ -1127,9 +1265,9 @@ solib_contains_address_p (const solib &solib, CORE_ADDR address)
 const char *
 solib_name_from_address (struct program_space *pspace, CORE_ADDR address)
 {
-  for (const solib &so : pspace->so_list)
+  for (const solib &so : pspace->solibs ())
     if (solib_contains_address_p (so, address))
-      return so.so_name.c_str ();
+      return so.name.c_str ();
 
   return nullptr;
 }
@@ -1154,15 +1292,16 @@ clear_solib (program_space *pspace)
 {
   const solib_ops *ops = gdbarch_so_ops (current_inferior ()->arch ());
 
-  disable_breakpoints_in_shlibs (pspace);
-
-  for (solib &so : pspace->so_list)
+  for (solib &so : pspace->solibs ())
     {
-      notify_solib_unloaded (pspace, so);
+      bool still_in_use
+	= (so.objfile != nullptr && solib_used (pspace, so));
+
+      notify_solib_unloaded (pspace, so, still_in_use, true);
       pspace->remove_target_sections (&so);
     };
 
-  pspace->so_list.clear ();
+  pspace->solibs ().clear ();
 
   if (ops->clear_solib != nullptr)
     ops->clear_solib (pspace);
@@ -1178,7 +1317,8 @@ solib_create_inferior_hook (int from_tty)
 {
   const solib_ops *ops = gdbarch_so_ops (current_inferior ()->arch ());
 
-  ops->solib_create_inferior_hook (from_tty);
+  if (ops->solib_create_inferior_hook != nullptr)
+    ops->solib_create_inferior_hook (from_tty);
 }
 
 /* See solib.h.  */
@@ -1186,9 +1326,10 @@ solib_create_inferior_hook (int from_tty)
 bool
 in_solib_dynsym_resolve_code (CORE_ADDR pc)
 {
-  const solib_ops *ops = gdbarch_so_ops (current_inferior ()->arch ());
+  const auto in_dynsym_resolve_code
+    = gdbarch_so_ops (current_inferior ()->arch ())->in_dynsym_resolve_code;
 
-  return ops->in_dynsym_resolve_code (pc) != 0;
+  return in_dynsym_resolve_code && in_dynsym_resolve_code (pc);
 }
 
 /* Implements the "sharedlibrary" command.  */
@@ -1275,7 +1416,7 @@ reload_shared_libraries_1 (int from_tty)
 	add_flags |= SYMFILE_VERBOSE;
 
       gdb::unique_xmalloc_ptr<char> filename (
-	tilde_expand (so.so_original_name.c_str ()));
+	tilde_expand (so.original_name.c_str ()));
       gdb_bfd_ref_ptr abfd (solib_bfd_open (filename.get ()));
       if (abfd != NULL)
 	found_pathname = bfd_get_filename (abfd.get ());
@@ -1284,7 +1425,7 @@ reload_shared_libraries_1 (int from_tty)
 	 symbol file, close that.  */
       if ((found_pathname == NULL && was_loaded)
 	  || (found_pathname != NULL
-	      && filename_cmp (found_pathname, so.so_name.c_str ()) != 0))
+	      && filename_cmp (found_pathname, so.name.c_str ()) != 0))
 	{
 	  if (so.objfile && !(so.objfile->flags & OBJF_USERLOADED)
 	      && !solib_used (current_program_space, so))
@@ -1297,7 +1438,7 @@ reload_shared_libraries_1 (int from_tty)
 	 file, open it.  */
       if (found_pathname != NULL
 	  && (!was_loaded
-	      || filename_cmp (found_pathname, so.so_name.c_str ()) != 0))
+	      || filename_cmp (found_pathname, so.name.c_str ()) != 0))
 	{
 	  bool got_error = false;
 
@@ -1341,7 +1482,7 @@ reload_shared_libraries (const char *ignored, int from_tty,
   if (target_has_execution ())
     {
       /* Reset or free private data structures not associated with
-	 so_list entries.  */
+	 solib entries.  */
       if (ops->clear_solib != nullptr)
 	ops->clear_solib (current_program_space);
 
@@ -1419,49 +1560,38 @@ CORE_ADDR
 gdb_bfd_lookup_symbol_from_symtab (
   bfd *abfd, gdb::function_view<bool (const asymbol *)> match_sym)
 {
-  long storage_needed = bfd_get_symtab_upper_bound (abfd);
   CORE_ADDR symaddr = 0;
+  gdb::array_view<asymbol *> symbol_table
+    = gdb_bfd_canonicalize_symtab (abfd, false);
 
-  if (storage_needed > 0)
+  for (asymbol *sym : symbol_table)
     {
-      unsigned int i;
-
-      gdb::def_vector<asymbol *> storage (storage_needed / sizeof (asymbol *));
-      asymbol **symbol_table = storage.data ();
-      unsigned int number_of_symbols
-	= bfd_canonicalize_symtab (abfd, symbol_table);
-
-      for (i = 0; i < number_of_symbols; i++)
+      if (match_sym (sym))
 	{
-	  asymbol *sym = *symbol_table++;
+	  gdbarch *gdbarch = current_inferior ()->arch ();
+	  symaddr = sym->value;
 
-	  if (match_sym (sym))
+	  /* Some ELF targets fiddle with addresses of symbols they
+	     consider special.  They use minimal symbols to do that
+	     and this is needed for correct breakpoint placement,
+	     but we do not have full data here to build a complete
+	     minimal symbol, so just set the address and let the
+	     targets cope with that.  */
+	  if (bfd_get_flavour (abfd) == bfd_target_elf_flavour
+	      && gdbarch_elf_make_msymbol_special_p (gdbarch))
 	    {
-	      gdbarch *gdbarch = current_inferior ()->arch ();
-	      symaddr = sym->value;
-
-	      /* Some ELF targets fiddle with addresses of symbols they
-		 consider special.  They use minimal symbols to do that
-		 and this is needed for correct breakpoint placement,
-		 but we do not have full data here to build a complete
-		 minimal symbol, so just set the address and let the
-		 targets cope with that.  */
-	      if (bfd_get_flavour (abfd) == bfd_target_elf_flavour
-		  && gdbarch_elf_make_msymbol_special_p (gdbarch))
+	      struct minimal_symbol msym
 		{
-		  struct minimal_symbol msym
-		  {
-		  };
+		};
 
-		  msym.set_value_address (symaddr);
-		  gdbarch_elf_make_msymbol_special (gdbarch, sym, &msym);
-		  symaddr = CORE_ADDR (msym.unrelocated_address ());
-		}
-
-	      /* BFD symbols are section relative.  */
-	      symaddr += sym->section->vma;
-	      break;
+	      msym.set_value_address (symaddr);
+	      gdbarch_elf_make_msymbol_special (gdbarch, sym, &msym);
+	      symaddr = CORE_ADDR (msym.unrelocated_address ());
 	    }
+
+	  /* BFD symbols are section relative.  */
+	  symaddr += sym->section->vma;
+	  break;
 	}
     }
 
@@ -1688,6 +1818,42 @@ default_find_solib_addr (solib &so)
   return {};
 }
 
+/* Implementation of the linker_namespace convenience variable.
+   This returns the GDB internal identifier of the linker namespace,
+   for the selected frame, as an integer.  If the inferior doesn't support
+   linker namespaces, this always returns 0.  */
+
+static value *
+linker_namespace_make_value (gdbarch *gdbarch, internalvar *var,
+				     void *ignore)
+{
+  const solib_ops *ops = gdbarch_so_ops (gdbarch);
+  int nsid = 0;
+  if (ops->find_solib_ns != nullptr)
+    {
+      CORE_ADDR curr_pc = get_frame_pc (get_selected_frame ());
+      for (const solib &so : current_program_space->solibs ())
+	if (solib_contains_address_p (so, curr_pc))
+	  {
+	    nsid = ops->find_solib_ns (so);
+	    break;
+	  }
+    }
+
+
+  /* If the PC is not in an SO, or the solib_ops doesn't support
+     linker namespaces, the inferior is in the default namespace.  */
+  return value_from_longest (builtin_type (gdbarch)->builtin_int, nsid);
+}
+
+/* Implementation of `$_linker_namespace' variable.  */
+
+static const struct internalvar_funcs linker_namespace_funcs =
+{
+  linker_namespace_make_value,
+  nullptr,
+};
+
 void _initialize_solib ();
 
 void
@@ -1700,6 +1866,13 @@ _initialize_solib ()
   },
     "solib");
 
+  /* Convenience variables for debugging linker namespaces.  These are
+     set here, even if the solib_ops doesn't support them,
+     for consistency.  */
+  create_internalvar_type_lazy ("_linker_namespace",
+				&linker_namespace_funcs, nullptr);
+  set_internalvar_integer (lookup_internalvar ("_active_linker_namespaces"), 1);
+
   add_com (
     "sharedlibrary", class_files, sharedlibrary_command,
     _ ("Load shared object library symbols for files matching REGEXP."));
@@ -1709,6 +1882,9 @@ _initialize_solib ()
   add_info_alias ("dll", info_sharedlibrary_cmd, 1);
   add_com ("nosharedlibrary", class_files, no_shared_libraries_command,
 	   _ ("Unload all shared object library symbols."));
+
+  add_info ("linker-namespaces", info_linker_namespace_command,
+      _ ("Get information about linker namespaces in the inferior."));
 
   add_setshow_boolean_cmd ("auto-solib-add", class_support, &auto_solib_add,
 			   _ ("\

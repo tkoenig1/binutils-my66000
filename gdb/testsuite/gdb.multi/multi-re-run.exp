@@ -1,4 +1,4 @@
-# Copyright 2020-2024 Free Software Foundation, Inc.
+# Copyright 2020-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 # wrong inferior's pspace, causing subsequent symbol lookups to
 # misbehave, including failing to load libthread_db.so.  See PR
 # gdb/25410.
+
+require allow_multi_inferior_tests
 
 # Build two executables, with different symbols.
 
