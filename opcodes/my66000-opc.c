@@ -1511,7 +1511,7 @@ static const my66000_fmt_spec_t arith_fmt_list [] =
  { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK},
  { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK},
  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK},
- { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK},
+ { "A,#F,-C",  XOP2_BITS (0,1,1,1), XOP2_MASK},
 
  { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK},
  { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK},
@@ -1538,7 +1538,7 @@ static const my66000_fmt_spec_t ariths0_fmt_list [] =
  { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2S0_MASK},
  { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2S0_MASK},
  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2S0_MASK},
- { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2S0_MASK},
+ { "A,#F,-C",  XOP2_BITS (0,1,1,1), XOP2S0_MASK},
 
  { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2S0_MASK | SRC2_MASK},
  { "A,#L,C",   XOP2_BITS (1,0,0,1), XOP2S0_MASK | SRC1_MASK},
@@ -1567,7 +1567,7 @@ static const my66000_fmt_spec_t float_fmt_list [] =
 
  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK},
  { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK},
- { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK},
+ { "A,#F,-C",  XOP2_BITS (0,1,1,1), XOP2_MASK},
  { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK},
 
  { "A,B,#O",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK},
@@ -1677,7 +1677,7 @@ static const my66000_fmt_spec_t eadd_fmt_list [] =
  { "A,B,#G",   XOP2_BITS (0,1,0,0), XOP2_MASK},
  { "A,#F,C",   XOP2_BITS (0,1,0,1), XOP2_MASK},
  { "A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK},
- { "A,#-F,C",  XOP2_BITS (0,1,1,1), XOP2_MASK},
+ { "A,#F,-C",  XOP2_BITS (0,1,1,1), XOP2_MASK},
 
  { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK},
  { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK},
@@ -2055,7 +2055,7 @@ static const my66000_fmt_spec_t hrw_fmt_list[] =
 
 static const my66000_fmt_spec_t hrx_fmt_list[] =
 {
-  {"A,e,B", HR_BITS(0,0), HR_FMT_MASK},
+ {"A,e,B", HR_BITS(0,0), HR_FMT_MASK},
  { "A,e,#F",  HR_BITS(0,1), HR_FMT_MASK},
  { "A,e,#L",  HR_BITS(1,0), HR_FMT_MASK | SRC1_MASK},
  { "A,e,#P",  HR_BITS(1,1), HR_FMT_MASK | SRC1_MASK},
@@ -2141,32 +2141,13 @@ static const my66000_fmt_spec_t ldm_fmt_list [] =
 static const my66000_fmt_spec_t op5_d_fmt_list [] =
 {
   { "A,B",     XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,B",    XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "A,+B",    XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,+B",   XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | SRC2_MASK},
   { "A,-B",    XOP5_BITS(0,0,0,1), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,-B",   XOP5_BITS(0,0,0,1), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,B",    XOP5_BITS(0,0,1,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "-A,+B",   XOP5_BITS(0,0,1,0), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,-B",   XOP5_BITS(0,0,1,1), XOP5_FMT_MASK | SRC2_MASK},
   { "A,#F",    XOP5_BITS(0,1,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,#F",   XOP5_BITS(0,1,0,0), XOP5_FMT_MASK | SRC2_MASK},
   { "A,#-F",   XOP5_BITS(0,1,0,1), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,#-F",  XOP5_BITS(0,1,0,1), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,#F",   XOP5_BITS(0,1,1,0), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,#-F",  XOP5_BITS(0,1,1,1), XOP5_FMT_MASK | SRC2_MASK},
   { "A,#O",    XOP5_BITS(1,0,0,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
-//  { "+A,#O",   XOP5_BITS(1,0,0,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
   { "A,#-O",   XOP5_BITS(1,0,0,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
-//  { "+A,#-O",  XOP5_BITS(1,0,0,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
-  { "-A,#O",   XOP5_BITS(1,0,1,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
-  { "-A,#-O",  XOP5_BITS(1,0,1,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
   { "A,#P",    XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
-//  { "+A,#P",   XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
   { "A,#-P",   XOP5_BITS(1,1,0,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
-//  { "+A,#-P",  XOP5_BITS(1,1,0,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
-  { "-A,#P",   XOP5_BITS(1,1,1,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
-  { "-A,#-P",  XOP5_BITS(1,1,1,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK},
 
  { NULL, 0, 0},
 };
@@ -2174,33 +2155,14 @@ static const my66000_fmt_spec_t op5_d_fmt_list [] =
 static const my66000_fmt_spec_t op5_f_fmt_list [] =
 {
   { "A,B",     XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,B",    XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "A,+B",    XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,+B",   XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | SRC2_MASK},
   { "A,-B",    XOP5_BITS(0,0,0,1), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,-B",   XOP5_BITS(0,0,0,1), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,B",    XOP5_BITS(0,0,1,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "-A,+B",   XOP5_BITS(0,0,1,0), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,-B",   XOP5_BITS(0,0,1,1), XOP5_FMT_MASK | SRC2_MASK},
   { "A,#F",    XOP5_BITS(0,1,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,#F",   XOP5_BITS(0,1,0,0), XOP5_FMT_MASK | SRC2_MASK},
   { "A,#-F",   XOP5_BITS(0,1,0,1), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,#-F",  XOP5_BITS(0,1,0,1), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,#F",   XOP5_BITS(0,1,1,0), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,#-F",  XOP5_BITS(0,1,1,1), XOP5_FMT_MASK | SRC2_MASK},
   { "A,#O",    XOP5_BITS(1,0,0,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK },
-//  { "+A,#O",   XOP5_BITS(1,0,0,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK },
   { "A,#-O",   XOP5_BITS(1,0,0,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK },
-//  { "+A,#-O",  XOP5_BITS(1,0,0,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK },
-  { "-A,#O",   XOP5_BITS(1,0,1,0), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK },
-  { "-A,#-O",  XOP5_BITS(1,0,1,1), XOP5_FMT_MASK | SRC2_MASK | SRC1_MASK },
 #if 0
   { "A,#P",    XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,#P",   XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | SRC2_MASK},
   { "A,#-P",   XOP5_BITS(1,1,0,1), XOP5_FMT_MASK | SRC2_MASK},
-//  { "+A,#-P",  XOP5_BITS(1,1,0,1), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,#P",   XOP5_BITS(1,1,1,0), XOP5_FMT_MASK | SRC2_MASK},
-  { "-A,#-P",  XOP5_BITS(1,1,1,1), XOP5_FMT_MASK | SRC2_MASK},
 #endif
  { NULL, 0, 0},
 };
@@ -2208,37 +2170,17 @@ static const my66000_fmt_spec_t op5_f_fmt_list [] =
 static const my66000_fmt_spec_t pop_fmt_list [] =
 {
   { "A,B",     XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
-//  { "+A,B",    XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
-//  { "A,+B",    XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
-//  { "+A,+B",   XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
   { "A,-B",    XOP5_BITS(0,0,0,1), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
-//  { "+A,-B",   XOP5_BITS(0,0,0,1), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
-  { "-A,B",    XOP5_BITS(0,0,1,0), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
-//  { "-A,+B",   XOP5_BITS(0,0,1,0), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
-  { "-A,-B",   XOP5_BITS(0,0,1,1), XOP5_FMT_MASK | XOP5_S_MASK | SRC2_MASK},
   { NULL, 0, 0},
 };
 
 static const my66000_fmt_spec_t abs_fmt_list[] =
 {
   {"A,B",   XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
-//  {"+A,B",  XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
-//  {"A,+B",  XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
-//  {"+A,+B", XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
-  {"-A,B",  XOP5_BITS(0,0,1,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
-//  {"-A,+B", XOP5_BITS(0,0,1,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
   {"A,#F",  XOP5_BITS(0,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
-//  {"+A,#F", XOP5_BITS(0,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
-  {"-A,#F", XOP5_BITS(0,1,1,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK},
   {"A,#L",  XOP5_BITS(1,0,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
-//  {"+A,#L", XOP5_BITS(1,0,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
-  {"-A,#L", XOP5_BITS(1,0,1,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
   {"A,#P",  XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
-//  {"+A,#P", XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
-  {"-A,#P", XOP5_BITS(1,1,1,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
   {"A,#R",  XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
-//  {"+A,#R", XOP5_BITS(1,1,0,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
-  {"-A,#R", XOP5_BITS(1,1,1,0), XOP5_FMT_MASK | XOP5_FMT_ABS_MASK | SRC1_MASK},
   { NULL, 0, 0},
 };
 
@@ -2259,21 +2201,14 @@ static const my66000_fmt_spec_t trans_fmt_list[] =
 static const my66000_fmt_spec_t ff1_fmt_list[] =
 {
   { "A,B",    XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
-//  { "+A,B",   XOP5_BITS(0,0,0,0), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
   { "A,-B",   XOP5_BITS(0,0,0,1), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
-//  { "+A,-B",  XOP5_BITS(0,0,0,1), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
 #if 0
   /* Anything here will never be emitted by the compiler.  */
   { "A,#F",   XOP5_BITS(0,1,0,0), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
-//  { "+A,#F",  XOP5_BITS(0,1,0,0), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
   { "A,#-F",  XOP5_BITS(0,1,0,1), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
-//  { "+A,#-F", XOP5_BITS(0,1,0,1), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
   { "A,#O",   XOP5_BITS(1,0,0,0), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
-//  { "+A,#O",  XOP5_BITS(1,0,0,0), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
   { "A,#-O",  XOP5_BITS(1,0,0,1), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
-//  { "+A,#-O", XOP5_BITS(1,0,0,1), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
   { "A,#-P",  XOP5_BITS(1,1,0,1), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
-//  { "+A,#-P", XOP5_BITS(1,1,0,1), XOP5_FMT_MASK | FF1_FMT_MASK | XOP5_S_MASK},
 #endif
   { NULL, 0, 0}
 };
