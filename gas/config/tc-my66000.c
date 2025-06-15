@@ -216,6 +216,10 @@ instruction_type (my66000_encoding enc)
       return "enter";
     case MY66000_EXIT:
       return "exit";
+    case MY66000_PB1A:
+    case MY66000_PB1B:
+    case MY66000_PC:
+      return "pb1";
     default:
       return "std";
     }
