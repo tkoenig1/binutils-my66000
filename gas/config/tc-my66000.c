@@ -21,7 +21,6 @@
 
 #include "as.h"
 #include "safe-ctype.h"
-#include "gas/read.h"
 #include "opcode/my66000.h"
 #include <assert.h>
 
