@@ -228,7 +228,13 @@ print_operands (uint32_t iword, const char *fmt, bfd_vma addr,
 	  case 4:
 	    buf = op_info->seq == 1 ? buf1 : buf2;
 	    val_32 = bfd_getl32 (buf);
-	    if (op_info->oper == MY66000_OPS_INS)
+	    /* FIXME - this is until the ABI is cleaned up.  */
+	    if (op_info->oper == MY66000_OPS_HIDDEN8)
+	      {
+		if (val_32 != 8)
+		  fpr (stream, ",%d", val_32);
+	      }
+	    else if (op_info->oper == MY66000_OPS_INS)
 	      {
 		print_ins (val_32);
 	      }

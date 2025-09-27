@@ -1523,6 +1523,13 @@ match_arglist (uint32_t iword, const my66000_fmt_spec_t *spec, char *str,
 	  bits = 0;
 	  break;
 
+	  /* Remove ASAP.  */
+	case MY66000_OPS_HIDDEN8:
+	  imm_st_size = 4;
+	  imm_st.X_add_number = 8;
+	  imm_st.X_op = O_constant;
+	  break;
+
 	default:
 	  as_fatal ("operand '%c' not handled", *fp);
 	}

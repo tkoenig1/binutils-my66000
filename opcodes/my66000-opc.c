@@ -1457,7 +1457,7 @@ const my66000_operand_info_t my66000_operand_table[] =
  {MY66000_OPS_IP_BASE, OPERAND_ENTRY ( 5,16), "IP as base register",      't' },
  {MY66000_OPS_P_ELSE,  OPERAND_ENTRY ( 4, 6), "ELSE clause for predicate",'u' },
  {MY66000_OPS_PCREL16, OPERAND_ENTRY (16, 0), "invalid",                  'v' },
- {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'w' },
+ {MY66000_OPS_HIDDEN8, 0, 0, 4, 1,            "invalid",                  'w' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'x' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'y' },
  {MY66000_OPS_INVALID, 0, 0, 0, 0,            "invalid",                  'z' },
@@ -1583,48 +1583,31 @@ static const my66000_fmt_spec_t float_fmt_list [] =
 };
 
 /* Conversion. Here, we have the speciality that omitting the second
-   source argument is encoded as "#8" as SRC2.
+   source argument is encoded as "#8" as SRC2.  There is no earthly
+   use for negative modes, so we leave that out.  There is also no
+   real use for a 32-bit or 64-bit constant as rounding mode.
 
-   FIXME: This encoding is NOT CANONCIAL and subject to revision,
-   since the encoding has not yet been sanctioned.  */
-
-/* The default encoding for CVT which means "just use the current
-   default setting" is 8.  */
+   FIXME: This should be revamped after the ABI cleanup, to remove
+   MY66000_HIDDEN8.
+*/
 
 #define CVT_DEFAULT SRC2_NUM(8)
 
 static const my66000_fmt_spec_t cvts_fmt_list [] =
 {
   {"A,B,C",	 XOP2_BITS (0,0,0,0), XOP2_MASK},
-
-  /* Minus a rounding mode makes limited sense, but for the sake of
-     generality...  */
-  {"A,B,-C",	 XOP2_BITS (0,0,0,1), XOP2_MASK},
   {"A,-B,C",     XOP2_BITS (0,0,1,0), XOP2_MASK},
-  {"A,B,-C",	 XOP2_BITS (0,0,1,1), XOP2_MASK},
 
   /* 8 is the default constant, other modes are 1-7.  We accept other
      values, because of why not.  */
   {"A,B",        XOP2_BITS (0,1,0,0) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,B,#G",     XOP2_BITS (0,1,0,0), XOP2_MASK},
+  {"A,B,#G",     XOP2_BITS (0,1,0,0),		    XOP2_MASK},
+  {"A,-Bw",	 XOP2_BITS (0,1,1,0),               XOP2_MASK | SRC2_MASK},
+  {"A,-B,#G",	 XOP2_BITS (0,1,1,0),		    XOP2_MASK},
 
   /* Rounding mode is immaterial for five-bit constants, we just set SRC2 to R0.  */
   {"A,#F",	 XOP2_BITS (0,1,0,1), XOP2_MASK | SRC2_MASK},
-  /* This one will never be useful.  */
-
-  {"A,B,#-G",  XOP2_BITS (0,1,1,0), XOP2_MASK},
-  {"A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK},
-  {"A,#L",     XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK | SRC2_MASK},
-  {"A,#L,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK},
-  {"A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK},
-  {"A,#L,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK},
-
-  {"A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK},
-  {"A,#P",     XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK | SRC2_MASK},
-  {"A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK},
-  {"A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK},
-  {"A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK | SRC1_MASK},
-
+  {"A,#L",	 XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK | SRC2_MASK},
   { NULL,      0, 0},
 
 };
@@ -1632,34 +1615,18 @@ static const my66000_fmt_spec_t cvts_fmt_list [] =
 static const my66000_fmt_spec_t cvtu_fmt_list [] =
 {
   {"A,B,C",	 XOP2_BITS (0,0,0,0), XOP2_MASK},
-
-  /* Minus a rounding mode makes limited sense, but for the sake of
-     generality...  */
-  {"A,B,-C",	 XOP2_BITS (0,0,0,1), XOP2_MASK},
   {"A,-B,C",     XOP2_BITS (0,0,1,0), XOP2_MASK},
-  {"A,B,-C",	 XOP2_BITS (0,0,1,1), XOP2_MASK},
 
   /* 8 is the default constant, other modes are 1-7.  We accept other
      values, because of why not.  */
   {"A,B",        XOP2_BITS (0,1,0,0) | CVT_DEFAULT, XOP2_MASK | SRC2_MASK},
-  {"A,B,#G",     XOP2_BITS (0,1,0,0), XOP2_MASK},
+  {"A,B,#G",     XOP2_BITS (0,1,0,0),		    XOP2_MASK},
+  {"A,-Bw",	 XOP2_BITS (0,1,1,0),               XOP2_MASK | SRC2_MASK},
+  {"A,-B,#G",	 XOP2_BITS (0,1,1,0),		    XOP2_MASK},
 
   /* Rounding mode is immaterial for five-bit constants, we just set SRC2 to R0.  */
   {"A,#F",	 XOP2_BITS (0,1,0,1), XOP2_MASK | SRC2_MASK},
-  /* This one will never be legal.  */
-
-  {"A,B,#-G",	 XOP2_BITS (0,1,1,0), XOP2_MASK},
-  { "A,B,#L",   XOP2_BITS (1,0,0,0), XOP2_MASK | SRC2_MASK},
-  { "A,#O",     XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK | SRC2_MASK},
-  { "A,#O,C",   XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK},
-  { "A,-B,#L",  XOP2_BITS (1,0,1,0), XOP2_MASK | SRC2_MASK},
-  { "A,#O,-C",  XOP2_BITS (1,0,1,1), XOP2_MASK | SRC1_MASK},
-
-  { "A,B,#P",   XOP2_BITS (1,1,0,0), XOP2_MASK | SRC2_MASK},
-  { "A,#P,C",   XOP2_BITS (1,1,0,1), XOP2_MASK | SRC1_MASK},
-  { "A,-B,#P",  XOP2_BITS (1,1,1,0), XOP2_MASK | SRC2_MASK},
-  { "A,#P,-C",  XOP2_BITS (1,1,1,1), XOP2_MASK | SRC1_MASK},
-
+  {"A,#O",	 XOP2_BITS (1,0,0,1), XOP2_MASK | SRC1_MASK | SRC2_MASK},
   { NULL,      0, 0},
 
 };

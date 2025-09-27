@@ -197,6 +197,7 @@ typedef enum my66000_operands
   MY66000_OPS_IP_BASE,   /* IP as base register.  */
   MY66000_OPS_P_ELSE,    /* ELSE list for predicats.  */
   MY66000_OPS_PCREL16,   /* 16-bit PC-relative offset.  */
+  MY66000_OPS_HIDDEN8,   /* Hidden argument for rounding - temporary.  */
   MY66000_OPS_END
 } my66000_operands;
 
