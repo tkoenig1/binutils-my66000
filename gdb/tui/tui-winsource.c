@@ -26,7 +26,6 @@
 #include "value.h"
 #include "source.h"
 #include "objfiles.h"
-#include "gdbsupport/gdb-safe-ctype.h"
 
 #include "tui/tui.h"
 #include "tui/tui-data.h"
@@ -109,7 +108,7 @@ tui_copy_source_line (const char **ptr, int *length)
 	}
       else if (c == '\t')
 	process_tab ();
-      else if (ISCNTRL (c))
+      else if (c_iscntrl (c))
 	{
 	  result.push_back ('^');
 	  result.push_back (c + 0100);
@@ -461,7 +460,9 @@ tui_source_window_base::rerender ()
 
       /* find_frame_sal does not always set SAL.PC, but we want to ensure
 	 that it is available in the SAL before updating the window.  */
-      get_frame_pc_if_available (frame, &sal.pc);
+      std::optional<CORE_ADDR> tmp_pc = get_frame_pc_if_available (frame);
+      if (tmp_pc.has_value ())
+	sal.pc = *tmp_pc;
 
       maybe_update (get_frame_arch (frame), sal);
       update_exec_info (false);

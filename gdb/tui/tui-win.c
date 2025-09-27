@@ -45,7 +45,6 @@
 #include "tui/tui-win.h"
 
 #include "gdb_curses.h"
-#include <ctype.h>
 #include "readline/readline.h"
 #include <signal.h>
 #include <string_view>
@@ -1041,7 +1040,7 @@ parse_scrolling_args (const char *arg,
       /* Process the number of lines to scroll.  */
       std::string copy = arg;
       buf_ptr = &copy[0];
-      if (isdigit (*buf_ptr))
+      if (c_isdigit (*buf_ptr))
 	{
 	  char *num_str;
 
@@ -1091,9 +1090,7 @@ bool tui_left_margin_verbose = false;
 /* Function to initialize gdb commands, for tui window
    manipulation.  */
 
-void _initialize_tui_win ();
-void
-_initialize_tui_win ()
+INIT_GDB_FILE (tui_win)
 {
   static struct cmd_list_element *tui_setlist;
   static struct cmd_list_element *tui_showlist;

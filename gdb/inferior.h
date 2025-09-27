@@ -54,10 +54,8 @@ struct thread_info;
 #include "symfile-add-flags.h"
 #include "gdbsupport/refcounted-object.h"
 #include "gdbsupport/forward-scope-exit.h"
-#include "gdbsupport/gdb_unique_ptr.h"
 #include "gdbsupport/intrusive_list.h"
 
-#include "gdbsupport/common-inferior.h"
 #include "gdbthread.h"
 
 #include "process-stratum-target.h"
@@ -213,7 +211,14 @@ extern ptid_t gdb_startup_inferior (pid_t pid, int num_traps);
 
 extern void setup_inferior (int from_tty);
 
-extern void post_create_inferior (int from_tty);
+/* Common actions to take after creating any sort of inferior, by any
+   means (running, attaching, connecting, et cetera).  The target
+   should be stopped.
+
+   If SET_PSPACE_SOLIB_OPS is true, initialize the program space's solib
+   provider using the current inferior's architecture.  */
+
+extern void post_create_inferior (int from_tty, bool set_pspace_solib_ops);
 
 extern void attach_command (const char *, int);
 

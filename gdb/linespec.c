@@ -35,7 +35,6 @@
 #include "interps.h"
 #include "target.h"
 #include "arch-utils.h"
-#include <ctype.h>
 #include "cli/cli-utils.h"
 #include "filenames.h"
 #include "ada-lang.h"
@@ -230,7 +229,7 @@ collect_info::add_symbol (block_symbol *bsym)
 {
   /* In list mode, add all matching symbols, regardless of class.
      This allows the user to type "list a_global_variable".  */
-  if (bsym->symbol->aclass () == LOC_BLOCK || this->state->list_mode)
+  if (bsym->symbol->loc_class () == LOC_BLOCK || this->state->list_mode)
     this->result.symbols->push_back (*bsym);
 
   /* Continue iterating.  */
@@ -459,7 +458,7 @@ linespec_lexer_lex_number (linespec_parser *parser, linespec_token *tokenp)
       ++(parser->lexer.stream);
     }
 
-  while (isdigit (*parser->lexer.stream))
+  while (c_isdigit (*parser->lexer.stream))
     {
       ++tokenp->data.string.length;
       ++(parser->lexer.stream);
@@ -468,7 +467,7 @@ linespec_lexer_lex_number (linespec_parser *parser, linespec_token *tokenp)
   /* If the next character in the input buffer is not a space, comma,
      quote, or colon, this input does not represent a number.  */
   if (*parser->lexer.stream != '\0'
-      && !isspace (*parser->lexer.stream) && *parser->lexer.stream != ','
+      && !c_isspace (*parser->lexer.stream) && *parser->lexer.stream != ','
       && *parser->lexer.stream != ':'
       && !strchr (linespec_quote_characters, *parser->lexer.stream))
     {
@@ -512,7 +511,7 @@ linespec_lexer_lex_keyword (const char *p)
 	      if (i == FORCE_KEYWORD_INDEX && p[len] == '\0')
 		return linespec_keywords[i];
 
-	      if (!isspace (p[len]))
+	      if (!c_isspace (p[len]))
 		continue;
 
 	      if (i == FORCE_KEYWORD_INDEX)
@@ -524,7 +523,7 @@ linespec_lexer_lex_keyword (const char *p)
 		      int nextlen = strlen (linespec_keywords[j]);
 
 		      if (strncmp (p, linespec_keywords[j], nextlen) == 0
-			  && isspace (p[nextlen]))
+			  && c_isspace (p[nextlen]))
 			return linespec_keywords[i];
 		    }
 		}
@@ -538,7 +537,7 @@ linespec_lexer_lex_keyword (const char *p)
 		      int nextlen = strlen (linespec_keywords[j]);
 
 		      if (strncmp (p, linespec_keywords[j], nextlen) == 0
-			  && isspace (p[nextlen]))
+			  && c_isspace (p[nextlen]))
 			return NULL;
 		    }
 		}
@@ -763,7 +762,7 @@ linespec_lexer_lex_string (linespec_parser *parser)
 
       while (1)
 	{
-	  if (isspace (*parser->lexer.stream))
+	  if (c_isspace (*parser->lexer.stream))
 	    {
 	      p = skip_spaces (parser->lexer.stream);
 	      /* When we get here we know we've found something followed by
@@ -841,14 +840,14 @@ linespec_lexer_lex_string (linespec_parser *parser)
 		{
 		  const char *op = parser->lexer.stream;
 
-		  while (op > start && isspace (op[-1]))
+		  while (op > start && c_isspace (op[-1]))
 		    op--;
 		  if (op - start >= CP_OPERATOR_LEN)
 		    {
 		      op -= CP_OPERATOR_LEN;
 		      if (strncmp (op, CP_OPERATOR_STR, CP_OPERATOR_LEN) == 0
 			  && (op == start
-			      || !(isalnum (op[-1]) || op[-1] == '_')))
+			      || !(c_isalnum (op[-1]) || op[-1] == '_')))
 			{
 			  /* This is an operator name.  Keep going.  */
 			  ++(parser->lexer.stream);
@@ -1140,12 +1139,7 @@ iterate_over_all_matching_symtabs
 
       for (objfile *objfile : pspace->objfiles ())
 	{
-	  objfile->expand_symtabs_matching (NULL, &lookup_name, NULL, NULL,
-					    (SEARCH_GLOBAL_BLOCK
-					     | SEARCH_STATIC_BLOCK),
-					    domain);
-
-	  for (compunit_symtab *cu : objfile->compunits ())
+	  auto expand_callback = [&] (compunit_symtab *cu)
 	    {
 	      struct symtab *symtab = cu->primary_filetab ();
 
@@ -1172,7 +1166,12 @@ iterate_over_all_matching_symtabs
 			 });
 		    }
 		}
-	    }
+
+	      return true;
+	    };
+
+	  objfile->search (nullptr, &lookup_name, nullptr, expand_callback,
+			   SEARCH_GLOBAL_BLOCK | SEARCH_STATIC_BLOCK, domain);
 	}
     }
 }
@@ -1642,7 +1641,7 @@ linespec_parse_line_offset (const char *string)
   else
     line_offset.sign = LINE_OFFSET_NONE;
 
-  if (*string != '\0' && !isdigit (*string))
+  if (*string != '\0' && !c_isdigit (*string))
     error (_("malformed line offset: \"%s\""), start);
 
   /* Right now, we only allow base 10 for offsets.  */
@@ -2129,7 +2128,7 @@ create_sals_line_offset (struct linespec_state *self,
 	       line 16 will also result in a breakpoint in main, at line 17.  */
 	    if (!was_exact
 		&& sym != nullptr
-		&& sym->aclass () == LOC_BLOCK
+		&& sym->loc_class () == LOC_BLOCK
 		&& sal.pc == sym->value_block ()->entry_pc ()
 		&& val.line < sym->line ())
 	      continue;
@@ -2224,7 +2223,7 @@ convert_linespec_to_sals (struct linespec_state *state, linespec *ls)
 
 	      if (state->funfirstline
 		   && !ls->minimal_symbols.empty ()
-		   && sym.symbol->aclass () == LOC_BLOCK)
+		   && sym.symbol->loc_class () == LOC_BLOCK)
 		{
 		  const CORE_ADDR addr
 		    = sym.symbol->value_block ()->entry_pc ();
@@ -3361,7 +3360,7 @@ decode_compound_collector::operator () (block_symbol *bsym)
   struct type *t;
   struct symbol *sym = bsym->symbol;
 
-  if (sym->aclass () != LOC_TYPEDEF)
+  if (sym->loc_class () != LOC_TYPEDEF)
     return true; /* Continue iterating.  */
 
   t = sym->type ();
@@ -3768,7 +3767,7 @@ find_linespec_symbols (struct linespec_state *state,
   if (canon != nullptr)
     lookup_name = canon.get ();
 
-  /* It's important to not call expand_symtabs_matching unnecessarily
+  /* It's important to not call search unnecessarily
      as it can really slow things down (by unnecessarily expanding
      potentially 1000s of symtabs, which when debugging some apps can
      cost 100s of seconds).  Avoid this to some extent by *first* calling
@@ -4113,7 +4112,12 @@ minsym_found (struct linespec_state *self, struct objfile *objfile,
       sal.pspace = current_program_space;
     }
 
-  sal.section = msymbol->obj_section (objfile);
+  /* Don't use the section from the msymbol, the code above might have
+     adjusted FUNC_ADDR, in which case the msymbol's section might not be
+     the section containing FUNC_ADDR.  It might not even be in the same
+     objfile.  As the section is primarily to assist with overlay
+     debugging, it should reflect the SAL's pc value.  */
+  sal.section = find_pc_overlay (sal.pc);
 
   if (self->maybe_add_address (objfile->pspace (), sal.pc))
     add_sal_to_sals (self, result, &sal, msymbol->natural_name (), false);
@@ -4316,14 +4320,14 @@ static bool
 symbol_to_sal (struct symtab_and_line *result,
 	       bool funfirstline, struct symbol *sym)
 {
-  if (sym->aclass () == LOC_BLOCK)
+  if (sym->loc_class () == LOC_BLOCK)
     {
       *result = find_function_start_sal (sym, funfirstline);
       return true;
     }
   else
     {
-      if (sym->aclass () == LOC_LABEL && sym->value_address () != 0)
+      if (sym->loc_class () == LOC_LABEL && sym->value_address () != 0)
 	{
 	  *result = {};
 	  result->symtab = sym->symtab ();

@@ -39,7 +39,6 @@
 #include "record-btrace.h"
 
 #include <inttypes.h>
-#include <ctype.h>
 #include <algorithm>
 #include <string>
 
@@ -3258,7 +3257,7 @@ get_uint (const char **arg)
   begin = *arg;
   pos = skip_spaces (begin);
 
-  if (!isdigit (*pos))
+  if (!c_isdigit (*pos))
     error (_("Expected positive number, got: %s."), pos);
 
   number = strtoul (pos, &end, 10);
@@ -3277,7 +3276,7 @@ get_context_size (const char **arg)
 {
   const char *pos = skip_spaces (*arg);
 
-  if (!isdigit (*pos))
+  if (!c_isdigit (*pos))
     error (_("Expected positive number, got: %s."), pos);
 
   char *end;
@@ -3501,9 +3500,7 @@ show_maint_btrace_pt_skip_pad  (struct ui_file *file, int from_tty,
 
 /* Initialize btrace maintenance commands.  */
 
-void _initialize_btrace ();
-void
-_initialize_btrace ()
+INIT_GDB_FILE (btrace)
 {
   add_cmd ("btrace", class_maintenance, maint_info_btrace_cmd,
 	   _("Info about branch tracing data."), &maintenanceinfolist);

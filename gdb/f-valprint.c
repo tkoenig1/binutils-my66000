@@ -631,7 +631,7 @@ info_common_command_for_block (const struct block *block, const char *comname,
 	const struct common_block *common = sym->value_common_block ();
 	size_t index;
 
-	gdb_assert (sym->aclass () == LOC_COMMON_BLOCK);
+	gdb_assert (sym->loc_class () == LOC_COMMON_BLOCK);
 
 	if (comname && (!sym->linkage_name ()
 			|| strcmp (comname, sym->linkage_name ()) != 0))
@@ -719,9 +719,7 @@ info_common_command (const char *comname, int from_tty)
     }
 }
 
-void _initialize_f_valprint ();
-void
-_initialize_f_valprint ()
+INIT_GDB_FILE (f_valprint)
 {
   add_info ("common", info_common_command,
 	    _("Print out the values contained in a Fortran COMMON block."));

@@ -47,7 +47,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
-#include <ctype.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <libproc.h>
@@ -2469,9 +2468,7 @@ darwin_nat_target::supports_multi_process ()
   return true;
 }
 
-void _initialize_darwin_nat ();
-void
-_initialize_darwin_nat ()
+INIT_GDB_FILE (darwin_nat)
 {
   kern_return_t kret;
 

@@ -289,7 +289,7 @@ _bfd_XXi_swap_aux_in (bfd *	abfd,
 
   /* PR 17521: Make sure that all fields in the aux structure
      are initialised.  */
-  memset (in, 0, sizeof * in);
+  memset (in, 0, sizeof (*in));
   switch (in_class)
     {
     case C_FILE:
@@ -299,6 +299,9 @@ _bfd_XXi_swap_aux_in (bfd *	abfd,
 	  in->x_file.x_n.x_n.x_offset = H_GET_32 (abfd, ext->x_file.x_n.x_offset);
 	}
       else
+#if FILNMLEN != E_FILNMLEN
+#error we need to cope with truncating or extending x_fname
+#endif
 	memcpy (in->x_file.x_n.x_fname, ext->x_file.x_fname, FILNMLEN);
       return;
 
@@ -373,7 +376,10 @@ _bfd_XXi_swap_aux_out (bfd *  abfd,
 	  H_PUT_32 (abfd, in->x_file.x_n.x_n.x_offset, ext->x_file.x_n.x_offset);
 	}
       else
-	memcpy (ext->x_file.x_fname, in->x_file.x_n.x_fname, sizeof (ext->x_file.x_fname));
+#if FILNMLEN != E_FILNMLEN
+#error we need to cope with truncating or extending x_fname
+#endif
+	memcpy (ext->x_file.x_fname, in->x_file.x_n.x_fname, E_FILNMLEN);
 
       return AUXESZ;
 
@@ -3115,9 +3121,11 @@ bool
 _bfd_XX_bfd_copy_private_section_data (bfd *ibfd,
 				       asection *isec,
 				       bfd *obfd,
-				       asection *osec)
+				       asection *osec,
+				       struct bfd_link_info *link_info)
 {
-  if (bfd_get_flavour (ibfd) != bfd_target_coff_flavour
+  if (link_info != NULL
+      || bfd_get_flavour (ibfd) != bfd_target_coff_flavour
       || bfd_get_flavour (obfd) != bfd_target_coff_flavour)
     return true;
 

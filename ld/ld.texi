@@ -1745,6 +1745,34 @@ Supported for Linux/i386 and Linux/x86_64.
 
 Other keywords are ignored for Solaris compatibility.
 
+@item --gnu-tls-tag
+@itemx --no-gnu-tls-tag
+Add @code{GLIBC_ABI_GNU_TLS} version tag dependency in output programs
+and shared libraries when linking against glibc if input relocatable
+object files call @code{___tls_get_addr}.  The output will fail to load
+and run at run-time against glibc which doesn't define the
+@code{GLIBC_ABI_GNU_TLS} version tag.  Unless disabled by the
+@option{--disable-gnu-tls-tag} configure option at the linker build
+time, when no options are specified, linker will add the
+@code{GLIBC_ABI_GNU_TLS} version tag dependency if inputs have
+@code{___tls_get_addr} call and libc.so defines the
+@code{GLIBC_ABI_GNU_TLS} version tag.  Supported for Linux/i386.
+
+@item --gnu2-tls-tag
+@itemx --no-gnu2-tls-tag
+Add @code{GLIBC_ABI_GNU2_TLS} version tag dependency in output programs
+and shared libraries when linking against glibc if input relocatable
+object files have @code{R_386_TLS_DESC_CALL} or
+@code{R_X86_64_TLSDESC_CALL} relocation.  The output will fail to load
+and run at run-time against glibc which doesn't define the
+@code{GLIBC_ABI_GNU2_TLS} version tag.  Unless disabled by the
+@option{--disable-gnu2-tls-tag} configure option at the linker build
+time, when no options are specified, linker will add the
+@code{GLIBC_ABI_GNU2_TLS} version tag dependency if inputs have
+@code{R_386_TLS_DESC_CALL} or @code{R_X86_64_TLSDESC_CALL} relocation
+and libc.so defines the @code{GLIBC_ABI_GNU2_TLS} version tag.
+Supported for Linux/i386 and Linux/x86_64.
+
 @kindex -(
 @cindex groups of archives
 @item -( @var{archives} -)
@@ -8373,6 +8401,21 @@ GCS markings.
 @end itemize
 If issues are found, a maximum of 20 messages will be emitted, and then a summary
 with the total number of issues will be displayed at the end.
+
+@kindex -z memtag-mode=@var{mode}
+@cindex MTE modes of operation
+The @samp{-z memtag-mode=mode} specifies the MTE mode of operation.
+The value of @samp{mode} can be one of @samp{none}, @samp{sync} or
+@samp{async}.  The specified modes determine the value of the
+@samp{DT_AARCH64_MEMTAG_MODE} dynamic tag.  The @samp{sync} mode
+implies precise exceptions, with the runtime providing the exact
+instruction where the fault occurred, and the exact faulting address.
+The @samp{async} mode implies imprecise exceptions.
+
+@kindex -z memtag-stack
+@cindex Mark program stack for MTE protection
+The @samp{-z memtag-stack} specifies that output object uses MTE
+instructions for stack memory usage.
 
 @ifclear GENERIC
 @lowersections

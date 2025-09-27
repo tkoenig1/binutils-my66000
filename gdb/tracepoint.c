@@ -208,16 +208,16 @@ set_tracepoint_num (int num)
 static void
 set_traceframe_context (const frame_info_ptr &trace_frame)
 {
-  CORE_ADDR trace_pc;
+  std::optional<CORE_ADDR> trace_pc;
   struct symbol *traceframe_fun;
   symtab_and_line traceframe_sal;
 
   /* Save as globals for internal use.  */
   if (trace_frame != NULL
-      && get_frame_pc_if_available (trace_frame, &trace_pc))
+      && (trace_pc = get_frame_pc_if_available (trace_frame)))
     {
-      traceframe_sal = find_pc_line (trace_pc, 0);
-      traceframe_fun = find_pc_function (trace_pc);
+      traceframe_sal = find_pc_line (*trace_pc, 0);
+      traceframe_fun = find_pc_function (*trace_pc);
 
       /* Save linenumber as "$trace_line", a debugger variable visible to
 	 users.  */
@@ -308,12 +308,12 @@ validate_trace_state_variable_name (const char *name)
 
   /* All digits in the name is reserved for value history
      references.  */
-  for (p = name; isdigit (*p); p++)
+  for (p = name; c_isdigit (*p); p++)
     ;
   if (*p == '\0')
     error (_("$%s is not a valid trace state variable name"), name);
 
-  for (p = name; isalnum (*p) || *p == '_'; p++)
+  for (p = name; c_isalnum (*p) || *p == '_'; p++)
     ;
   if (*p != '\0')
     error (_("$%s is not a valid trace state variable name"), name);
@@ -339,7 +339,7 @@ trace_variable_command (const char *args, int from_tty)
     error (_("Name of trace variable should start with '$'"));
 
   name_start = p;
-  while (isalnum (*p) || *p == '_')
+  while (c_isalnum (*p) || *p == '_')
     p++;
   std::string name (name_start, p - name_start);
 
@@ -689,14 +689,14 @@ validate_actionline (const char *line, tracepoint *t)
 		       (exp->op.get ()));
 		  sym = vvop->get_symbol ();
 
-		  if (sym->aclass () == LOC_CONST)
+		  if (sym->loc_class () == LOC_CONST)
 		    {
 		      error (_("constant `%s' (value %s) "
 			       "will not be collected."),
 			     sym->print_name (),
 			     plongest (sym->value_longest ()));
 		    }
-		  else if (sym->aclass () == LOC_OPTIMIZED_OUT)
+		  else if (sym->loc_class () == LOC_OPTIMIZED_OUT)
 		    {
 		      error (_("`%s' is optimized away "
 			       "and cannot be collected."),
@@ -916,11 +916,11 @@ collection_list::collect_symbol (struct symbol *sym,
   int treat_as_expr = 0;
 
   len = check_typedef (sym->type ())->length ();
-  switch (sym->aclass ())
+  switch (sym->loc_class ())
     {
     default:
       gdb_printf ("%s: don't know symbol class %d\n",
-		  sym->print_name (), sym->aclass ());
+		  sym->print_name (), sym->loc_class ());
       break;
     case LOC_CONST:
       gdb_printf ("constant %s (value %s) will not be collected.\n",
@@ -2508,12 +2508,12 @@ info_scope_command (const char *args_in, int from_tty)
 					     gdb_stdout);
 	  else
 	    {
-	      switch (sym->aclass ())
+	      switch (sym->loc_class ())
 		{
 		default:
 		case LOC_UNDEF:	/* Messed up symbol?  */
 		  gdb_printf ("a bogus symbol, class %d.\n",
-			      sym->aclass ());
+			      sym->loc_class ());
 		  count--;		/* Don't count this one.  */
 		  continue;
 		case LOC_CONST:
@@ -3919,9 +3919,7 @@ static const struct internalvar_funcs sdata_funcs =
 cmd_list_element *while_stepping_cmd_element = nullptr;
 
 /* module initialization */
-void _initialize_tracepoint ();
-void
-_initialize_tracepoint ()
+INIT_GDB_FILE (tracepoint)
 {
   struct cmd_list_element *c;
 

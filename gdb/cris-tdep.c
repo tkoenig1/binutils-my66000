@@ -3816,9 +3816,7 @@ static void cris_iterate_over_regset_sections (struct gdbarch *gdbarch,
       &cris_regset, NULL, cb_data);
 }
 
-void _initialize_cris_tdep ();
-void
-_initialize_cris_tdep ()
+INIT_GDB_FILE (cris_tdep)
 {
   gdbarch_register (bfd_arch_cris, cris_gdbarch_init, cris_dump_tdep);
   
@@ -3995,7 +3993,7 @@ cris_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       set_gdbarch_cannot_store_register (gdbarch, cris_cannot_store_register);
       set_gdbarch_cannot_fetch_register (gdbarch, cris_cannot_fetch_register);
 
-      set_gdbarch_software_single_step (gdbarch, cris_software_single_step);
+      set_gdbarch_get_next_pcs (gdbarch, cris_software_single_step);
       break;
 
     case 32:

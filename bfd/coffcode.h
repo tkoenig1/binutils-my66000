@@ -909,7 +909,9 @@ fill_comdat_hash (bfd *abfd)
   if (! _bfd_coff_get_external_symbols (abfd))
     return true;
 
-  esymstart = esym = (bfd_byte *) obj_coff_external_syms (abfd);
+  esymstart = esym = obj_coff_external_syms (abfd);
+  if (esym == NULL)
+    return true;
   esymend = esym + obj_raw_syment_count (abfd) * bfd_coff_symesz (abfd);
 
   for (struct internal_syment isym;
@@ -5955,8 +5957,6 @@ static const bfd_coff_backend_data bigobj_swap_table =
 #define coff_bfd_copy_private_header_data   _bfd_generic_bfd_copy_private_header_data
 #endif
 
-#define coff_init_private_section_data	    _bfd_generic_init_private_section_data
-
 #ifndef coff_bfd_copy_private_section_data
 #define coff_bfd_copy_private_section_data  _bfd_generic_bfd_copy_private_section_data
 #endif
@@ -6133,9 +6133,9 @@ const bfd_target VAR =							\
   TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */ \
 									\
   /* Data conversion functions.  */					\
-  bfd_getb64, bfd_getb_signed_64, bfd_putb64,				\
-  bfd_getb32, bfd_getb_signed_32, bfd_putb32,				\
-  bfd_getb16, bfd_getb_signed_16, bfd_putb16,				\
+  bfd_getl64, bfd_getl_signed_64, bfd_putl64,				\
+  bfd_getl32, bfd_getl_signed_32, bfd_putl32,				\
+  bfd_getl16, bfd_getl_signed_16, bfd_putl16,				\
 									\
   /* Header conversion functions.  */					\
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,				\

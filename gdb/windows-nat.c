@@ -2426,7 +2426,7 @@ redir_set_redirection (const char *s, int *inp, int *out, int *err)
   /* cmd.exe recognizes "&N" only immediately after the redirection symbol.  */
   if (*s != '&')
     {
-      while (isspace (*s))  /* skip whitespace before file name */
+      while (c_isspace (*s))  /* skip whitespace before file name */
 	s++;
       *d++ = ' ';	    /* separate file name with a single space */
     }
@@ -2453,7 +2453,7 @@ redir_set_redirection (const char *s, int *inp, int *out, int *err)
 	    s++;
 	  *d++ = *s++;
 	}
-      else if (isspace (*s) && !quote)
+      else if (c_isspace (*s) && !quote)
 	break;
       else
 	*d++ = *s++;
@@ -2489,7 +2489,7 @@ redirect_inferior_handles (const char *cmd_orig, char *cmd,
   int quote = 0;
   bool retval = false;
 
-  while (isspace (*s))
+  while (c_isspace (*s))
     *d++ = *s++;
 
   while (*s)
@@ -3093,9 +3093,7 @@ windows_nat_target::thread_name (struct thread_info *thr)
 }
 
 
-void _initialize_windows_nat ();
-void
-_initialize_windows_nat ()
+INIT_GDB_FILE (windows_nat)
 {
   x86_dr_low.set_control = cygwin_set_dr7;
   x86_dr_low.set_addr = cygwin_set_dr;
@@ -3269,9 +3267,7 @@ windows_nat_target::thread_alive (ptid_t ptid)
   return WaitForSingleObject (th->h, 0) != WAIT_OBJECT_0;
 }
 
-void _initialize_check_for_gdb_ini ();
-void
-_initialize_check_for_gdb_ini ()
+INIT_GDB_FILE (check_for_gdb_ini)
 {
   char *homedir;
   if (inhibit_gdbinit)

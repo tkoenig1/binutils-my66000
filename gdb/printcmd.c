@@ -54,7 +54,6 @@
 #include "source.h"
 #include "gdbsupport/byte-vector.h"
 #include <optional>
-#include "gdbsupport/gdb-safe-ctype.h"
 #include "inferior.h"
 
 /* Chain containing all defined memory-tag subcommands.  */
@@ -753,10 +752,10 @@ pc_prefix (CORE_ADDR addr)
   if (has_stack_frames ())
     {
       frame_info_ptr frame;
-      CORE_ADDR pc;
+      std::optional<CORE_ADDR> pc;
 
       frame = get_selected_frame (NULL);
-      if (get_frame_pc_if_available (frame, &pc) && pc == addr)
+      if ((pc = get_frame_pc_if_available (frame)) && *pc == addr)
 	return "=> ";
     }
   return "   ";
@@ -1290,7 +1289,9 @@ should_validate_memtags (gdbarch *gdbarch, struct value *value)
     return false;
 
   /* We do.  Check whether it includes any tags.  */
-  return target_is_address_tagged (gdbarch, value_as_address (value));
+  struct type *val_type = value->type ();
+  const gdb_byte *data = value->contents ().data ();
+  return target_is_address_tagged (gdbarch, unpack_pointer (val_type, data));
 }
 
 /* Helper for parsing arguments for print_command_1.  */
@@ -1492,27 +1493,27 @@ info_symbol_command (const char *arg, int from_tty)
 
   addr = parse_and_eval_address (arg);
   for (objfile *objfile : current_program_space->objfiles ())
-    for (obj_section *osect : objfile->sections ())
+    for (obj_section &osect : objfile->sections ())
       {
 	/* Only process each object file once, even if there's a separate
 	   debug file.  */
 	if (objfile->separate_debug_objfile_backlink)
 	  continue;
 
-	sect_addr = overlay_mapped_address (addr, osect);
+	sect_addr = overlay_mapped_address (addr, &osect);
 
-	if (osect->contains (sect_addr)
+	if (osect.contains (sect_addr)
 	    && (msymbol
 		= lookup_minimal_symbol_by_pc_section (sect_addr,
-						       osect).minsym))
+						       &osect).minsym))
 	  {
 	    const char *obj_name, *mapped, *sec_name, *msym_name;
 	    const char *loc_string;
 
 	    matches = 1;
 	    offset = sect_addr - msymbol->value_address (objfile);
-	    mapped = section_is_mapped (osect) ? _("mapped") : _("unmapped");
-	    sec_name = osect->the_bfd_section->name;
+	    mapped = section_is_mapped (&osect) ? _("mapped") : _("unmapped");
+	    sec_name = osect.the_bfd_section->name;
 	    msym_name = msymbol->print_name ();
 
 	    /* Don't print the offset if it is zero.
@@ -1526,12 +1527,12 @@ info_symbol_command (const char *arg, int from_tty)
 	    else
 	      loc_string = msym_name;
 
-	    gdb_assert (osect->objfile && objfile_name (osect->objfile));
-	    obj_name = objfile_name (osect->objfile);
+	    gdb_assert (osect.objfile && objfile_name (osect.objfile));
+	    obj_name = objfile_name (osect.objfile);
 
 	    if (current_program_space->multi_objfile_p ())
-	      if (pc_in_unmapped_range (addr, osect))
-		if (section_is_overlay (osect))
+	      if (pc_in_unmapped_range (addr, &osect))
+		if (section_is_overlay (&osect))
 		  gdb_printf (_("%s in load address range of "
 				"%s overlay section %s of %s\n"),
 			      loc_string, mapped, sec_name, obj_name);
@@ -1540,15 +1541,15 @@ info_symbol_command (const char *arg, int from_tty)
 				"section %s of %s\n"),
 			      loc_string, sec_name, obj_name);
 	      else
-		if (section_is_overlay (osect))
+		if (section_is_overlay (&osect))
 		  gdb_printf (_("%s in %s overlay section %s of %s\n"),
 			      loc_string, mapped, sec_name, obj_name);
 		else
 		  gdb_printf (_("%s in section %s of %s\n"),
 			      loc_string, sec_name, obj_name);
 	    else
-	      if (pc_in_unmapped_range (addr, osect))
-		if (section_is_overlay (osect))
+	      if (pc_in_unmapped_range (addr, &osect))
+		if (section_is_overlay (&osect))
 		  gdb_printf (_("%s in load address range of %s overlay "
 				"section %s\n"),
 			      loc_string, mapped, sec_name);
@@ -1557,7 +1558,7 @@ info_symbol_command (const char *arg, int from_tty)
 		    (_("%s in load address range of section %s\n"),
 		     loc_string, sec_name);
 	      else
-		if (section_is_overlay (osect))
+		if (section_is_overlay (&osect))
 		  gdb_printf (_("%s in %s overlay section %s\n"),
 			      loc_string, mapped, sec_name);
 		else
@@ -1653,7 +1654,7 @@ info_address_command (const char *exp, int from_tty)
       return;
     }
 
-  switch (sym->aclass ())
+  switch (sym->loc_class ())
     {
     case LOC_CONST:
     case LOC_CONST_BYTES:
@@ -2702,7 +2703,6 @@ ui_printf (const char *arg, struct ui_file *stream)
   {
     int nargs_wanted;
     int i;
-    const char *current_substring;
 
     nargs_wanted = 0;
     for (auto &&piece : fpieces)
@@ -2731,7 +2731,8 @@ ui_printf (const char *arg, struct ui_file *stream)
     i = 0;
     for (auto &&piece : fpieces)
       {
-	current_substring = piece.string;
+	const char *current_substring = fpieces.piece_str (piece);
+
 	switch (piece.argclass)
 	  {
 	  case string_arg:
@@ -3183,9 +3184,7 @@ memory_tag_check_command (const char *args, int from_tty)
     }
 }
 
-void _initialize_printcmd ();
-void
-_initialize_printcmd ()
+INIT_GDB_FILE (printcmd)
 {
   struct cmd_list_element *c;
 

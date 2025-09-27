@@ -537,7 +537,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
     }
   else
     {
-      if (symbol->aclass () == LOC_TYPEDEF)
+      if (symbol->loc_class () == LOC_TYPEDEF)
 	gdb_printf (outfile, "typedef ");
       if (symbol->type ())
 	{
@@ -552,7 +552,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
       else
 	gdb_printf (outfile, "%s ", symbol->print_name ());
 
-      switch (symbol->aclass ())
+      switch (symbol->loc_class ())
 	{
 	case LOC_CONST:
 	  gdb_printf (outfile, "const %s (%s)",
@@ -646,7 +646,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 
 	default:
 	  gdb_printf (outfile, "botched symbol class %x",
-		      symbol->aclass ());
+		      symbol->loc_class ());
 	  break;
 	}
     }
@@ -918,7 +918,7 @@ maintenance_expand_symtabs (const char *args, int from_tty)
 
   for (struct program_space *pspace : program_spaces)
     for (objfile *objfile : pspace->objfiles ())
-      objfile->expand_symtabs_matching
+      objfile->search
 	([&] (const char *filename, bool basenames)
 	   {
 	     /* KISS: Only apply the regexp to the complete file name.  */
@@ -1051,9 +1051,7 @@ maintenance_info_line_tables (const char *regexp, int from_tty)
 
 /* Do early runtime initializations.  */
 
-void _initialize_symmisc ();
-void
-_initialize_symmisc ()
+INIT_GDB_FILE (symmisc)
 {
   add_cmd ("symbols", class_maintenance, maintenance_print_symbols, _("\
 Print dump of current symbol definitions.\n\

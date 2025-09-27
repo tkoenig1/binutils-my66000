@@ -350,7 +350,7 @@ micmdpy_init (PyObject *self, PyObject *args, PyObject *kwargs)
       PyErr_SetString (PyExc_ValueError, _("MI command name is empty."));
       return -1;
     }
-  else if ((name_len < 2) || (name[0] != '-') || !isalnum (name[1]))
+  else if ((name_len < 2) || (name[0] != '-') || !c_isalnum (name[1]))
     {
       PyErr_SetString (PyExc_ValueError,
 		       _("MI command name does not start with '-'"
@@ -361,7 +361,7 @@ micmdpy_init (PyObject *self, PyObject *args, PyObject *kwargs)
     {
       for (int i = 2; i < name_len; i++)
 	{
-	  if (!isalnum (name[i]) && name[i] != '-')
+	  if (!c_isalnum (name[i]) && name[i] != '-')
 	    {
 	      PyErr_Format
 		(PyExc_ValueError,
@@ -578,9 +578,7 @@ PyTypeObject micmdpy_object_type = {
   0,						   /* tp_alloc */
 };
 
-void _initialize_py_micmd ();
-void
-_initialize_py_micmd ()
+INIT_GDB_FILE (py_micmd)
 {
   add_setshow_boolean_cmd
     ("py-micmd", class_maintenance, &pymicmd_debug,

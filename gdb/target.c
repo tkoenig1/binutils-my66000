@@ -2464,6 +2464,7 @@ target_pre_inferior ()
   if (!gdbarch_has_global_solist (current_inferior ()->arch ()))
     {
       no_shared_libraries (current_program_space);
+      current_program_space->unset_solib_ops ();
 
       invalidate_target_mem_regions ();
 
@@ -3204,8 +3205,8 @@ target_ops::fileio_fstat (int fd, struct stat *sb, fileio_error *target_errno)
 }
 
 int
-target_ops::fileio_stat (struct inferior *inf, const char *filename,
-			 struct stat *sb, fileio_error *target_errno)
+target_ops::fileio_lstat (struct inferior *inf, const char *filename,
+			  struct stat *sb, fileio_error *target_errno)
 {
   *target_errno = FILEIO_ENOSYS;
   return -1;
@@ -3331,17 +3332,17 @@ target_fileio_fstat (int fd, struct stat *sb, fileio_error *target_errno)
 /* See target.h.  */
 
 int
-target_fileio_stat (struct inferior *inf, const char *filename,
-		    struct stat *sb, fileio_error *target_errno)
+target_fileio_lstat (struct inferior *inf, const char *filename,
+		     struct stat *sb, fileio_error *target_errno)
 {
   for (target_ops *t = default_fileio_target (); t != NULL; t = t->beneath ())
     {
-      int ret = t->fileio_stat (inf, filename, sb, target_errno);
+      int ret = t->fileio_lstat (inf, filename, sb, target_errno);
 
       if (ret == -1 && *target_errno == FILEIO_ENOSYS)
 	continue;
 
-      target_debug_printf_nofunc ("target_fileio_stat (%s) = %d (%d)",
+      target_debug_printf_nofunc ("target_fileio_lstat (%s) = %d (%d)",
 				  filename, ret,
 				  ret != -1 ? 0 : *target_errno);
       return ret;
@@ -4502,10 +4503,7 @@ set_write_memory_registers_permission (const char *args, int from_tty,
   update_observer_mode ();
 }
 
-void _initialize_target ();
-
-void
-_initialize_target ()
+INIT_GDB_FILE (target)
 {
   the_debug_target = new debug_target ();
 

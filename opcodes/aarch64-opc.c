@@ -223,7 +223,7 @@ aarch64_select_operand_for_sizeq_field_coding (const aarch64_opcode *opcode)
 
 /* Instruction bit-fields.
 +   Keep synced with 'enum aarch64_field_kind'.  */
-const aarch64_field fields[] =
+const aarch64_field aarch64_fields[] =
 {
     {  0,  0 },	/* NIL.  */
     {  8,  4 },	/* CRm: in the system instructions.  */
@@ -329,6 +329,8 @@ const aarch64_field fields[] =
     { 17,  2 }, /* SVE_size: 2-bit element size, bits [18,17].  */
     { 22,  1 }, /* SVE_sz: 1-bit element size select.  */
     { 30,  1 }, /* SVE_sz2: 1-bit element size select.  */
+    { 17,  1 }, /* SVE_sz3: 1-bit element size select.  */
+    { 14,  1 }, /* SVE_sz4: 1-bit element size select.  */
     { 16,  4 }, /* SVE_tsz: triangular size select.  */
     { 22,  2 }, /* SVE_tszh: triangular size select high, bits [23,22].  */
     {  8,  2 }, /* SVE_tszl_8: triangular size select low, bits [9,8].  */
@@ -381,6 +383,7 @@ const aarch64_field fields[] =
     { 15,  7 },	/* imm7: in load/store pair pre/post index instructions.  */
     { 13,  8 },	/* imm8: in floating-point scalar move immediate inst.  */
     { 12,  9 },	/* imm9: in load/store pre/post index instructions.  */
+    {  5,  9 },	/* imm9_5: in CB<cc> (immediate).  */
     { 10, 12 },	/* imm12: in ld/st unsigned imm or add/sub shifted inst.  */
     {  5, 14 },	/* imm14: in test bit and branch instructions.  */
     {  0, 16 },	/* imm16_0: in udf instruction. */
@@ -596,6 +599,8 @@ const struct aarch64_name_value_pair aarch64_hint_options[] =
   { "c",	HINT_OPD_C },		/* BTI C.  */
   { "j",	HINT_OPD_J },		/* BTI J.  */
   { "jc",	HINT_OPD_JC },		/* BTI JC.  */
+  { "keep",	HINT_OPD_KEEP },	/* STSHH KEEP  */
+  { "strm",	HINT_OPD_STRM },	/* STSHH STRM  */
   { NULL,	HINT_OPD_NULL },
 };
 
@@ -629,7 +634,7 @@ const struct aarch64_name_value_pair aarch64_prfops[32] =
   { "pstl3strm", B(2, 3, 1) },
   { "pstslckeep", B(2, 4, 0) },
   { "pstslcstrm", B(2, 4, 1) },
-  { NULL, 0x18 },
+  { "ir", B(3, 1, 0) },
   { NULL, 0x19 },
   { NULL, 0x1a },
   { NULL, 0x1b },
@@ -809,7 +814,7 @@ struct operand_qualifier_data
 };
 
 /* Indexed by the operand qualifier enumerators.  */
-struct operand_qualifier_data aarch64_opnd_qualifiers[] =
+static const struct operand_qualifier_data aarch64_opnd_qualifiers[] =
 {
   {0, 0, 0, "NIL", OQK_NIL},
 
@@ -1893,6 +1898,7 @@ operand_general_constraint_met_p (const aarch64_opnd_info *opnds, int idx,
 	    return 0;
 	  break;
 
+	case AARCH64_OPND_SME_Zn_INDEX2_19:
 	case AARCH64_OPND_SVE_Zm2_22_INDEX:
 	  size = get_operand_fields_width (get_operand_from_code (type));
 	  if (!check_reglane (opnd, mismatch_detail, idx, "z", 0, 31, 0, 3))
@@ -1960,6 +1966,7 @@ operand_general_constraint_met_p (const aarch64_opnd_info *opnds, int idx,
 	  break;
 
 	case AARCH64_OPND_SME_Zm:
+	case AARCH64_OPND_SME_Zm_17:
 	  if (opnd->reg.regno > 15)
 	    {
 	      set_invalid_regno_error (mismatch_detail, idx, "z", 0, 15);
@@ -2417,6 +2424,7 @@ operand_general_constraint_met_p (const aarch64_opnd_info *opnds, int idx,
 	    }
 	  break;
 
+	case AARCH64_OPND_ADDR_PCREL9:
 	case AARCH64_OPND_ADDR_PCREL14:
 	case AARCH64_OPND_ADDR_PCREL19:
 	case AARCH64_OPND_ADDR_PCREL21:
@@ -4016,28 +4024,41 @@ static void
 print_sme_za_list (char *buf, size_t size, int mask,
 		   struct aarch64_styler *styler)
 {
-  const char* zan[] = { "za",    "za0.h", "za1.h", "za0.s",
-                        "za1.s", "za2.s", "za3.s", "za0.d",
-                        "za1.d", "za2.d", "za3.d", "za4.d",
-                        "za5.d", "za6.d", "za7.d", " " };
-  const int zan_v[] = { 0xff, 0x55, 0xaa, 0x11,
-                        0x22, 0x44, 0x88, 0x01,
-                        0x02, 0x04, 0x08, 0x10,
-                        0x20, 0x40, 0x80, 0x00 };
-  int i, k;
-  const int ZAN_SIZE = sizeof(zan) / sizeof(zan[0]);
+  static const struct {
+    unsigned char mask;
+    char name[7];
+  } zan[] = {
+    { 0xff, "za" },
+    { 0x55, "za0.h" },
+    { 0xaa, "za1.h" },
+    { 0x11, "za0.s" },
+    { 0x22, "za1.s" },
+    { 0x44, "za2.s" },
+    { 0x88, "za3.s" },
+    { 0x01, "za0.d" },
+    { 0x02, "za1.d" },
+    { 0x04, "za2.d" },
+    { 0x08, "za3.d" },
+    { 0x10, "za4.d" },
+    { 0x20, "za5.d" },
+    { 0x40, "za6.d" },
+    { 0x80, "za7.d" },
+    { 0x00, " " },
+  };
+  int k;
 
   k = snprintf (buf, size, "{");
-  for (i = 0; i < ZAN_SIZE; i++)
+  for (unsigned int i = 0; i < ARRAY_SIZE (zan); i++)
     {
-      if ((mask & zan_v[i]) == zan_v[i])
-        {
-          mask &= ~zan_v[i];
-          if (k > 1)
+      if ((mask & zan[i].mask) == zan[i].mask)
+	{
+	  mask &= ~zan[i].mask;
+	  if (k > 1)
 	    k += snprintf (buf + k, size - k, ", ");
 
-	  k += snprintf (buf + k, size - k, "%s", style_reg (styler, zan[i]));
-        }
+	  k += snprintf (buf + k, size - k, "%s",
+			 style_reg (styler, zan[i].name));
+	}
       if (mask == 0)
         break;
     }
@@ -4331,6 +4352,7 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
     case AARCH64_OPND_SVE_Zn:
     case AARCH64_OPND_SVE_Zt:
     case AARCH64_OPND_SME_Zm:
+    case AARCH64_OPND_SME_Zm_17:
       if (opnd->qualifier == AARCH64_OPND_QLF_NIL)
        snprintf (buf, size, "%s", style_reg (styler, "z%d", opnd->reg.regno));
       else
@@ -4379,6 +4401,7 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
     case AARCH64_OPND_SME_Zn_INDEX1_16:
     case AARCH64_OPND_SME_Zn_INDEX2_15:
     case AARCH64_OPND_SME_Zn_INDEX2_16:
+    case AARCH64_OPND_SME_Zn_INDEX2_19:
     case AARCH64_OPND_SME_Zn_INDEX3_14:
     case AARCH64_OPND_SME_Zn_INDEX3_15:
     case AARCH64_OPND_SME_Zn_INDEX4_14:
@@ -4785,6 +4808,7 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
       snprintf (buf, size, "%s", style_addr (styler, "#0x%" PRIx64 , addr));
       break;
 
+    case AARCH64_OPND_ADDR_PCREL9:
     case AARCH64_OPND_ADDR_PCREL14:
     case AARCH64_OPND_ADDR_PCREL19:
     case AARCH64_OPND_ADDR_PCREL21:
@@ -5025,11 +5049,12 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
       break;
 
     case AARCH64_OPND_PRFOP:
-      if (opnd->prfop->name != NULL)
-	snprintf (buf, size, "%s", style_sub_mnem (styler, opnd->prfop->name));
+      if ((opnd->prfop->name == NULL)
+          || (opcode->iclass != ldst_pos && opnd->prfop->value == 0x18))
+        snprintf (buf, size, "%s",
+                  style_imm (styler, "#0x%02x", opnd->prfop->value));
       else
-	snprintf (buf, size, "%s", style_imm (styler, "#0x%02x",
-					      opnd->prfop->value));
+        snprintf (buf, size, "%s", style_sub_mnem (styler, opnd->prfop->name));
       break;
 
     case AARCH64_OPND_RPRFMOP:
@@ -5077,6 +5102,10 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
       if ((HINT_FLAG (opnd->hint_option->value) & HINT_OPD_F_NOPRINT) == 0)
 	snprintf (buf, size, "%s",
 		  style_sub_mnem (styler, opnd->hint_option->name));
+      break;
+
+    case AARCH64_OPND_STSHH_POLICY:
+      snprintf (buf, size, "%s", style_sub_mnem (styler, opnd->hint_option->name));
       break;
 
     case AARCH64_OPND_MOPS_ADDR_Rd:
@@ -5167,18 +5196,18 @@ const aarch64_sys_reg aarch64_pstatefields [] =
   { "spsel",	0x05, F_REG_MAX_VALUE (1), AARCH64_NO_FEATURES },
   { "daifset",	0x1e, F_REG_MAX_VALUE (15), AARCH64_NO_FEATURES },
   { "daifclr",	0x1f, F_REG_MAX_VALUE (15), AARCH64_NO_FEATURES },
-  { "pan",	0x04, F_REG_MAX_VALUE (1) | F_ARCHEXT, AARCH64_FEATURE (PAN) },
-  { "uao",	0x03, F_REG_MAX_VALUE (1) | F_ARCHEXT, AARCH64_FEATURE (V8_2A) },
-  { "ssbs",	0x19, F_REG_MAX_VALUE (1) | F_ARCHEXT, AARCH64_FEATURE (SSBS) },
-  { "dit",	0x1a, F_REG_MAX_VALUE (1) | F_ARCHEXT, AARCH64_FEATURE (V8_4A) },
-  { "tco",	0x1c, F_REG_MAX_VALUE (1) | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-  { "svcrsm",	0x1b, PSTATE_ENCODE_CRM_AND_IMM (0x2,0x1) | F_REG_MAX_VALUE (1)
-		      | F_ARCHEXT, AARCH64_FEATURE (SME) },
-  { "svcrza",	0x1b, PSTATE_ENCODE_CRM_AND_IMM (0x4,0x1) | F_REG_MAX_VALUE (1)
-		      | F_ARCHEXT, AARCH64_FEATURE (SME) },
-  { "svcrsmza",	0x1b, PSTATE_ENCODE_CRM_AND_IMM (0x6,0x1) | F_REG_MAX_VALUE (1)
-		      | F_ARCHEXT, AARCH64_FEATURE (SME) },
-  { "allint",	0x08, F_REG_MAX_VALUE (1) | F_ARCHEXT, AARCH64_FEATURE (V8_8A) },
+  { "pan",	0x04, F_REG_MAX_VALUE (1), AARCH64_FEATURE (PAN) },
+  { "uao",	0x03, F_REG_MAX_VALUE (1), AARCH64_FEATURE (V8_2A) },
+  { "ssbs",	0x19, F_REG_MAX_VALUE (1), AARCH64_FEATURE (SSBS) },
+  { "dit",	0x1a, F_REG_MAX_VALUE (1), AARCH64_FEATURE (V8_4A) },
+  { "tco",	0x1c, F_REG_MAX_VALUE (1), AARCH64_FEATURE (MEMTAG) },
+  { "svcrsm",	0x1b, PSTATE_ENCODE_CRM_AND_IMM (0x2,0x1) | F_REG_MAX_VALUE (1),
+    AARCH64_FEATURE (SME) },
+  { "svcrza",	0x1b, PSTATE_ENCODE_CRM_AND_IMM (0x4,0x1) | F_REG_MAX_VALUE (1),
+    AARCH64_FEATURE (SME) },
+  { "svcrsmza",	0x1b, PSTATE_ENCODE_CRM_AND_IMM (0x6,0x1) | F_REG_MAX_VALUE (1),
+    AARCH64_FEATURE (SME) },
+  { "allint",	0x08, F_REG_MAX_VALUE (1), AARCH64_FEATURE (V8_8A) },
   { 0,	CPENC (0,0,0,0,0), 0, AARCH64_NO_FEATURES },
 };
 
@@ -5186,9 +5215,6 @@ bool
 aarch64_pstatefield_supported_p (const aarch64_feature_set features,
 				 const aarch64_sys_reg *reg)
 {
-  if (!(reg->flags & F_ARCHEXT))
-    return true;
-
   return AARCH64_CPU_HAS_ALL_FEATURES (features, reg->features);
 }
 
@@ -5203,39 +5229,41 @@ const aarch64_sys_ins_reg aarch64_sys_regs_ic[] =
 const aarch64_sys_ins_reg aarch64_sys_regs_dc[] =
 {
     { "zva",	    CPENS (3, C7, C4, 1),  F_HASXT, AARCH64_NO_FEATURES },
-    { "gva",	    CPENS (3, C7, C4, 3),  F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "gzva",	    CPENS (3, C7, C4, 4),  F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
+    { "gva",	    CPENS (3, C7, C4, 3),  F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "gzva",	    CPENS (3, C7, C4, 4),  F_HASXT, AARCH64_FEATURE (MEMTAG) },
     { "ivac",       CPENS (0, C7, C6, 1),  F_HASXT, AARCH64_NO_FEATURES },
-    { "igvac",      CPENS (0, C7, C6, 3),  F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "igsw",       CPENS (0, C7, C6, 4),  F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
+    { "igvac",      CPENS (0, C7, C6, 3),  F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "igsw",       CPENS (0, C7, C6, 4),  F_HASXT, AARCH64_FEATURE (MEMTAG) },
     { "isw",	    CPENS (0, C7, C6, 2),  F_HASXT, AARCH64_NO_FEATURES },
-    { "igdvac",	    CPENS (0, C7, C6, 5),  F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "igdsw",	    CPENS (0, C7, C6, 6),  F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
+    { "igdvac",	    CPENS (0, C7, C6, 5),  F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "igdsw",	    CPENS (0, C7, C6, 6),  F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cigdvaps",   CPENS (0, C7, C15, 5), F_HASXT, AARCH64_FEATURES (2, MEMTAG, PoPS) },
+    { "civaps",     CPENS (0, C7, C15, 1), F_HASXT, AARCH64_FEATURE (PoPS) },
     { "cvac",       CPENS (3, C7, C10, 1), F_HASXT, AARCH64_NO_FEATURES },
-    { "cgvac",      CPENS (3, C7, C10, 3), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "cgdvac",     CPENS (3, C7, C10, 5), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "cvaoc",      CPENS (3, C7, C11, 0), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (V9_5A) },
-    { "cgdvaoc",    CPENS (3, C7, C11, 7), F_HASXT | F_ARCHEXT, AARCH64_FEATURES (2, V9_5A, MEMTAG) },
+    { "cgvac",      CPENS (3, C7, C10, 3), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cgdvac",     CPENS (3, C7, C10, 5), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cvaoc",      CPENS (3, C7, C11, 0), F_HASXT, AARCH64_FEATURE (OCCMO) },
+    { "cgdvaoc",    CPENS (3, C7, C11, 7), F_HASXT, AARCH64_FEATURES (2, OCCMO, MEMTAG) },
     { "csw",	    CPENS (0, C7, C10, 2), F_HASXT, AARCH64_NO_FEATURES },
-    { "cgsw",       CPENS (0, C7, C10, 4), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "cgdsw",	    CPENS (0, C7, C10, 6), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
+    { "cgsw",       CPENS (0, C7, C10, 4), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cgdsw",	    CPENS (0, C7, C10, 6), F_HASXT, AARCH64_FEATURE (MEMTAG) },
     { "cvau",       CPENS (3, C7, C11, 1), F_HASXT, AARCH64_NO_FEATURES },
-    { "cvap",       CPENS (3, C7, C12, 1), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (V8_2A) },
-    { "cgvap",      CPENS (3, C7, C12, 3), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "cgdvap",     CPENS (3, C7, C12, 5), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "cvadp",      CPENS (3, C7, C13, 1), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (CVADP) },
-    { "cgvadp",     CPENS (3, C7, C13, 3), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "cgdvadp",    CPENS (3, C7, C13, 5), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
+    { "cvap",       CPENS (3, C7, C12, 1), F_HASXT, AARCH64_FEATURE (V8_2A) },
+    { "cgvap",      CPENS (3, C7, C12, 3), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cgdvap",     CPENS (3, C7, C12, 5), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cvadp",      CPENS (3, C7, C13, 1), F_HASXT, AARCH64_FEATURE (CVADP) },
+    { "cgvadp",     CPENS (3, C7, C13, 3), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cgdvadp",    CPENS (3, C7, C13, 5), F_HASXT, AARCH64_FEATURE (MEMTAG) },
     { "civac",      CPENS (3, C7, C14, 1), F_HASXT, AARCH64_NO_FEATURES },
-    { "cigvac",     CPENS (3, C7, C14, 3), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "cigdvac",    CPENS (3, C7, C14, 5), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
+    { "cigvac",     CPENS (3, C7, C14, 3), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cigdvac",    CPENS (3, C7, C14, 5), F_HASXT, AARCH64_FEATURE (MEMTAG) },
     { "cisw",       CPENS (0, C7, C14, 2), F_HASXT, AARCH64_NO_FEATURES },
-    { "cigsw",      CPENS (0, C7, C14, 4), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "cigdsw",     CPENS (0, C7, C14, 6), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (MEMTAG) },
-    { "civaoc",     CPENS (3, C7, C15, 0), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (V9_5A) },
-    { "cigdvaoc",   CPENS (3, C7, C15, 7), F_HASXT | F_ARCHEXT, AARCH64_FEATURES (2, V9_5A, MEMTAG) },
-    { "cipae",      CPENS (4, C7, C14, 0), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (V8_7A) },
-    { "cigdpae",    CPENS (4, C7, C14, 7), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (V8_7A) },
+    { "cigsw",      CPENS (0, C7, C14, 4), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "cigdsw",     CPENS (0, C7, C14, 6), F_HASXT, AARCH64_FEATURE (MEMTAG) },
+    { "civaoc",     CPENS (3, C7, C15, 0), F_HASXT, AARCH64_FEATURE (OCCMO) },
+    { "cigdvaoc",   CPENS (3, C7, C15, 7), F_HASXT, AARCH64_FEATURES (2, OCCMO, MEMTAG) },
+    { "cipae",      CPENS (4, C7, C14, 0), F_HASXT, AARCH64_FEATURE (V8_7A) },
+    { "cigdpae",    CPENS (4, C7, C14, 7), F_HASXT, AARCH64_FEATURE (V8_7A) },
     { "cipapa",     CPENS (6, C7, C14, 1), F_HASXT, AARCH64_NO_FEATURES },
     { "cigdpapa",   CPENS (6, C7, C14, 5), F_HASXT, AARCH64_NO_FEATURES },
     { 0,       CPENS(0,0,0,0), 0, AARCH64_NO_FEATURES }
@@ -5255,11 +5283,11 @@ const aarch64_sys_ins_reg aarch64_sys_regs_at[] =
     { "s1e2w",      CPENS (4, C7, C8, 1), F_HASXT, AARCH64_NO_FEATURES },
     { "s1e3r",      CPENS (6, C7, C8, 0), F_HASXT, AARCH64_NO_FEATURES },
     { "s1e3w",      CPENS (6, C7, C8, 1), F_HASXT, AARCH64_NO_FEATURES },
-    { "s1e1rp",     CPENS (0, C7, C9, 0), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (V8_2A) },
-    { "s1e1wp",     CPENS (0, C7, C9, 1), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (V8_2A) },
-    { "s1e1a",      CPENS (0, C7, C9, 2), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (ATS1A) },
-    { "s1e2a",      CPENS (4, C7, C9, 2), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (ATS1A) },
-    { "s1e3a",      CPENS (6, C7, C9, 2), F_HASXT | F_ARCHEXT, AARCH64_FEATURE (ATS1A) },
+    { "s1e1rp",     CPENS (0, C7, C9, 0), F_HASXT, AARCH64_FEATURE (V8_2A) },
+    { "s1e1wp",     CPENS (0, C7, C9, 1), F_HASXT, AARCH64_FEATURE (V8_2A) },
+    { "s1e1a",      CPENS (0, C7, C9, 2), F_HASXT, AARCH64_FEATURE (ATS1A) },
+    { "s1e2a",      CPENS (4, C7, C9, 2), F_HASXT, AARCH64_FEATURE (ATS1A) },
+    { "s1e3a",      CPENS (6, C7, C9, 2), F_HASXT, AARCH64_FEATURE (ATS1A) },
     { 0,       CPENS(0,0,0,0), 0, AARCH64_NO_FEATURES }
 };
 
@@ -5272,7 +5300,7 @@ const aarch64_sys_ins_reg aarch64_sys_regs_tlbi[] =
 
 #define TLBI_XS_OP(OP, CODE, FLAGS) \
     { OP, CODE, FLAGS, AARCH64_NO_FEATURES }, \
-    { OP "nxs", CODE | CPENS (0, C9, 0, 0), FLAGS | F_ARCHEXT, AARCH64_FEATURE (XS) },
+    { OP "nxs", CODE | CPENS (0, C9, 0, 0), FLAGS, AARCH64_FEATURE (XS) },
 
     TLBI_XS_OP ( "vmalle1",   CPENS (0, C8, C7, 0), 0)
     TLBI_XS_OP ( "vae1",      CPENS (0, C8, C7, 1), F_HASXT | F_REG_128)
@@ -5309,8 +5337,8 @@ const aarch64_sys_ins_reg aarch64_sys_regs_tlbi[] =
 
 #undef TLBI_XS_OP
 #define TLBI_XS_OP(OP, CODE, FLAGS) \
-    { OP, CODE, FLAGS | F_ARCHEXT, AARCH64_FEATURE (V8_4A) }, \
-    { OP "nxs", CODE | CPENS (0, C9, 0, 0), FLAGS | F_ARCHEXT, AARCH64_FEATURE (XS) },
+    { OP, CODE, FLAGS, AARCH64_FEATURE (V8_4A) }, \
+    { OP "nxs", CODE | CPENS (0, C9, 0, 0), FLAGS, AARCH64_FEATURE (XS) },
 
     TLBI_XS_OP ( "vmalle1os",    CPENS (0, C8, C1, 0), 0 )
     TLBI_XS_OP ( "vae1os",       CPENS (0, C8, C1, 1), F_HASXT | F_REG_128 )
@@ -5371,7 +5399,7 @@ const aarch64_sys_ins_reg aarch64_sys_regs_sr[] =
        (op2) based on the instruction in which it is used (cfp/dvp/cpp).
        Thus op2 is masked out and instead encoded directly in the
        aarch64_opcode_table entries for the respective instructions.  */
-    { "rctx",   CPENS(3,C7,C3,0), F_HASXT | F_ARCHEXT | F_REG_WRITE, AARCH64_FEATURE (PREDRES) }, /* WO */
+    { "rctx",   CPENS(3,C7,C3,0), F_HASXT | F_REG_WRITE, AARCH64_FEATURE (PREDRES) }, /* WO */
     { 0,       CPENS(0,0,0,0), 0, AARCH64_NO_FEATURES }
 };
 
@@ -5384,7 +5412,6 @@ aarch64_sys_ins_reg_has_xt (const aarch64_sys_ins_reg *sys_ins_reg)
 extern bool
 aarch64_sys_ins_reg_supported_p (const aarch64_feature_set features,
 				 const char *reg_name,
-				 uint32_t reg_flags,
 				 const aarch64_feature_set *reg_features)
 {
   /* Armv8-R has no EL3.  */
@@ -5394,9 +5421,6 @@ aarch64_sys_ins_reg_supported_p (const aarch64_feature_set features,
       if (suffix && !strcmp (suffix, "_el3"))
 	return false;
     }
-
-  if (!(reg_flags & F_ARCHEXT))
-    return true;
 
   return AARCH64_CPU_HAS_ALL_FEATURES (features, *reg_features);
 }
@@ -5702,10 +5726,21 @@ verify_constraints (const struct aarch64_inst *inst,
 	{
 	  /* Check to see if the MOVPRFX SVE instruction is followed by an SVE
 	     instruction for better error messages.  */
-	  if (!opcode->avariant
-	      || (!AARCH64_CPU_HAS_FEATURE (*opcode->avariant, SVE)
-		  && !AARCH64_CPU_HAS_FEATURE (*opcode->avariant, SVE2)
-		  && !AARCH64_CPU_HAS_FEATURE (*opcode->avariant, SVE2p1)))
+	  bool sve_operand_p = false;
+	  for (int i = 0; i < AARCH64_MAX_OPND_NUM; ++i)
+	    {
+	      enum aarch64_operand_class op_class
+		= aarch64_get_operand_class (opcode->operands[i]);
+	      if (op_class == AARCH64_OPND_CLASS_SVE_REG
+		  || op_class == AARCH64_OPND_CLASS_SVE_REGLIST
+		  || op_class == AARCH64_OPND_CLASS_PRED_REG)
+		{
+		  sve_operand_p = true;
+		  break;
+		}
+	    }
+
+	  if (!sve_operand_p)
 	    {
 	      mismatch_detail->kind = AARCH64_OPDE_SYNTAX_ERROR;
 	      mismatch_detail->error = _("SVE instruction expected after "

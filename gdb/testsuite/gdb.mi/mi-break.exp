@@ -346,7 +346,7 @@ proc_with_prefix test_forced_conditions {} {
 
     set loc [mi_make_breakpoint_loc -enabled "N"]
     set args [list -cond "bad" -locations "\\\[$loc\\\]"]
-    set bp [eval mi_make_breakpoint_multi $args]
+    set bp [mi_make_breakpoint_multi {*}$args]
 
     mi_gdb_test "-break-insert -c bad --force-condition callme" \
 	"${warning}\\^done,$bp" \
@@ -398,7 +398,7 @@ proc test_break {mi_mode} {
     } else {
 	set start_ops ""
     }
-    if [mi_clean_restart $binfile $start_ops ] {
+    if [mi_clean_restart $::testfile $start_ops ] {
 	return
     }
 

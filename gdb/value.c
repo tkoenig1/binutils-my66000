@@ -35,7 +35,6 @@
 #include "valprint.h"
 #include "cli/cli-decode.h"
 #include "extension.h"
-#include <ctype.h>
 #include "tracepoint.h"
 #include "cp-abi.h"
 #include "user-regs.h"
@@ -45,6 +44,7 @@
 #include <utility>
 #include <vector>
 #include "completer.h"
+#include "gdbsupport/cleanups.h"
 #include "gdbsupport/selftest.h"
 #include "gdbsupport/array-view.h"
 #include "cli/cli-style.h"
@@ -3722,11 +3722,11 @@ value_from_history_ref (const char *h, const char **endp)
     len = 2;
 
   /* Find length of numeral string.  */
-  for (; isdigit (h[len]); len++)
+  for (; c_isdigit (h[len]); len++)
     ;
 
   /* Make sure numeral string is not part of an identifier.  */
-  if (h[len] == '_' || isalpha (h[len]))
+  if (h[len] == '_' || c_isalpha (h[len]))
     return NULL;
 
   /* Now collect the index value.  */
@@ -4496,9 +4496,7 @@ test_value_copy ()
 } /* namespace selftests */
 #endif /* GDB_SELF_TEST */
 
-void _initialize_values ();
-void
-_initialize_values ()
+INIT_GDB_FILE (values)
 {
   cmd_list_element *show_convenience_cmd
     = add_cmd ("convenience", no_class, show_convenience, _("\

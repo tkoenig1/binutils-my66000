@@ -47,7 +47,7 @@ repos:
         types_or: [file]
         files: 'gdb/.*\.py(\.in)?$'
   - repo:  https://github.com/pycqa/flake8
-    rev: 7.2.0
+    rev: 7.3.0
     hooks:
     - id: flake8
       types_or: [file]
@@ -88,3 +88,10 @@ repos:
       verbose: true
       always_run: true
       stages: [commit-msg]
+  - repo: https://github.com/nmoroze/tclint
+    rev: v0.6.1
+    hooks:
+    - id: tclint
+      args: [--config, gdb/tclint.toml]
+      types_or: [file]
+      files: 'gdb/testsuite/.*\.(exp|tcl)$'

@@ -17,7 +17,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <ctype.h>
 #include "auto-load.h"
 #include "gdbsupport/gdb_vecs.h"
 #include "progspace.h"
@@ -1045,7 +1044,7 @@ execute_script_contents (struct auto_load_pspace_info *pspace_info,
       buf = name_holder.c_str ();
       for (p = buf; *p != '\0'; ++p)
 	{
-	  if (isspace (*p))
+	  if (c_isspace (*p))
 	    break;
 	}
       /* We don't allow nameless scripts, they're not helpful to the user.  */
@@ -1568,9 +1567,7 @@ found and/or loaded."),
 
 gdb::observers::token auto_load_new_objfile_observer_token;
 
-void _initialize_auto_load ();
-void
-_initialize_auto_load ()
+INIT_GDB_FILE (auto_load)
 {
   struct cmd_list_element *cmd;
   gdb::unique_xmalloc_ptr<char> scripts_directory_help, gdb_name_help,

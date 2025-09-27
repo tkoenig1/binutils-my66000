@@ -41,6 +41,7 @@
 #include "arm-tdep.h"
 #include "arm-linux-tdep.h"
 #include "linux-tdep.h"
+#include "solib-svr4-linux.h"
 #include "glibc-tdep.h"
 #include "arch-utils.h"
 #include "inferior.h"
@@ -55,7 +56,6 @@
 #include "stap-probe.h"
 #include "parser-defs.h"
 #include "user-regs.h"
-#include <ctype.h>
 #include "elf/common.h"
 
 /* Under ARM GNU/Linux the traditional way of performing a breakpoint
@@ -1166,10 +1166,10 @@ arm_linux_displaced_step_copy_insn (struct gdbarch *gdbarch,
 static int
 arm_stap_is_single_operand (struct gdbarch *gdbarch, const char *s)
 {
-  return (*s == '#' || *s == '$' || isdigit (*s) /* Literal number.  */
+  return (*s == '#' || *s == '$' || c_isdigit (*s) /* Literal number.  */
 	  || *s == '[' /* Register indirection or
 			  displacement.  */
-	  || isalpha (*s)); /* Register value.  */
+	  || c_isalpha (*s)); /* Register value.  */
 }
 
 /* This routine is used to parse a special token in ARM's assembly.
@@ -1201,7 +1201,7 @@ arm_stap_parse_special_token (struct gdbarch *gdbarch,
       start = tmp;
 
       /* Register name.  */
-      while (isalnum (*tmp))
+      while (c_isalnum (*tmp))
 	++tmp;
 
       if (*tmp != ',')
@@ -1211,7 +1211,7 @@ arm_stap_parse_special_token (struct gdbarch *gdbarch,
       regname = (char *) alloca (len + 2);
 
       offset = 0;
-      if (isdigit (*start))
+      if (c_isdigit (*start))
 	{
 	  /* If we are dealing with a register whose name begins with a
 	     digit, it means we should prefix the name with the letter
@@ -1801,11 +1801,10 @@ arm_linux_init_abi (struct gdbarch_info info,
     }
   tdep->jb_elt_size = ARM_LINUX_JB_ELEMENT_SIZE;
 
-  set_solib_svr4_fetch_link_map_offsets
-    (gdbarch, linux_ilp32_fetch_link_map_offsets);
+  set_solib_svr4_ops (gdbarch, make_linux_ilp32_svr4_solib_ops);
 
   /* Single stepping.  */
-  set_gdbarch_software_single_step (gdbarch, arm_linux_software_single_step);
+  set_gdbarch_get_next_pcs (gdbarch, arm_linux_software_single_step);
 
   /* Shared library handling.  */
   set_gdbarch_skip_trampoline_code (gdbarch, arm_linux_skip_trampoline_code);
@@ -2026,9 +2025,7 @@ arm_linux_init_abi (struct gdbarch_info info,
   set_gdbarch_gcc_target_options (gdbarch, arm_linux_gcc_target_options);
 }
 
-void _initialize_arm_linux_tdep ();
-void
-_initialize_arm_linux_tdep ()
+INIT_GDB_FILE (arm_linux_tdep)
 {
   gdbarch_register_osabi (bfd_arch_arm, 0, GDB_OSABI_LINUX,
 			  arm_linux_init_abi);

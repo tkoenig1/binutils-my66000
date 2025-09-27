@@ -24,7 +24,6 @@
 #include "charset-list.h"
 #include "gdbsupport/environ.h"
 #include "arch-utils.h"
-#include <ctype.h>
 
 #ifdef USE_WIN32API
 #include <windows.h>
@@ -983,9 +982,7 @@ intermediate_encoding (void)
 
 #endif /* USE_INTERMEDIATE_ENCODING_FUNCTION */
 
-void _initialize_charset ();
-void
-_initialize_charset ()
+INIT_GDB_FILE (charset)
 {
   /* The first element is always "auto".  */
   charsets.charsets.push_back (xstrdup ("auto"));

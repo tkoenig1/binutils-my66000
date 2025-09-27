@@ -21,6 +21,7 @@
 #include "as.h"
 #include "subsegs.h"
 #include "sframe.h"
+#include "sframe-internal.h"
 #include "gen-sframe.h"
 #include "dw2gencfi.h"
 
@@ -134,10 +135,26 @@ sframe_fre_set_cfa_base_reg (struct sframe_row_entry *fre,
   fre->merge_candidate = false;
 }
 
+static offsetT
+sframe_fre_get_cfa_offset (const struct sframe_row_entry * fre)
+{
+  offsetT offset = fre->cfa_offset;
+
+  /* For s390x undo adjustment of CFA offset (to enable 8-bit offsets).  */
+  if (sframe_get_abi_arch () == SFRAME_ABI_S390X_ENDIAN_BIG)
+    offset = SFRAME_V2_S390X_CFA_OFFSET_DECODE (offset);
+
+  return offset;
+}
+
 static void
 sframe_fre_set_cfa_offset (struct sframe_row_entry *fre,
 			   offsetT cfa_offset)
 {
+  /* For s390x adjust CFA offset to enable 8-bit offsets.  */
+  if (sframe_get_abi_arch () == SFRAME_ABI_S390X_ENDIAN_BIG)
+    cfa_offset = SFRAME_V2_S390X_CFA_OFFSET_ENCODE (cfa_offset);
+
   fre->cfa_offset = cfa_offset;
   fre->merge_candidate = false;
 }
@@ -313,7 +330,7 @@ get_num_sframe_fres (void);
 /* Get CFA base register ID as represented in SFrame Frame Row Entry.  */
 
 static unsigned int
-get_fre_base_reg_id (struct sframe_row_entry *sframe_fre)
+get_fre_base_reg_id (const struct sframe_row_entry *sframe_fre)
 {
   unsigned int cfi_insn_cfa_base_reg = sframe_fre->cfa_base_reg;
   unsigned fre_base_reg = SFRAME_BASE_REG_SP;
@@ -331,7 +348,7 @@ get_fre_base_reg_id (struct sframe_row_entry *sframe_fre)
 /* Get number of offsets necessary for the SFrame Frame Row Entry.  */
 
 static unsigned int
-get_fre_num_offsets (struct sframe_row_entry *sframe_fre)
+get_fre_num_offsets (const struct sframe_row_entry *sframe_fre)
 {
   /* Atleast 1 must always be present (to recover CFA).  */
   unsigned int fre_num_offsets = 1;
@@ -339,7 +356,10 @@ get_fre_num_offsets (struct sframe_row_entry *sframe_fre)
   if (sframe_fre->bp_loc == SFRAME_FRE_ELEM_LOC_STACK)
     fre_num_offsets++;
   if (sframe_ra_tracking_p ()
-      && sframe_fre->ra_loc == SFRAME_FRE_ELEM_LOC_STACK)
+      && (sframe_fre->ra_loc == SFRAME_FRE_ELEM_LOC_STACK
+	  /* For s390x account padding RA offset, if FP without RA saved.  */
+	  || (sframe_get_abi_arch () == SFRAME_ABI_S390X_ENDIAN_BIG
+	      && sframe_fre->bp_loc == SFRAME_FRE_ELEM_LOC_STACK)))
     fre_num_offsets++;
   return fre_num_offsets;
 }
@@ -348,7 +368,7 @@ get_fre_num_offsets (struct sframe_row_entry *sframe_fre)
    SFrame frame row entry.  */
 
 static unsigned int
-sframe_get_fre_offset_size (struct sframe_row_entry *sframe_fre)
+sframe_get_fre_offset_size (const struct sframe_row_entry *sframe_fre)
 {
   unsigned int max_offset_size = 0;
   unsigned int cfa_offset_size = 0;
@@ -361,9 +381,15 @@ sframe_get_fre_offset_size (struct sframe_row_entry *sframe_fre)
   cfa_offset_size = get_offset_size_in_bytes (sframe_fre->cfa_offset);
   if (sframe_fre->bp_loc == SFRAME_FRE_ELEM_LOC_STACK)
     bp_offset_size = get_offset_size_in_bytes (sframe_fre->bp_offset);
-  if (sframe_ra_tracking_p ()
-      && sframe_fre->ra_loc == SFRAME_FRE_ELEM_LOC_STACK)
-    ra_offset_size = get_offset_size_in_bytes (sframe_fre->ra_offset);
+  if (sframe_ra_tracking_p ())
+    {
+      if (sframe_fre->ra_loc == SFRAME_FRE_ELEM_LOC_STACK)
+	ra_offset_size = get_offset_size_in_bytes (sframe_fre->ra_offset);
+      /* For s390x account padding RA offset, if FP without RA saved.  */
+      else if (sframe_get_abi_arch () == SFRAME_ABI_S390X_ENDIAN_BIG
+	       && sframe_fre->bp_loc == SFRAME_FRE_ELEM_LOC_STACK)
+	ra_offset_size = get_offset_size_in_bytes (SFRAME_FRE_RA_OFFSET_INVALID);
+    }
 
   /* Get the maximum size needed to represent the offsets.  */
   max_offset_size = cfa_offset_size;
@@ -523,7 +549,7 @@ sframe_fde_free (struct sframe_func_entry *sframe_fde)
 static void
 output_sframe_row_entry (symbolS *fde_start_addr,
 			 symbolS *fde_end_addr,
-			 struct sframe_row_entry *sframe_fre)
+			 const struct sframe_row_entry *sframe_fre)
 {
   unsigned char fre_info;
   unsigned int fre_num_offsets;
@@ -542,7 +568,7 @@ output_sframe_row_entry (symbolS *fde_start_addr,
   create_fre_start_addr_exp (&exp, sframe_fre->pc_begin, fde_start_addr,
 			     fde_end_addr);
   frag_grow (fre_addr_size);
-  frag_var (rs_sframe, fre_addr_size, 0, (relax_substateT) 0,
+  frag_var (rs_sframe, fre_addr_size, 0, 0,
 	    make_expr_symbol (&exp), 0, (char *) frag_now);
 #else
   gas_assert (fde_end_addr);
@@ -569,11 +595,20 @@ output_sframe_row_entry (symbolS *fde_start_addr,
   fre_offset_func_map[idx].out_func (sframe_fre->cfa_offset);
   fre_write_offsets++;
 
-  if (sframe_ra_tracking_p ()
-      && sframe_fre->ra_loc == SFRAME_FRE_ELEM_LOC_STACK)
+  if (sframe_ra_tracking_p ())
     {
-      fre_offset_func_map[idx].out_func (sframe_fre->ra_offset);
-      fre_write_offsets++;
+      if (sframe_fre->ra_loc == SFRAME_FRE_ELEM_LOC_STACK)
+	{
+	  fre_offset_func_map[idx].out_func (sframe_fre->ra_offset);
+	  fre_write_offsets++;
+	}
+      /* For s390x write padding RA offset, if FP without RA saved.  */
+      else if (sframe_get_abi_arch () == SFRAME_ABI_S390X_ENDIAN_BIG
+	       && sframe_fre->bp_loc == SFRAME_FRE_ELEM_LOC_STACK)
+	{
+	  fre_offset_func_map[idx].out_func (SFRAME_FRE_RA_OFFSET_INVALID);
+	  fre_write_offsets++;
+	}
     }
   if (sframe_fre->bp_loc == SFRAME_FRE_ELEM_LOC_STACK)
     {
@@ -589,7 +624,7 @@ output_sframe_row_entry (symbolS *fde_start_addr,
 static void
 output_sframe_funcdesc (symbolS *start_of_fre_section,
 			symbolS *fre_symbol,
-			struct sframe_func_entry *sframe_fde)
+			const struct sframe_func_entry *sframe_fde)
 {
   expressionS exp;
   symbolS *dw_fde_start_addrS, *dw_fde_end_addrS;
@@ -598,7 +633,8 @@ output_sframe_funcdesc (symbolS *start_of_fre_section,
   dw_fde_start_addrS = get_dw_fde_start_addrS (sframe_fde->dw_fde);
   dw_fde_end_addrS = get_dw_fde_end_addrS (sframe_fde->dw_fde);
 
-  /* Start address of the function.  */
+  /* Start address of the function.  gas always emits this value with encoding
+     SFRAME_F_FDE_FUNC_START_PCREL.  See PR ld/32666.  */
   exp.X_op = O_subtract;
   exp.X_add_symbol = dw_fde_start_addrS; /* to location.  */
   exp.X_op_symbol = symbol_temp_new_now (); /* from location.  */
@@ -637,8 +673,8 @@ output_sframe_funcdesc (symbolS *start_of_fre_section,
   create_func_info_exp (&cexp, dw_fde_end_addrS, dw_fde_start_addrS,
 			func_info);
   frag_grow (1); /* Size of func info is unsigned char.  */
-  frag_var (rs_sframe, 1, 0, (relax_substateT) 0,
-	    make_expr_symbol (&cexp), 0, (char *) frag_now);
+  frag_var (rs_sframe, 1, 0, 0, make_expr_symbol (&cexp), 0,
+	    (char *) frag_now);
 #else
   out_one (func_info);
 #endif
@@ -663,8 +699,9 @@ output_sframe_internal (void)
   int fixed_ra_offset = SFRAME_CFA_FIXED_RA_INVALID;
 
   /* The function descriptor entries as dumped by the assembler are not
-     sorted on PCs.  */
-  unsigned char sframe_flags = 0;
+     sorted on PCs.  Fix for PR ld/32666 requires setting of an additional
+     flag in SFrame Version 2.  */
+  unsigned char sframe_flags = SFRAME_F_FDE_FUNC_START_PCREL;
 
   unsigned int num_fdes = get_num_sframe_fdes ();
   unsigned int num_fres = get_num_sframe_fres ();
@@ -680,6 +717,10 @@ output_sframe_internal (void)
   /* Output the preamble of SFrame section.  */
   out_two (SFRAME_MAGIC);
   out_one (SFRAME_VERSION);
+  /* gas must ensure emitted SFrame sections have at least the required flags
+     set.  */
+  gas_assert ((sframe_flags & SFRAME_V2_GNU_AS_LD_ENCODING_FLAGS)
+	      == SFRAME_V2_GNU_AS_LD_ENCODING_FLAGS);
   out_one (sframe_flags);
   /* abi/arch.  */
 #ifdef sframe_get_abi_arch
@@ -707,7 +748,7 @@ output_sframe_internal (void)
     }
   out_one (fixed_ra_offset);
 
-  /* None of the AMD64, or AARCH64 ABIs need the auxiliary header.
+  /* None of the AMD64, AARCH64, or s390x ABIs need the auxiliary header.
      When the need does arise to use this field, the appropriate backend
      must provide this information.  */
   out_one (0); /* Auxiliary SFrame header length.  */
@@ -856,7 +897,7 @@ sframe_xlate_ctx_finalize (struct sframe_xlate_ctx *xlate_ctx,
 
 static void
 sframe_xlate_ctx_add_fre (struct sframe_xlate_ctx *xlate_ctx,
-			 struct sframe_row_entry *fre)
+			  struct sframe_row_entry *fre)
 {
   gas_assert (xlate_ctx && fre);
 
@@ -883,7 +924,7 @@ sframe_xlate_ctx_add_fre (struct sframe_xlate_ctx *xlate_ctx,
 
 static void
 sframe_row_entry_initialize (struct sframe_row_entry *cur_fre,
-			     struct sframe_row_entry *prev_fre)
+			     const struct sframe_row_entry *prev_fre)
 {
   gas_assert (prev_fre);
   cur_fre->cfa_base_reg = prev_fre->cfa_base_reg;
@@ -917,7 +958,7 @@ sframe_register_name (unsigned int reg)
 
 static int
 sframe_xlate_do_advance_loc (struct sframe_xlate_ctx *xlate_ctx,
-			     struct cfi_insn_data *cfi_insn)
+			     const struct cfi_insn_data *cfi_insn)
 {
   struct sframe_row_entry *last_fre = xlate_ctx->last_fre;
   /* Get the scratchpad FRE currently being updated as the cfi_insn's
@@ -963,7 +1004,7 @@ sframe_xlate_do_advance_loc (struct sframe_xlate_ctx *xlate_ctx,
 
 static int
 sframe_xlate_do_def_cfa (struct sframe_xlate_ctx *xlate_ctx,
-			 struct cfi_insn_data *cfi_insn)
+			 const struct cfi_insn_data *cfi_insn)
 
 {
   /* Get the scratchpad FRE.  This FRE will eventually get linked in.  */
@@ -998,9 +1039,9 @@ sframe_xlate_do_def_cfa (struct sframe_xlate_ctx *xlate_ctx,
 
 static int
 sframe_xlate_do_def_cfa_register (struct sframe_xlate_ctx *xlate_ctx,
-				  struct cfi_insn_data *cfi_insn)
+				  const struct cfi_insn_data *cfi_insn)
 {
-  struct sframe_row_entry *last_fre = xlate_ctx->last_fre;
+  const struct sframe_row_entry *last_fre = xlate_ctx->last_fre;
   /* Get the scratchpad FRE.  This FRE will eventually get linked in.  */
   struct sframe_row_entry *cur_fre = xlate_ctx->cur_fre;
 
@@ -1018,7 +1059,7 @@ sframe_xlate_do_def_cfa_register (struct sframe_xlate_ctx *xlate_ctx,
     }
   sframe_fre_set_cfa_base_reg (cur_fre, cfi_insn->u.r);
   if (last_fre)
-    sframe_fre_set_cfa_offset (cur_fre, last_fre->cfa_offset);
+    sframe_fre_set_cfa_offset (cur_fre, sframe_fre_get_cfa_offset (last_fre));
 
   cur_fre->merge_candidate = false;
 
@@ -1030,7 +1071,7 @@ sframe_xlate_do_def_cfa_register (struct sframe_xlate_ctx *xlate_ctx,
 
 static int
 sframe_xlate_do_def_cfa_offset (struct sframe_xlate_ctx *xlate_ctx,
-				struct cfi_insn_data *cfi_insn)
+				const struct cfi_insn_data *cfi_insn)
 {
   /* The scratchpad FRE currently being updated with each cfi_insn
      being interpreted.  This FRE eventually gets linked in into the
@@ -1064,7 +1105,7 @@ sframe_xlate_do_def_cfa_offset (struct sframe_xlate_ctx *xlate_ctx,
 
 static int
 sframe_xlate_do_offset (struct sframe_xlate_ctx *xlate_ctx,
-			struct cfi_insn_data *cfi_insn)
+			const struct cfi_insn_data *cfi_insn)
 {
   /* The scratchpad FRE currently being updated with each cfi_insn
      being interpreted.  This FRE eventually gets linked in into the
@@ -1110,7 +1151,11 @@ sframe_xlate_do_val_offset (const struct sframe_xlate_ctx *xlate_ctx ATTRIBUTE_U
   if (cfi_insn->u.ri.reg == SFRAME_CFA_FP_REG
       || (sframe_ra_tracking_p () && cfi_insn->u.ri.reg == SFRAME_CFA_RA_REG)
       /* Ignore SP reg, if offset matches assumed default rule.  */
-      || (cfi_insn->u.ri.reg == SFRAME_CFA_SP_REG && cfi_insn->u.ri.offset != 0))
+      || (cfi_insn->u.ri.reg == SFRAME_CFA_SP_REG
+	  && ((sframe_get_abi_arch () != SFRAME_ABI_S390X_ENDIAN_BIG
+	       && cfi_insn->u.ri.offset != 0)
+	      || (sframe_get_abi_arch () == SFRAME_ABI_S390X_ENDIAN_BIG
+		  && cfi_insn->u.ri.offset != SFRAME_S390X_SP_VAL_OFFSET))))
     {
       as_warn (_("no SFrame FDE emitted; %s with %s reg %u"),
 	       cfi_esc_p ? ".cfi_escape DW_CFA_val_offset" : ".cfi_val_offset",
@@ -1122,13 +1167,47 @@ sframe_xlate_do_val_offset (const struct sframe_xlate_ctx *xlate_ctx ATTRIBUTE_U
   return SFRAME_XLATE_OK;
 }
 
+/* S390-specific translate DW_CFA_register into SFrame context.
+   Return SFRAME_XLATE_OK if success.  */
+
+static int
+s390_sframe_xlate_do_register (struct sframe_xlate_ctx *xlate_ctx,
+			       const struct cfi_insn_data *cfi_insn)
+{
+  /* The scratchpad FRE currently being updated with each cfi_insn
+     being interpreted.  This FRE eventually gets linked in into the
+     list of FREs for the specific function.  */
+  struct sframe_row_entry *cur_fre = xlate_ctx->cur_fre;
+
+  gas_assert (cur_fre);
+
+  /* Change the rule for the register indicated by the register number to
+     be the specified register.  Encode the register number as offset by
+     shifting it to the left by one and setting the least-significant bit
+     (LSB).  The LSB can be used to differentiate offsets from register
+     numbers, as offsets from CFA are always a multiple of -8 on s390x.  */
+  if (cfi_insn->u.rr.reg1 == SFRAME_CFA_FP_REG)
+    sframe_fre_set_bp_track (cur_fre,
+			     SFRAME_V2_S390X_OFFSET_ENCODE_REGNUM (cfi_insn->u.rr.reg2));
+  else if (sframe_ra_tracking_p ()
+	   && cfi_insn->u.rr.reg1 == SFRAME_CFA_RA_REG)
+    sframe_fre_set_ra_track (cur_fre,
+			     SFRAME_V2_S390X_OFFSET_ENCODE_REGNUM (cfi_insn->u.rr.reg2));
+
+  return SFRAME_XLATE_OK;
+}
+
 /* Translate DW_CFA_register into SFrame context.
    Return SFRAME_XLATE_OK if success.  */
 
 static int
-sframe_xlate_do_register (struct sframe_xlate_ctx *xlate_ctx ATTRIBUTE_UNUSED,
-			  struct cfi_insn_data *cfi_insn)
+sframe_xlate_do_register (struct sframe_xlate_ctx *xlate_ctx,
+			  const struct cfi_insn_data *cfi_insn)
 {
+  /* Conditionally invoke S390-specific implementation.  */
+  if (sframe_get_abi_arch () == SFRAME_ABI_S390X_ENDIAN_BIG)
+    return s390_sframe_xlate_do_register (xlate_ctx, cfi_insn);
+
   /* Previous value of register1 is register2.  However, if the specified
      register1 is not interesting (FP or RA reg), the current DW_CFA_register
      instruction can be safely skipped without sacrificing the asynchronicity of
@@ -1153,7 +1232,7 @@ sframe_xlate_do_register (struct sframe_xlate_ctx *xlate_ctx ATTRIBUTE_UNUSED,
 static int
 sframe_xlate_do_remember_state (struct sframe_xlate_ctx *xlate_ctx)
 {
-  struct sframe_row_entry *last_fre = xlate_ctx->last_fre;
+  const struct sframe_row_entry *last_fre = xlate_ctx->last_fre;
 
   /* If there is no FRE state to remember, nothing to do here.  Return
      early with non-zero error code, this will cause no SFrame stack trace
@@ -1199,7 +1278,7 @@ sframe_xlate_do_restore_state (struct sframe_xlate_ctx *xlate_ctx)
 
 static int
 sframe_xlate_do_restore (struct sframe_xlate_ctx *xlate_ctx,
-			 struct cfi_insn_data *cfi_insn)
+			 const struct cfi_insn_data *cfi_insn)
 {
   struct sframe_row_entry *cie_fre = xlate_ctx->first_fre;
   /* The scratchpad FRE currently being updated with each cfi_insn
@@ -1207,11 +1286,18 @@ sframe_xlate_do_restore (struct sframe_xlate_ctx *xlate_ctx,
      list of FREs for the specific function.  */
   struct sframe_row_entry *cur_fre = xlate_ctx->cur_fre;
 
+  /* PR gas/33170.  It is valid to have a:
+       .cfi_restore N
+    even at the entry of a function; in which case cie_fre is not yet setup.
+    Point cie_fre to cur_fre, and let the machinery proceed to update
+    merge_candidate as usual.  */
+  if (cie_fre == NULL)
+    cie_fre = cur_fre;
+
   /* Change the rule for the indicated register to the rule assigned to
-     it by the initial_instructions in the CIE.  */
-  gas_assert (cie_fre);
-  /* SFrame FREs track only CFA and FP / RA for backtracing purposes;
-     skip the other .cfi_restore directives.  */
+     it by the initial_instructions in the CIE.  SFrame FREs track only CFA
+     and FP / RA for backtracing purposes; skip the other .cfi_restore
+     directives.  */
   if (cfi_insn->u.r == SFRAME_CFA_FP_REG)
     {
       gas_assert (cur_fre);
@@ -1235,7 +1321,7 @@ sframe_xlate_do_restore (struct sframe_xlate_ctx *xlate_ctx,
 
 static int
 sframe_xlate_do_aarch64_negate_ra_state (struct sframe_xlate_ctx *xlate_ctx,
-					 struct cfi_insn_data *cfi_insn ATTRIBUTE_UNUSED)
+					 const struct cfi_insn_data *cfi_insn ATTRIBUTE_UNUSED)
 {
   struct sframe_row_entry *cur_fre = xlate_ctx->cur_fre;
 
@@ -1252,7 +1338,7 @@ sframe_xlate_do_aarch64_negate_ra_state (struct sframe_xlate_ctx *xlate_ctx,
 
 static int
 sframe_xlate_do_aarch64_negate_ra_state_with_pc (struct sframe_xlate_ctx *xlate_ctx ATTRIBUTE_UNUSED,
-						 struct cfi_insn_data *cfi_insn ATTRIBUTE_UNUSED)
+						 const struct cfi_insn_data *cfi_insn ATTRIBUTE_UNUSED)
 {
   as_warn (_("no SFrame FDE emitted; .cfi_negate_ra_state_with_pc"));
   /* The used signing method should be encoded inside the FDE in SFrame v3.
@@ -1272,7 +1358,7 @@ sframe_xlate_do_aarch64_negate_ra_state_with_pc (struct sframe_xlate_ctx *xlate_
 
 static int
 sframe_xlate_do_gnu_window_save (struct sframe_xlate_ctx *xlate_ctx,
-				 struct cfi_insn_data *cfi_insn)
+				 const struct cfi_insn_data *cfi_insn)
 {
   unsigned char abi_arch = sframe_get_abi_arch ();
 
@@ -1424,6 +1510,64 @@ warn_and_exit:
   return err;
 }
 
+/* Handle DW_CFA_GNU_args_size in .cfi_escape.
+
+   The purpose of DW_CFA_GNU_args_size is to adjust SP when performing stack
+   unwinding for exception handling.  For stack tracing needs,
+   DW_CFA_GNU_args_size can be ignored, when CFA is FP-based.  This is because
+   if the topmost frame is that of the catch block, the SP has been restored to
+   correct value by exception handling logic.  From this point of interest in
+   the catch block now, stack tracing intends to go backwards to the caller
+   frame.  If CFA restoration does not need SP, DW_CFA_GNU_args_size can be
+   ignored for stack tracing.
+
+   Continue to warn and not emit SFrame FDE if CFA is SP based.  The pattern
+   where the CFA is SP based and there is a DW_CFA_GNU_args_size for
+   SP-adjustment is not entirely clear.
+
+   Sets CALLER_WARN_P for skipped cases (and returns SFRAME_XLATE_OK) where the
+   caller must warn.  The caller then must also set
+   SFRAME_XLATE_ERR_NOTREPRESENTED for their callers.  */
+
+static int
+sframe_xlate_do_escape_gnu_args_size (const struct sframe_xlate_ctx *xlate_ctx,
+				      const struct cfi_insn_data *cfi_insn,
+				      bool *caller_warn_p)
+{
+  const struct cfi_escape_data *e = cfi_insn->u.esc;
+  unsigned int i = 0;
+
+  /* Check for (DW_CFA_GNU_args_size offset) sequence.  */
+#define CFI_ESC_NUM_EXP 1
+  offsetT items[CFI_ESC_NUM_EXP] = {0};
+  while (e->next)
+    {
+      e = e->next;
+      if (i >= CFI_ESC_NUM_EXP || e->exp.X_op != O_constant
+	  || e->type != CFI_ESC_byte
+	  || e->reloc != TC_PARSE_CONS_RETURN_NONE)
+	goto warn_and_exit;
+      items[i] = e->exp.X_add_number;
+      i++;
+    }
+  if (i == 0)
+    goto warn_and_exit;
+
+#undef CFI_ESC_NUM_EXP
+
+  offsetT offset = items[0];
+
+  struct sframe_row_entry *cur_fre = xlate_ctx->cur_fre;
+  gas_assert (cur_fre);
+ /* If CFA is FP based, safe to skip.  */
+  if (offset == 0 || cur_fre->cfa_base_reg == SFRAME_CFA_FP_REG)
+    return SFRAME_XLATE_OK;
+
+warn_and_exit:
+  *caller_warn_p = true;
+  return SFRAME_XLATE_OK;
+}
+
 /* Handle CFI_escape in SFrame context.
 
    .cfi_escape CFI directive allows the user to add arbitrary data to the
@@ -1487,7 +1631,9 @@ sframe_xlate_do_cfi_escape (const struct sframe_xlate_ctx *xlate_ctx,
       err = sframe_xlate_do_escape_val_offset (xlate_ctx, cfi_insn, &warn_p);
       break;
 
-    /* FIXME - Also add processing for DW_CFA_GNU_args_size in future?  */
+    case DW_CFA_GNU_args_size:
+      err = sframe_xlate_do_escape_gnu_args_size (xlate_ctx, cfi_insn, &warn_p);
+      break;
 
     default:
       warn_p = true;
@@ -1639,7 +1785,7 @@ sframe_get_cfi_name (int cfi_opc)
 
 static int
 sframe_do_cfi_insn (struct sframe_xlate_ctx *xlate_ctx,
-		    struct cfi_insn_data *cfi_insn)
+		    const struct cfi_insn_data *cfi_insn)
 {
   int err = 0;
 
@@ -1719,7 +1865,7 @@ static int
 sframe_do_fde (struct sframe_xlate_ctx *xlate_ctx,
 	       const struct fde_entry *dw_fde)
 {
-  struct cfi_insn_data *cfi_insn;
+  const struct cfi_insn_data *cfi_insn;
   int err = SFRAME_XLATE_OK;
 
   xlate_ctx->dw_fde = dw_fde;
@@ -1759,7 +1905,9 @@ sframe_do_fde (struct sframe_xlate_ctx *xlate_ctx,
 	= get_dw_fde_end_addrS (xlate_ctx->dw_fde);
     }
 
-  if (sframe_ra_tracking_p ())
+  /* ABI/arch except s390x cannot represent FP without RA saved.  */
+  if (sframe_ra_tracking_p ()
+      && sframe_get_abi_arch () != SFRAME_ABI_S390X_ENDIAN_BIG)
     {
       struct sframe_row_entry *fre;
 

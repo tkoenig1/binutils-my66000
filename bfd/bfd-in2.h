@@ -166,6 +166,14 @@ startswith (const char *str, const char *prefix)
   return strncmp (str, prefix, strlen (prefix)) == 0;
 }
 
+/* Return true if plugin is enabled.  */
+
+static inline bool
+bfd_plugin_enabled (void)
+{
+  return BFD_SUPPORTS_PLUGINS != 0;
+}
+
 /* Extracted from libbfd.c.  */
 void *bfd_alloc (bfd *abfd, bfd_size_type wanted);
 
@@ -1034,11 +1042,12 @@ bool bfd_malloc_and_get_section
    (bfd *abfd, asection *section, bfd_byte **buf);
 
 bool bfd_copy_private_section_data
-   (bfd *ibfd, asection *isec, bfd *obfd, asection *osec);
+   (bfd *ibfd, asection *isec, bfd *obfd, asection *osec,
+    struct bfd_link_info *link_info);
 
-#define bfd_copy_private_section_data(ibfd, isection, obfd, osection) \
+#define bfd_copy_private_section_data(ibfd, isec, obfd, osec, link_info) \
        BFD_SEND (obfd, _bfd_copy_private_section_data, \
-		 (ibfd, isection, obfd, osection))
+		 (ibfd, isec, obfd, osec, link_info))
 bool bfd_generic_is_group_section (bfd *, const asection *sec);
 
 const char *bfd_generic_group_name (bfd *, const asection *sec);
@@ -7030,6 +7039,11 @@ enum bfd_reloc_code_real
      assembler and not (currently) written to any object files.  */
   BFD_RELOC_AARCH64_TLSDESC_LD_LO12_NC,
 
+  /* AArch64 9 bit pc-relative conditional branch and compare & branch.
+     The lowest two bits must be zero and are not stored in the
+     instruction, giving an 11 bit signed byte offset.  */
+  BFD_RELOC_AARCH64_BRANCH9,
+
   /* Tilera TILEPro Relocations.  */
   BFD_RELOC_TILEPRO_COPY,
   BFD_RELOC_TILEPRO_GLOB_DAT,
@@ -7636,7 +7650,6 @@ typedef struct bfd_target
 #define BFD_JUMP_TABLE_COPY(NAME) \
   NAME##_bfd_copy_private_bfd_data, \
   NAME##_bfd_merge_private_bfd_data, \
-  NAME##_init_private_section_data, \
   NAME##_bfd_copy_private_section_data, \
   NAME##_bfd_copy_private_symbol_data, \
   NAME##_bfd_copy_private_header_data, \
@@ -7649,16 +7662,10 @@ typedef struct bfd_target
   /* Called to merge BFD general private data from one object file
      to a common output file when linking.  */
   bool (*_bfd_merge_private_bfd_data) (bfd *, struct bfd_link_info *);
-  /* Called to initialize BFD private section data from one object file
-     to another.  */
-#define bfd_init_private_section_data(ibfd, isec, obfd, osec, link_info) \
-       BFD_SEND (obfd, _bfd_init_private_section_data, \
-		 (ibfd, isec, obfd, osec, link_info))
-  bool (*_bfd_init_private_section_data) (bfd *, sec_ptr, bfd *, sec_ptr,
-					  struct bfd_link_info *);
   /* Called to copy BFD private section data from one object file
      to another.  */
-  bool (*_bfd_copy_private_section_data) (bfd *, sec_ptr, bfd *, sec_ptr);
+  bool (*_bfd_copy_private_section_data) (bfd *, sec_ptr, bfd *, sec_ptr,
+					  struct bfd_link_info *);
   /* Called to copy BFD private symbol data from one symbol
      to another.  */
   bool (*_bfd_copy_private_symbol_data) (bfd *, asymbol *,

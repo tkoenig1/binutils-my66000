@@ -228,7 +228,7 @@ find_pc_sect_psymbol (struct objfile *objfile,
   for (const partial_symbol *p : psymtab->global_psymbols)
     {
       if (p->domain == VAR_DOMAIN
-	  && p->aclass == LOC_BLOCK
+	  && p->loc_class == LOC_BLOCK
 	  && pc >= p->address (objfile)
 	  && (p->address (objfile) > best_pc
 	      || (psymtab->text_low (objfile) == 0
@@ -248,7 +248,7 @@ find_pc_sect_psymbol (struct objfile *objfile,
   for (const partial_symbol *p : psymtab->static_psymbols)
     {
       if (p->domain == VAR_DOMAIN
-	  && p->aclass == LOC_BLOCK
+	  && p->loc_class == LOC_BLOCK
 	  && pc >= p->address (objfile)
 	  && (p->address (objfile) > best_pc
 	      || (psymtab->text_low (objfile) == 0
@@ -537,7 +537,7 @@ print_partial_symbols (struct gdbarch *gdbarch, struct objfile *objfile,
 	  gdb_puts ("<invalid domain>, ", outfile);
 	  break;
 	}
-      switch (p->aclass)
+      switch (p->loc_class)
 	{
 	case LOC_UNDEF:
 	  gdb_puts ("undefined", outfile);
@@ -790,7 +790,7 @@ psymtab_to_fullname (struct partial_symtab *ps)
   return ps->fullname;
 }
 
-/* A helper for psym_expand_symtabs_matching that handles searching
+/* A helper for psymbol_functions::search that handles searching
    included psymtabs.  This returns true if a symbol is found, and
    false otherwise.  It also updates the 'searched_flag' on the
    various psymtabs that it searches.  */
@@ -800,7 +800,7 @@ recursively_search_psymtabs (partial_symtab *ps, objfile *objfile,
 			     block_search_flags search_flags,
 			     domain_search_flags domain,
 			     const lookup_name_info &lookup_name,
-			     expand_symtabs_symbol_matcher sym_matcher)
+			     search_symtabs_symbol_matcher sym_matcher)
 {
   int keep_going = 1;
   enum psymtab_search_status result = PST_SEARCHED_AND_NOT_FOUND;
@@ -885,19 +885,19 @@ recursively_search_psymtabs (partial_symtab *ps, objfile *objfile,
   return result == PST_SEARCHED_AND_FOUND;
 }
 
-/* Psymtab version of expand_symtabs_matching.  See its definition in
+/* Psymtab version of search.  See its definition in
    the definition of quick_symbol_functions in symfile.h.  */
 
 bool
-psymbol_functions::expand_symtabs_matching
+psymbol_functions::search
   (struct objfile *objfile,
-   expand_symtabs_file_matcher file_matcher,
+   search_symtabs_file_matcher file_matcher,
    const lookup_name_info *lookup_name,
-   expand_symtabs_symbol_matcher symbol_matcher,
-   expand_symtabs_expansion_listener expansion_notify,
+   search_symtabs_symbol_matcher symbol_matcher,
+   search_symtabs_expansion_listener listener,
    block_search_flags search_flags,
    domain_search_flags domain,
-   expand_symtabs_lang_matcher lang_matcher ATTRIBUTE_UNUSED)
+   search_symtabs_lang_matcher lang_matcher ATTRIBUTE_UNUSED)
 {
   /* Clear the search flags.  */
   for (partial_symtab *ps : partial_symbols (objfile))
@@ -913,9 +913,6 @@ psymbol_functions::expand_symtabs_matching
   for (partial_symtab *ps : m_partial_symtabs->range ())
     {
       QUIT;
-
-      if (ps->readin_p (objfile))
-	continue;
 
       if (file_matcher)
 	{
@@ -944,8 +941,8 @@ psymbol_functions::expand_symtabs_matching
 	{
 	  compunit_symtab *cust = psymtab_to_symtab (objfile, ps);
 
-	  if (cust != nullptr && expansion_notify != nullptr)
-	    if (!expansion_notify (cust))
+	  if (cust != nullptr && listener != nullptr)
+	    if (!listener (cust))
 	      return false;
 	}
     }
@@ -1022,12 +1019,12 @@ psymbol_bcache::hash (const void *addr, int length)
   struct partial_symbol *psymbol = (struct partial_symbol *) addr;
   unsigned int lang = psymbol->ginfo.language ();
   unsigned int domain = psymbol->domain;
-  unsigned int theclass = psymbol->aclass;
+  unsigned int loc_class = psymbol->loc_class;
 
   h = fast_hash (&psymbol->ginfo.m_value, sizeof (psymbol->ginfo.m_value), h);
   h = fast_hash (&lang, sizeof (unsigned int), h);
   h = fast_hash (&domain, sizeof (unsigned int), h);
-  h = fast_hash (&theclass, sizeof (unsigned int), h);
+  h = fast_hash (&loc_class, sizeof (unsigned int), h);
   /* Note that psymbol names are interned via compute_and_set_names, so
      there's no need to hash the contents of the name here.  */
   h = fast_hash (&psymbol->ginfo.m_name, sizeof (psymbol->ginfo.m_name), h);
@@ -1047,7 +1044,7 @@ psymbol_bcache::compare (const void *addr1, const void *addr2, int length)
 		  sizeof (sym1->ginfo.m_value)) == 0
 	  && sym1->ginfo.language () == sym2->ginfo.language ()
 	  && sym1->domain == sym2->domain
-	  && sym1->aclass == sym2->aclass
+	  && sym1->loc_class == sym2->loc_class
 	  /* Note that psymbol names are interned via
 	     compute_and_set_names, so there's no need to compare the
 	     contents of the name here.  */
@@ -1085,7 +1082,7 @@ partial_symtab::add_psymbol (const partial_symbol &psymbol,
 void
 partial_symtab::add_psymbol (std::string_view name, bool copy_name,
 			     domain_enum domain,
-			     enum address_class theclass,
+			     location_class loc_class,
 			     int section,
 			     psymbol_placement where,
 			     unrelocated_addr coreaddr,
@@ -1099,7 +1096,7 @@ partial_symtab::add_psymbol (std::string_view name, bool copy_name,
   psymbol.set_unrelocated_address (coreaddr);
   psymbol.ginfo.set_section_index (section);
   psymbol.domain = domain;
-  psymbol.aclass = theclass;
+  psymbol.loc_class = loc_class;
   psymbol.ginfo.set_language (language, partial_symtabs->obstack ());
   psymbol.ginfo.compute_and_set_names (name, copy_name, objfile->per_bfd);
 
@@ -1498,7 +1495,7 @@ maintenance_check_psymtabs (const char *ignore, int from_tty)
 		{
 		  /* Skip symbols for inlined functions without address.  These may
 		     or may not have a match in the full symtab.  */
-		  if (psym->aclass == LOC_BLOCK
+		  if (psym->loc_class == LOC_BLOCK
 		      && psym->ginfo.value_address () == 0)
 		    continue;
 
@@ -1552,9 +1549,7 @@ maintenance_check_psymtabs (const char *ignore, int from_tty)
     }
 }
 
-void _initialize_psymtab ();
-void
-_initialize_psymtab ()
+INIT_GDB_FILE (psymtab)
 {
   add_cmd ("psymbols", class_maintenance, maintenance_print_psymbols, _("\
 Print dump of current partial symbol definitions.\n\

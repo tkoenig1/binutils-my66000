@@ -37,7 +37,6 @@
 #include "gdbsupport/eintr.h"
 #include "target/waitstatus.h"
 #include <dirent.h>
-#include <ctype.h>
 
 #include <list>
 
@@ -421,7 +420,7 @@ fork_save_infrun_state (struct fork_info *fp)
       /* Now find actual file positions.  */
       rewinddir (d);
       while ((de = readdir (d)) != NULL)
-	if (isdigit (de->d_name[0]))
+	if (c_isdigit (de->d_name[0]))
 	  {
 	    tmp = strtol (&de->d_name[0], NULL, 10);
 	    fp->filepos[tmp] = call_lseek (tmp, 0, SEEK_CUR);
@@ -1115,9 +1114,7 @@ restart_command (const char *args, int from_tty)
   linux_fork_context (fp, from_tty, inf);
 }
 
-void _initialize_linux_fork ();
-void
-_initialize_linux_fork ()
+INIT_GDB_FILE (linux_fork)
 {
   /* Checkpoint command: create a fork of the inferior process
      and set it aside for later debugging.  */

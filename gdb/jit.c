@@ -584,7 +584,7 @@ finalize_symtab (struct gdb_symtab *stab, struct objfile *objfile)
 
       /* The name.  */
       block_name->set_domain (FUNCTION_DOMAIN);
-      block_name->set_aclass_index (LOC_BLOCK);
+      block_name->set_loc_class_index (LOC_BLOCK);
       block_name->set_symtab (filetab);
       block_name->set_type (lookup_function_type (block_type));
       block_name->set_value_block (new_block);
@@ -1313,9 +1313,7 @@ show_jit_reader_directory (const char *args, int from_tty)
 			     jit_reader_dir.c_str ()));
 }
 
-void _initialize_jit ();
-void
-_initialize_jit ()
+INIT_GDB_FILE (jit)
 {
   jit_reader_dir = relocate_gdb_directory (JIT_READER_DIR,
 					   JIT_READER_DIR_RELOCATABLE);

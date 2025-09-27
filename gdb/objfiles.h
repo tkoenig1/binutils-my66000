@@ -395,7 +395,9 @@ struct obj_section
     return addr >= this->addr () && addr < endaddr ();
   }
 
-  /* BFD section pointer */
+  /* BFD section pointer.  This is nullptr if the corresponding BFD section is
+     not allocatable (!SEC_ALLOC), in which case this obj_section can be
+     considered NULL / empty.  */
   struct bfd_section *the_bfd_section;
 
   /* Objfile this section is part of.  */
@@ -583,10 +585,6 @@ public:
   /* See quick_symbol_functions.  */
   void dump ();
 
-  /* Find all the symbols in OBJFILE named FUNC_NAME, and ensure that
-     the corresponding symbol tables are loaded.  */
-  void expand_symtabs_for_function (const char *func_name);
-
   /* See quick_symbol_functions.  */
   void expand_all_symtabs ();
 
@@ -598,14 +596,14 @@ public:
   void expand_symtabs_with_fullname (const char *fullname);
 
   /* See quick_symbol_functions.  */
-  bool expand_symtabs_matching
-    (expand_symtabs_file_matcher file_matcher,
+  bool search
+    (search_symtabs_file_matcher file_matcher,
      const lookup_name_info *lookup_name,
-     expand_symtabs_symbol_matcher symbol_matcher,
-     expand_symtabs_expansion_listener expansion_notify,
+     search_symtabs_symbol_matcher symbol_matcher,
+     search_symtabs_expansion_listener listener,
      block_search_flags search_flags,
      domain_search_flags domain,
-     expand_symtabs_lang_matcher lang_matcher = nullptr);
+     search_symtabs_lang_matcher lang_matcher = nullptr);
 
   /* See quick_symbol_functions.  */
   struct compunit_symtab *
@@ -655,61 +653,18 @@ public:
     this->section_offsets[idx] = offset;
   }
 
-  class section_iterator
+  /* Filter function for section_iterator.  */
+  struct filter_out_null_bfd_section
   {
-  public:
-    section_iterator (const section_iterator &) = default;
-    section_iterator (section_iterator &&) = default;
-    section_iterator &operator= (const section_iterator &) = default;
-    section_iterator &operator= (section_iterator &&) = default;
-
-    typedef section_iterator self_type;
-    typedef obj_section *value_type;
-
-    value_type operator* ()
-    { return m_iter; }
-
-    section_iterator &operator++ ()
-    {
-      ++m_iter;
-      skip_null ();
-      return *this;
-    }
-
-    bool operator== (const section_iterator &other) const
-    { return m_iter == other.m_iter && m_end == other.m_end; }
-
-    bool operator!= (const section_iterator &other) const
-    { return !(*this == other); }
-
-  private:
-
-    friend class objfile;
-
-    section_iterator (obj_section *iter, obj_section *end)
-      : m_iter (iter),
-	m_end (end)
-    {
-      skip_null ();
-    }
-
-    void skip_null ()
-    {
-      while (m_iter < m_end && m_iter->the_bfd_section == nullptr)
-	++m_iter;
-    }
-
-    value_type m_iter;
-    value_type m_end;
+    bool operator() (const obj_section &sec) const noexcept
+    { return sec.the_bfd_section != nullptr; }
   };
 
-  iterator_range<section_iterator> sections ()
-  {
-    return (iterator_range<section_iterator>
-	    (section_iterator (sections_start, sections_end),
-	     section_iterator (sections_end, sections_end)));
-  }
+  using section_iterator = filtered_iterator<obj_section *, filter_out_null_bfd_section>;
 
+  /* Return an iterable that yields the "non-null" sections of this objfile.
+     That is, the sections for which obj_section::the_bfd_section is
+     non-nullptr.  */
   iterator_range<section_iterator> sections () const
   {
     return (iterator_range<section_iterator>
@@ -1009,10 +964,6 @@ in_plt_section (CORE_ADDR pc)
    removed or relocated.  */
 extern scoped_restore_tmpl<int> inhibit_section_map_updates
     (struct program_space *pspace);
-
-extern void default_iterate_over_objfiles_in_search_order
-  (gdbarch *gdbarch, iterate_over_objfiles_in_search_order_cb_ftype cb,
-   objfile *current_objfile);
 
 /* Reset the per-BFD storage area on OBJ.  */
 

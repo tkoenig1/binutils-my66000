@@ -962,11 +962,11 @@ z80_overlay_update_1 (struct obj_section *osect)
 
   /* we have interest for sections with same VMA */
   for (objfile *objfile : current_program_space->objfiles ())
-    for (obj_section *sect : objfile->sections ())
-      if (section_is_overlay (sect))
+    for (obj_section &sect : objfile->sections ())
+      if (section_is_overlay (&sect))
 	{
-	  sect->ovly_mapped = (lma == bfd_section_lma (sect->the_bfd_section));
-	  i |= sect->ovly_mapped; /* true, if at least one section is mapped */
+	  sect.ovly_mapped = (lma == bfd_section_lma (sect.the_bfd_section));
+	  i |= sect.ovly_mapped; /* true, if at least one section is mapped */
 	}
   return i;
 }
@@ -985,18 +985,18 @@ z80_overlay_update (struct obj_section *osect)
 
   /* Update all sections, even if only one was requested.  */
   for (objfile *objfile : current_program_space->objfiles ())
-    for (obj_section *sect : objfile->sections ())
+    for (obj_section &sect : objfile->sections ())
       {
-	if (!section_is_overlay (sect))
+	if (!section_is_overlay (&sect))
 	  continue;
 
-	asection *bsect = sect->the_bfd_section;
+	asection *bsect = sect.the_bfd_section;
 	bfd_vma lma = bfd_section_lma (bsect);
 	bfd_vma vma = bfd_section_vma (bsect);
 
 	for (int i = 0; i < cache_novly_regions; ++i)
 	  if (cache_ovly_region_table[i][Z80_VMA] == vma)
-	    sect->ovly_mapped =
+	    sect.ovly_mapped =
 	      (cache_ovly_region_table[i][Z80_MAPPED_TO_LMA] == lma);
       }
 }
@@ -1173,7 +1173,7 @@ z80_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_skip_prologue (gdbarch, z80_skip_prologue);
   set_gdbarch_inner_than (gdbarch, core_addr_lessthan); // falling stack
 
-  set_gdbarch_software_single_step (gdbarch, z80_software_single_step);
+  set_gdbarch_get_next_pcs (gdbarch, z80_software_single_step);
   set_gdbarch_breakpoint_kind_from_pc (gdbarch, z80_breakpoint_kind_from_pc);
   set_gdbarch_sw_breakpoint_from_kind (gdbarch, z80_sw_breakpoint_from_kind);
   set_gdbarch_insn_is_call (gdbarch, z80_insn_is_call);
@@ -1455,10 +1455,7 @@ z80_get_insn_info (struct gdbarch *gdbarch, const gdb_byte *buf, int *size)
   while (1);
 }
 
-extern initialize_file_ftype _initialize_z80_tdep;
-
-void
-_initialize_z80_tdep ()
+INIT_GDB_FILE (z80_tdep)
 {
   gdbarch_register (bfd_arch_z80, z80_gdbarch_init);
   initialize_tdesc_z80 ();

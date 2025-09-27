@@ -90,8 +90,6 @@ public:
 
   bool stopped_data_address (CORE_ADDR *) override;
 
-  bool watchpoint_addr_within_range (CORE_ADDR, CORE_ADDR, int) override;
-
   const struct target_desc *read_description () override;
 
   /* Override linux_nat_target low methods.  */
@@ -1206,14 +1204,6 @@ arm_linux_nat_target::stopped_by_watchpoint ()
   return stopped_data_address (&addr);
 }
 
-bool
-arm_linux_nat_target::watchpoint_addr_within_range (CORE_ADDR addr,
-						    CORE_ADDR start,
-						    int length)
-{
-  return start <= addr && start + length - 1 >= addr;
-}
-
 /* Handle thread creation.  We need to copy the breakpoints and watchpoints
    in the parent thread to the child thread.  */
 void
@@ -1393,9 +1383,7 @@ arm_linux_nat_target::low_new_fork (struct lwp_info *parent, pid_t child_pid)
   *child_state = *parent_state;
 }
 
-void _initialize_arm_linux_nat ();
-void
-_initialize_arm_linux_nat ()
+INIT_GDB_FILE (arm_linux_nat)
 {
   /* Register the target.  */
   linux_target = &the_arm_linux_nat_target;

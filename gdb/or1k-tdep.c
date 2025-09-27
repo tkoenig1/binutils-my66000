@@ -29,7 +29,6 @@
 #include "gdbtypes.h"
 #include "target.h"
 #include "regcache.h"
-#include "gdbsupport/gdb-safe-ctype.h"
 #include "reggroups.h"
 #include "arch-utils.h"
 #include "frame-unwind.h"
@@ -1286,9 +1285,7 @@ or1k_dump_tdep (struct gdbarch *gdbarch, struct ui_file *file)
 }
 
 
-void _initialize_or1k_tdep ();
-void
-_initialize_or1k_tdep ()
+INIT_GDB_FILE (or1k_tdep)
 {
   /* Register this architecture.  */
   gdbarch_register (bfd_arch_or1k, or1k_gdbarch_init, or1k_dump_tdep);

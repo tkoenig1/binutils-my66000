@@ -22,7 +22,6 @@
 #include "cli/cli-style.h"
 #include "displaced-stepping.h"
 #include "infrun.h"
-#include <ctype.h>
 #include "exceptions.h"
 #include "symtab.h"
 #include "frame.h"
@@ -67,7 +66,6 @@
 #include "gdbsupport/scope-exit.h"
 #include "gdbsupport/forward-scope-exit.h"
 #include "gdbsupport/gdb_select.h"
-#include <unordered_map>
 #include "async-event.h"
 #include "gdbsupport/selftest.h"
 #include "scoped-mock-context.h"
@@ -472,6 +470,7 @@ holding the child stopped.  Try \"set %ps\" or \"%ps\".\n"),
 
   inferior *parent_inf = current_inferior ();
   inferior *child_inf = nullptr;
+  bool child_has_new_pspace = false;
 
   gdb_assert (parent_inf->thread_waiting_for_vfork_done == nullptr);
 
@@ -536,6 +535,7 @@ holding the child stopped.  Try \"set %ps\" or \"%ps\".\n"),
 	  else
 	    {
 	      child_inf->pspace = new program_space (new_address_space ());
+	      child_has_new_pspace = true;
 	      child_inf->aspace = child_inf->pspace->aspace;
 	      child_inf->removable = true;
 	      clone_program_space (child_inf->pspace, parent_inf->pspace);
@@ -625,6 +625,7 @@ holding the child stopped.  Try \"set %ps\" or \"%ps\".\n"),
       else
 	{
 	  child_inf->pspace = new program_space (new_address_space ());
+	  child_has_new_pspace = true;
 	  child_inf->aspace = child_inf->pspace->aspace;
 	  child_inf->removable = true;
 	  child_inf->symfile_flags = SYMFILE_NO_READ;
@@ -723,7 +724,8 @@ holding the child stopped.  Try \"set %ps\" or \"%ps\".\n"),
 	maybe_restore.emplace ();
 
       switch_to_thread (*child_inf->threads ().begin ());
-      post_create_inferior (0);
+
+      post_create_inferior (0, child_has_new_pspace);
     }
 
   return false;
@@ -1321,6 +1323,7 @@ follow_exec (ptid_t ptid, const char *exec_file_target)
      we don't want those to be satisfied by the libraries of the
      previous incarnation of this process.  */
   no_shared_libraries (current_program_space);
+  current_program_space->unset_solib_ops ();
 
   inferior *execing_inferior = current_inferior ();
   inferior *following_inferior;
@@ -1377,6 +1380,9 @@ follow_exec (ptid_t ptid, const char *exec_file_target)
      registers.  */
   target_find_description ();
 
+  following_inferior->pspace->set_solib_ops
+    (gdbarch_make_solib_ops (following_inferior->arch (),
+			     following_inferior->pspace));
   gdb::observers::inferior_execd.notify (execing_inferior, following_inferior);
 
   breakpoint_re_set ();
@@ -2364,7 +2370,7 @@ maybe_software_singlestep (struct gdbarch *gdbarch)
   bool hw_step = true;
 
   if (execution_direction == EXEC_FORWARD
-      && gdbarch_software_single_step_p (gdbarch))
+      && gdbarch_get_next_pcs_p (gdbarch))
     hw_step = !insert_single_step_breakpoints (gdbarch);
 
   return hw_step;
@@ -3818,7 +3824,7 @@ start_remote (int from_tty)
   /* Now that the inferior has stopped, do any bookkeeping like
      loading shared libraries.  We want to do this before normal_stop,
      so that the displayed frame is up to date.  */
-  post_create_inferior (from_tty);
+  post_create_inferior (from_tty, true);
 
   normal_stop ();
 }
@@ -4386,6 +4392,11 @@ wait_for_inferior (inferior *inf)
      state.  */
   scoped_finish_thread_state finish_state
     (inf->process_target (), minus_one_ptid);
+
+  /* The commit_resumed_state of INF should already be false at this point
+     as INF will be a newly started remote target.  This might not be true
+     for other targets but this will be handled in stop_all_threads.  */
+  gdb_assert (!inf->process_target ()->commit_resumed_state);
 
   while (1)
     {
@@ -5692,6 +5703,8 @@ stop_all_threads (const char *reason, inferior *inf)
       if (debug_infrun)
 	debug_prefixed_printf ("infrun", "stop_all_threads", "done");
     };
+
+  scoped_disable_commit_resumed disable_commit_resumed ("stop all threads");
 
   /* Request threads to stop, and then wait for the stops.  Because
      threads we already know about can spawn more threads while we're
@@ -9519,6 +9532,7 @@ normal_stop ()
      here, so do this before any filtered output.  */
 
   ptid_t finish_ptid = null_ptid;
+  process_stratum_target *finish_target = nullptr;
 
   if (!non_stop)
     finish_ptid = minus_one_ptid;
@@ -9531,17 +9545,30 @@ normal_stop ()
 	 linux-fork.c automatically switches to another fork from
 	 within target_mourn_inferior.  */
       if (inferior_ptid != null_ptid)
-	finish_ptid = ptid_t (inferior_ptid.pid ());
+	{
+	  finish_ptid = ptid_t (inferior_ptid.pid ());
+	  finish_target = current_inferior ()->process_target ();
+	}
     }
   else if (last.kind () != TARGET_WAITKIND_NO_RESUMED
 	   && last.kind () != TARGET_WAITKIND_THREAD_EXITED)
-    finish_ptid = inferior_ptid;
+    {
+      finish_ptid = inferior_ptid;
+      finish_target = current_inferior ()->process_target ();
+    }
 
   std::optional<scoped_finish_thread_state> maybe_finish_thread_state;
   if (finish_ptid != null_ptid)
     {
-      maybe_finish_thread_state.emplace
-	(user_visible_resume_target (finish_ptid), finish_ptid);
+      /* It might be tempting to use user_visible_resume_target to compute
+	 FINISH_TARGET from FINISH_PTID, however, that is the wrong choice
+	 in this case.
+
+	 When resuming, we only resume the current target unless
+	 schedule-multiple is in effect.  However, when handling a stop, if
+	 FINISH_PTID is minus_one_ptid, then we really do want to look for
+	 stop events from _any_ target.  */
+      maybe_finish_thread_state.emplace (finish_target, finish_ptid);
     }
 
   /* As we're presenting a stop, and potentially removing breakpoints,
@@ -9555,7 +9582,38 @@ normal_stop ()
   update_thread_list ();
 
   if (last.kind () == TARGET_WAITKIND_STOPPED && stopped_by_random_signal)
-    notify_signal_received (inferior_thread ()->stop_signal ());
+    {
+      gdb_assert (inferior_ptid != null_ptid);
+
+      /* Calling update_thread_list pulls information from the target.  For
+	 native targets we can be (reasonably) sure that the information we
+	 get back is sane, but for remote targets, we cannot reply on the
+	 returned thread list to be correct.
+
+	 Specifically, a remote target (not gdbserver), has been seen to
+	 prematurely remove threads from the thread list after sending a
+	 signal stop event.  The consequence of this, is that the thread
+	 might now be exited.  This is bad as, trying to calling
+	 notify_signal_received will cause GDB to read registers for the
+	 current thread, but requesting the regcache for an exited thread
+	 will trigger an assertion.
+
+	 Check for the exited thread case here, and convert the stop reason
+	 to a spurious stop event.  The thread exiting will have already
+	 been reported (when the thread list was parsed), so making this a
+	 spurious stop will cause GDB to drop back to the prompt.  */
+      if (inferior_thread ()->state != THREAD_EXITED)
+	notify_signal_received (inferior_thread ()->stop_signal ());
+      else
+	{
+	  warning (_("command aborted, %s unexpectedly exited after signal stop event"),
+		   target_pid_to_str (inferior_thread ()->ptid).c_str ());
+
+	  /* Mark this as a spurious stop.  GDB will return to the
+	     prompt.  The warning above tells the user why.  */
+	  last.set_spurious ();
+	}
+    }
 
   /* As with the notification of thread events, we want to delay
      notifying the user that we've switched thread context until
@@ -9836,7 +9894,7 @@ handle_command (const char *args, int from_tty)
   for (char *arg : built_argv)
     {
       wordlen = strlen (arg);
-      for (digits = 0; isdigit (arg[digits]); digits++)
+      for (digits = 0; c_isdigit (arg[digits]); digits++)
 	{;
 	}
       allsigs = 0;
@@ -10531,9 +10589,7 @@ infrun_thread_ptid_changed ()
 
 #endif /* GDB_SELF_TEST */
 
-void _initialize_infrun ();
-void
-_initialize_infrun ()
+INIT_GDB_FILE (infrun)
 {
   struct cmd_list_element *c;
 

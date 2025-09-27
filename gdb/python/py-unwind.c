@@ -287,6 +287,8 @@ pyuw_create_unwind_info (PyObject *pyo_pending_frame,
 
   unwind_info_object *unwind_info
     = PyObject_New (unwind_info_object, &unwind_info_object_type);
+  if (unwind_info == nullptr)
+    return nullptr;
 
   unwind_info->frame_id = frame_id;
   Py_INCREF (pyo_pending_frame);
@@ -1029,9 +1031,7 @@ gdbpy_initialize_unwind (void)
   return 0;
 }
 
-void _initialize_py_unwind ();
-void
-_initialize_py_unwind ()
+INIT_GDB_FILE (py_unwind)
 {
   add_setshow_boolean_cmd
       ("py-unwind", class_maintenance, &pyuw_debug,

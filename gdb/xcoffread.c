@@ -23,7 +23,6 @@
 
 #include <sys/types.h>
 #include <fcntl.h>
-#include <ctype.h>
 #ifdef HAVE_SYS_FILE_H
 #include <sys/file.h>
 #endif
@@ -1491,7 +1490,7 @@ process_xcoff_symbol (struct xcoff_symbol *cs, struct objfile *objfile)
       sym->set_type (builtin_type (objfile)->nodebug_text_symbol);
 
       sym->set_domain (FUNCTION_DOMAIN);
-      sym->set_aclass_index (LOC_BLOCK);
+      sym->set_loc_class_index (LOC_BLOCK);
       sym2 = new (&objfile->objfile_obstack) symbol (*sym);
 
       if (cs->c_sclass == C_EXT || C_WEAKEXT)
@@ -2999,9 +2998,7 @@ xcoff_get_n_import_files (bfd *abfd)
   return l_nimpid - 1;
 }
 
-void _initialize_xcoffread ();
-void
-_initialize_xcoffread ()
+INIT_GDB_FILE (xcoffread)
 {
   add_symtab_fns (bfd_target_xcoff_flavour, &xcoff_sym_fns);
 }

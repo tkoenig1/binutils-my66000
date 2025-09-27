@@ -546,14 +546,14 @@ xstormy16_find_jmp_table_entry (struct gdbarch *gdbarch, CORE_ADDR faddr)
       if (!strcmp (faddr_sect->the_bfd_section->name, ".plt"))
 	return faddr;
 
-      for (obj_section *osect : faddr_sect->objfile->sections ())
+      for (obj_section &osect : faddr_sect->objfile->sections ())
 	{
-	  if (!strcmp (osect->the_bfd_section->name, ".plt"))
+	  if (!strcmp (osect.the_bfd_section->name, ".plt"))
 	    {
 	      CORE_ADDR addr, endaddr;
 
-	      addr = osect->addr ();
-	      endaddr = osect->endaddr ();
+	      addr = osect.addr ();
+	      endaddr = osect.endaddr ();
 
 	      for (; addr < endaddr; addr += 2 * xstormy16_inst_size)
 		{
@@ -828,9 +828,7 @@ xstormy16_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
    Initializer function for the Sanyo Xstormy16a module.
    Called by gdb at start-up.  */
 
-void _initialize_xstormy16_tdep ();
-void
-_initialize_xstormy16_tdep ()
+INIT_GDB_FILE (xstormy16_tdep)
 {
   gdbarch_register (bfd_arch_xstormy16, xstormy16_gdbarch_init);
 }

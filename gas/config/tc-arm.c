@@ -920,20 +920,16 @@ struct asm_opcode
 #define BAD_CDE_COPROC	_("coprocessor for insn is not enabled for cde")
 #define UNPRED_REG(R)	_("using " R " results in unpredictable behaviour")
 #define THUMB1_RELOC_ONLY  _("relocation valid in thumb1 code only")
-#define MVE_NOT_IT	_("Warning: instruction is UNPREDICTABLE in an IT " \
-			  "block")
-#define MVE_NOT_VPT	_("Warning: instruction is UNPREDICTABLE in a VPT " \
-			  "block")
-#define MVE_BAD_PC	_("Warning: instruction is UNPREDICTABLE with PC" \
-			  " operand")
-#define MVE_BAD_SP	_("Warning: instruction is UNPREDICTABLE with SP" \
-			  " operand")
+#define MVE_NOT_IT	_("instruction is UNPREDICTABLE in an IT block")
+#define MVE_NOT_VPT	_("instruction is UNPREDICTABLE in a VPT block")
+#define MVE_BAD_PC	_("instruction is UNPREDICTABLE with PC operand")
+#define MVE_BAD_SP	_("instruction is UNPREDICTABLE with SP operand")
 #define BAD_SIMD_TYPE	_("bad type in SIMD instruction")
 #define BAD_MVE_AUTO	\
   _("GAS auto-detection mode and -march=all is deprecated for MVE, please" \
     " use a valid -march or -mcpu option.")
-#define BAD_MVE_SRCDEST	_("Warning: 32-bit element size and same destination "\
-			  "and source operands makes instruction UNPREDICTABLE")
+#define BAD_MVE_SRCDEST	_("32-bit element size and same destination and " \
+			  "source operands makes instruction UNPREDICTABLE")
 #define BAD_EL_TYPE	_("bad element type for instruction")
 #define MVE_BAD_QREG	_("MVE vector register Q[0..7] expected")
 #define BAD_PACBTI	_("selected processor does not support PACBTI extention")
@@ -1474,7 +1470,7 @@ parse_neon_type (struct neon_type *type, char **str)
   while (type->elems < NEON_MAX_TYPE_ELS)
     {
       enum neon_el_type thistype = NT_untyped;
-      unsigned thissize = -1u;
+      unsigned long thissize = -1ul;
 
       if (*ptr != '.')
 	break;
@@ -1505,14 +1501,17 @@ parse_neon_type (struct neon_type *type, char **str)
 	      return FAIL;
 	    }
 	  ptr += 1;
+	  if (!ISDIGIT (*ptr) || *ptr == '0')
+	    goto unexpected;
 	  thissize = strtoul (ptr, &ptr, 10);
 	  if (thissize != 16)
 	    {
-	      as_bad (_("bad size %d in type specifier"), thissize);
+	      as_bad (_("bad size %lu in type specifier"), thissize);
 	      return FAIL;
 	    }
 	  goto done;
 	default:
+	unexpected:
 	  as_bad (_("unexpected character `%c' in type specifier"), *ptr);
 	  return FAIL;
 	}
@@ -1525,12 +1524,14 @@ parse_neon_type (struct neon_type *type, char **str)
       else
 	{
 	parsesize:
+	  if (!ISDIGIT (*ptr) || *ptr == '0')
+	    goto unexpected;
 	  thissize = strtoul (ptr, &ptr, 10);
 
 	  if (thissize != 8 && thissize != 16 && thissize != 32
 	      && thissize != 64)
 	    {
-	      as_bad (_("bad size %d in type specifier"), thissize);
+	      as_bad (_("bad size %lu in type specifier"), thissize);
 	      return FAIL;
 	    }
 	}
@@ -1972,7 +1973,7 @@ parse_reg_list (char ** strp, enum reg_list_els etype)
 		    {
 		      if (range & (1 << i))
 			as_tsktsk
-			  (_("Warning: duplicated register (r%d) in register list"),
+			  (_("duplicated register (r%d) in register list"),
 			   i);
 		      else
 			range |= 1 << i;
@@ -1981,10 +1982,10 @@ parse_reg_list (char ** strp, enum reg_list_els etype)
 		}
 
 	      if (range & (1 << reg))
-		as_tsktsk (_("Warning: duplicated register (r%d) in register list"),
+		as_tsktsk (_("duplicated register (r%d) in register list"),
 			   reg);
 	      else if (reg <= cur_reg)
-		as_tsktsk (_("Warning: register range not in ascending order"));
+		as_tsktsk (_("register range not in ascending order"));
 
 	      range |= 1 << reg;
 	      cur_reg = reg;
@@ -2022,7 +2023,7 @@ parse_reg_list (char ** strp, enum reg_list_els etype)
 		  regno &= -regno;
 		  regno = (1 << regno) - 1;
 		  as_tsktsk
-		    (_("Warning: duplicated register (r%d) in register list"),
+		    (_("duplicated register (r%d) in register list"),
 		     regno);
 		}
 
@@ -3098,7 +3099,7 @@ find_real_start (symbolS * symbolP)
   if (S_IS_LOCAL (symbolP) || name[0] == '.')
     return symbolP;
 
-  real_start = concat (STUB_NAME, name, NULL);
+  real_start = concat (STUB_NAME, name, (const char *) NULL);
   new_target = symbol_find (real_start);
   free (real_start);
 
@@ -3701,7 +3702,7 @@ symbol_locate (symbolS *    symbolP,
 
   name_length = strlen (name) + 1;   /* +1 for \0.  */
   obstack_grow (&notes, name, name_length);
-  preserved_copy_of_name = (char *) obstack_finish (&notes);
+  preserved_copy_of_name = obstack_finish (&notes);
 
 #ifdef tc_canonicalize_symbol_name
   preserved_copy_of_name =
@@ -3844,9 +3845,8 @@ s_arm_elf_cons (int nbytes)
 	    emit_expr (&exp, (unsigned int) nbytes);
 	  else
 	    {
-	      reloc_howto_type *howto = (reloc_howto_type *)
-		  bfd_reloc_type_lookup (stdoutput,
-					 (bfd_reloc_code_real_type) reloc);
+	      reloc_howto_type *howto = bfd_reloc_type_lookup (stdoutput,
+							       reloc);
 	      int size = bfd_get_reloc_size (howto);
 
 	      if (reloc == BFD_RELOC_ARM_PLT32)
@@ -4351,10 +4351,10 @@ parse_dot_save (char **str_p, int prev_reg)
       if (!in_range)
 	{
 	  if (core_regs & (1 << reg))
-	    as_tsktsk (_("Warning: duplicated register (r%d) in register list"),
+	    as_tsktsk (_("duplicated register (r%d) in register list"),
 		       reg);
 	  else if (reg <= prev_reg)
-	    as_tsktsk (_("Warning: register list not in ascending order"));
+	    as_tsktsk (_("register list not in ascending order"));
 
 	  core_regs |= (1 << reg);
 	  prev_reg = reg;
@@ -4371,7 +4371,7 @@ parse_dot_save (char **str_p, int prev_reg)
 	  for (i = prev_reg + 1; i <= reg; i++)
 	    {
 	      if (core_regs & (1 << i))
-		as_tsktsk (_("Warning: duplicated register (r%d) in register list"),
+		as_tsktsk (_("duplicated register (r%d) in register list"),
 			   i);
 	      else
 		core_regs |= 1 << i;
@@ -9455,7 +9455,7 @@ struct deprecated_coproc_regs_s
 };
 
 #define DEPR_ACCESS_V8 \
-  N_("This coprocessor register access is deprecated in ARMv8")
+  N_("this coprocessor register access is deprecated in ARMv8")
 
 /* Table of all deprecated coprocessor registers.  */
 static struct deprecated_coproc_regs_s deprecated_coproc_regs[] =
@@ -9517,7 +9517,7 @@ do_co_reg (void)
 	    && inst.operands[4].reg == r->crm
 	    && inst.operands[5].imm == r->opc2)
 	  {
-	    if (! ARM_CPU_IS_ANY (cpu_variant)
+	    if (!(r->obs_msg && check_obsolete (&r->obsoleted, r->obs_msg))
 		&& warn_on_deprecated
 		&& ARM_CPU_HAS_FEATURE (cpu_variant, r->deprecated))
 	      as_tsktsk ("%s", r->dep_msg);
@@ -17954,7 +17954,7 @@ do_mve_vhcadd (void)
   constraint (rot != 90 && rot != 270, _("immediate out of range"));
 
   if (et.size == 32 && inst.operands[0].reg == inst.operands[2].reg)
-    as_tsktsk (_("Warning: 32-bit element size and same first and third "
+    as_tsktsk (_("32-bit element size and same first and third "
 		 "operand makes instruction UNPREDICTABLE"));
 
   mve_encode_qqq (0, et.size);
@@ -19726,7 +19726,7 @@ do_neon_rev (void)
 
   if (ARM_CPU_HAS_FEATURE (cpu_variant, mve_ext) && elsize == 64
       && inst.operands[0].reg == inst.operands[1].reg)
-    as_tsktsk (_("Warning: 64-bit element size and same destination and source"
+    as_tsktsk (_("64-bit element size and same destination and source"
 		 " operands makes instruction UNPREDICTABLE"));
 
   gas_assert (elsize != 0);
@@ -21277,7 +21277,7 @@ do_vcadd (void)
       et = neon_check_type (3, rs, N_EQK, N_EQK, N_KEY | N_F16 | N_F32 | N_I8
 			    | N_I16 | N_I32);
       if (et.size == 32 && inst.operands[0].reg == inst.operands[2].reg)
-	as_tsktsk (_("Warning: 32-bit element size and same first and third "
+	as_tsktsk (_("32-bit element size and same first and third "
 		     "operand makes instruction UNPREDICTABLE"));
     }
 
@@ -22218,8 +22218,8 @@ fix_new_arm (fragS *	   frag,
       break;
 
     default:
-      new_fix = (fixS *) fix_new (frag, where, size, make_expr_symbol (exp), 0,
-				  pc_rel, (enum bfd_reloc_code_real) reloc);
+      new_fix = fix_new (frag, where, size, make_expr_symbol (exp), 0,
+			 pc_rel, reloc);
       break;
     }
 
@@ -22471,7 +22471,8 @@ opcode_lookup (char **str)
 	  if (parse_neon_type (&inst.vectype, str) == FAIL)
 	    return NULL;
 	}
-      else if (end[offset] != '\0' && !is_whitespace (end[offset]))
+
+      if (**str != '\0' && !is_whitespace (**str))
 	return NULL;
     }
   else
@@ -22819,8 +22820,7 @@ handle_pred_state (void)
 		{
 		  if (unified_syntax
 		      && !(implicit_it_mode & IMPLICIT_IT_MODE_ARM))
-		    as_tsktsk (_("Warning: conditional outside an IT block"\
-				 " for Thumb."));
+		    as_tsktsk (_("conditional outside an IT block for Thumb"));
 		}
 	      else
 		{
@@ -26039,14 +26039,13 @@ static valueT
 md_chars_to_number (char * buf, int n)
 {
   valueT result = 0;
-  unsigned char * where = (unsigned char *) buf;
 
   if (target_big_endian)
     {
       while (n--)
 	{
 	  result <<= 8;
-	  result |= (*where++ & 255);
+	  result |= (*buf++ & 255);
 	}
     }
   else
@@ -26054,7 +26053,7 @@ md_chars_to_number (char * buf, int n)
       while (n--)
 	{
 	  result <<= 8;
-	  result |= (where[n] & 255);
+	  result |= (buf[n] & 255);
 	}
     }
 
@@ -29803,10 +29802,6 @@ elf32_arm_target_format (void)
   return (target_big_endian
 	  ? "elf32-bigarm-vxworks"
 	  : "elf32-littlearm-vxworks");
-#elif defined (TE_NACL)
-  return (target_big_endian
-	  ? "elf32-bigarm-nacl"
-	  : "elf32-littlearm-nacl");
 #else
   if (arm_fdpic)
     {
@@ -29997,7 +29992,7 @@ arm_adjust_symtab (void)
     }
 
   /* Remove any overlapping mapping symbols generated by alignment frags.  */
-  bfd_map_over_sections (stdoutput, check_mapping_symbols, (char *) 0);
+  bfd_map_over_sections (stdoutput, check_mapping_symbols, NULL);
   /* Now do generic ELF adjustments.  */
   elf_adjust_symtab ();
 #endif

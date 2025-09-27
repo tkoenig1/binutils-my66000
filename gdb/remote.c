@@ -19,9 +19,9 @@
 
 /* See the GDB User Guide for details of the GDB remote protocol.  */
 
-#include <ctype.h>
 #include <fcntl.h>
 #include "exceptions.h"
+#include "gdbsupport/common-inferior.h"
 #include "inferior.h"
 #include "infrun.h"
 #include "bfd.h"
@@ -81,6 +81,7 @@
 #include "gdbsupport/selftest.h"
 #include "cli/cli-style.h"
 #include "gdbsupport/remote-args.h"
+#include "gdbsupport/gdb_argv_vec.h"
 
 /* The remote target.  */
 
@@ -251,6 +252,7 @@ enum {
   PACKET_vFile_readlink,
   PACKET_vFile_fstat,
   PACKET_vFile_stat,
+  PACKET_vFile_lstat,
   PACKET_qXfer_auxv,
   PACKET_qXfer_features,
   PACKET_qXfer_exec_file,
@@ -399,6 +401,10 @@ enum {
      All new packets should be written to always accept E.errtext style
      errors, and so they should not need to check for this feature.  */
   PACKET_accept_error_message,
+
+  /* Not really a packet; this indicates support for sending the vRun
+     inferior arguments as a single string.  */
+  PACKET_vRun_single_argument,
 
   PACKET_MAX
 };
@@ -825,6 +831,11 @@ struct remote_features
   bool remote_memory_tagging_p () const
   { return packet_support (PACKET_memory_tagging_feature) == PACKET_ENABLE; }
 
+  /* Returns true if there is support for sending vRun inferior arguments
+     as a single string.  */
+  bool remote_vrun_single_arg_p () const
+  { return packet_support (PACKET_vRun_single_argument) == PACKET_ENABLE; }
+
   /* Reset all packets back to "unknown support".  Called when opening a
      new connection to a remote target.  */
   void reset_all_packet_configs_support ();
@@ -1023,8 +1034,8 @@ public:
 
   int fileio_fstat (int fd, struct stat *sb, fileio_error *target_errno) override;
 
-  int fileio_stat (struct inferior *inf, const char *filename,
-		   struct stat *sb, fileio_error *target_errno) override;
+  int fileio_lstat (struct inferior *inf, const char *filename,
+		    struct stat *sb, fileio_error *target_errno) override;
 
   int fileio_close (int fd, fileio_error *target_errno) override;
 
@@ -1386,7 +1397,8 @@ public: /* Remote specific methods.  */
   void remote_kill_k ();
 
   void extended_remote_disable_randomization (int val);
-  int extended_remote_run (const std::string &args);
+  int extended_remote_run (const std::string &remote_exec_file,
+			   const std::string &args);
 
   void send_environment_packet (const char *action,
 				const char *packet,
@@ -1514,14 +1526,7 @@ remote_register_is_expedited (int regnum)
 }
 
 /* Per-program-space data key.  */
-static const registry<program_space>::key<char, gdb::xfree_deleter<char>>
-  remote_pspace_data;
-
-/* The variable registered as the control variable used by the
-   remote exec-file commands.  While the remote exec-file setting is
-   per-program-space, the set/show machinery uses this as the
-   location of the remote exec-file value.  */
-static std::string remote_exec_file_var;
+static const registry<program_space>::key<std::string> remote_pspace_data;
 
 /* The size to align memory write packets, when practical.  The protocol
    does not guarantee any alignment, and gdb will generate short
@@ -1851,47 +1856,47 @@ remote_target::get_remote_state ()
 
 /* Fetch the remote exec-file from the current program space.  */
 
-static const char *
+static const std::string &
 get_remote_exec_file (void)
 {
-  char *remote_exec_file;
-
-  remote_exec_file = remote_pspace_data.get (current_program_space);
-  if (remote_exec_file == NULL)
-    return "";
-
-  return remote_exec_file;
+  const std::string *remote_exec_file
+    = remote_pspace_data.get (current_program_space);
+  if (remote_exec_file == nullptr)
+    remote_exec_file = remote_pspace_data.emplace (current_program_space);
+  return *remote_exec_file;
 }
 
 /* Set the remote exec file for PSPACE.  */
 
 static void
 set_pspace_remote_exec_file (struct program_space *pspace,
-			     const char *remote_exec_file)
+			     const std::string &filename)
 {
-  char *old_file = remote_pspace_data.get (pspace);
-
-  xfree (old_file);
-  remote_pspace_data.set (pspace, xstrdup (remote_exec_file));
+  remote_pspace_data.clear (pspace);
+  remote_pspace_data.emplace (pspace, filename);
 }
 
-/* The "set/show remote exec-file" set command hook.  */
+/* The "set remote exec-file" callback.  */
 
 static void
-set_remote_exec_file (const char *ignored, int from_tty,
-		      struct cmd_list_element *c)
+set_remote_exec_file_cb (const std::string &filename)
 {
   set_pspace_remote_exec_file (current_program_space,
-			       remote_exec_file_var.c_str ());
+			       filename);
 }
 
-/* The "set/show remote exec-file" show command hook.  */
+/* Implement the "show remote exec-file" command.  */
 
 static void
 show_remote_exec_file (struct ui_file *file, int from_tty,
 		       struct cmd_list_element *cmd, const char *value)
 {
-  gdb_printf (file, "%s\n", get_remote_exec_file ());
+  const std::string &filename = get_remote_exec_file ();
+  if (filename.empty ())
+    gdb_printf (file, _("The remote exec-file is unset, the default remote "
+			"executable will be used.\n"));
+  else
+    gdb_printf (file, "The remote exec-file is \"%s\".\n", filename.c_str ());
 }
 
 static int
@@ -2557,7 +2562,7 @@ packet_check_result (const char *buf)
       /* The stub recognized the packet request.  Check that the
 	 operation succeeded.  */
       if (buf[0] == 'E'
-	  && isxdigit (buf[1]) && isxdigit (buf[2])
+	  && c_isxdigit (buf[1]) && c_isxdigit (buf[2])
 	  && buf[3] == '\0')
 	/* "Enn"  - definitely an error.  */
 	return packet_result::make_numeric_error (buf + 1);
@@ -2902,6 +2907,10 @@ remote_target::remote_add_inferior (bool fake_pid_p, int pid, int attached,
 	  inf = add_inferior_with_spaces ();
 	}
       switch_to_inferior_no_thread (inf);
+
+      /* Clear any data left by previous executions.  */
+      target_pre_inferior ();
+
       inf->push_target (this);
       inferior_appeared (inf, pid);
     }
@@ -3027,6 +3036,12 @@ remote_target::remote_notice_new_inferior (ptid_t currthread, bool executing)
 
 	  inf = remote_add_inferior (fake_pid_p,
 				     currthread.pid (), -1, 1);
+
+	  /* Fetch the target description for this inferior.  Make sure to
+	     leave the currently selected inferior unchanged.  */
+	  scoped_restore_current_thread restore_thread;
+	  switch_to_inferior_no_thread (inf);
+	  target_find_description ();
 	}
 
       /* This is really a new thread.  Add it.  */
@@ -4657,8 +4672,6 @@ remote_target::get_offsets ()
 	  if (bss_addr != data_addr)
 	    warning (_("Target reported unsupported offsets: %s"), buf);
 	}
-      else
-	lose = 1;
     }
   else if (startswith (ptr, "TextSeg="))
     {
@@ -4867,7 +4880,11 @@ remote_target::add_current_inferior_and_thread (const char *wait_status)
       fake_pid_p = true;
     }
 
-  remote_add_inferior (fake_pid_p, curr_ptid.pid (), -1, 1);
+  const auto inf = remote_add_inferior (fake_pid_p, curr_ptid.pid (), -1, 1);
+  switch_to_inferior_no_thread (inf);
+
+  /* Fetch the target description for this inferior.  */
+  target_find_description ();
 
   /* Add the main thread and switch to it.  Don't try reading
      registers yet, since we haven't fetched the target description
@@ -5006,6 +5023,24 @@ remote_target::process_initial_stop_replies (int from_tty)
      the inferiors.  */
   if (!non_stop)
     {
+      /* Ensure changes to the thread state are propagated to the
+	 frontend.  In non-stop mode only the current inferior will be
+	 stopped, but in all-stop mode, all inferiors will change, and
+	 the frontend will need updating.  */
+      process_stratum_target *finish_target;
+      ptid_t finish_ptid;
+      if (non_stop)
+	{
+	  finish_target = current_inferior ()->process_target ();
+	  finish_ptid = ptid_t (current_inferior ()->pid);
+	}
+      else
+	{
+	  finish_target = nullptr;
+	  finish_ptid = minus_one_ptid;
+	}
+      scoped_finish_thread_state finish_state (finish_target, finish_ptid);
+
       {
 	/* At this point, the remote target is not async.  It needs to be for
 	   the poll in stop_all_threads to consider events from it, so enable
@@ -5863,6 +5898,8 @@ static const struct protocol_feature remote_protocol_features[] = {
   { "error-message", PACKET_ENABLE, remote_supported_packet,
     PACKET_accept_error_message },
   { "binary-upload", PACKET_DISABLE, remote_supported_packet, PACKET_x },
+  { "single-inf-arg", PACKET_DISABLE, remote_supported_packet,
+    PACKET_vRun_single_argument },
 };
 
 static char *remote_support_xml;
@@ -5973,6 +6010,10 @@ remote_target::remote_query_supported ()
       if (m_features.packet_set_cmd_state (PACKET_memory_tagging_feature)
 	  != AUTO_BOOLEAN_FALSE)
 	remote_query_supported_append (&q, "memory-tagging+");
+
+      if (m_features.packet_set_cmd_state (PACKET_vRun_single_argument)
+	  != AUTO_BOOLEAN_FALSE)
+	remote_query_supported_append (&q, "single-inf-arg+");
 
       /* Keep this one last to work around a gdbserver <= 7.10 bug in
 	 the qSupported:xmlRegisters=i386 handling.  */
@@ -6165,6 +6206,7 @@ remote_unpush_target (remote_target *target)
   /* We have to unpush the target from all inferiors, even those that
      aren't running.  */
   scoped_restore_current_inferior restore_current_inferior;
+  scoped_restore_current_program_space restore_program_space;
 
   for (inferior *inf : all_inferiors (target))
     {
@@ -10815,11 +10857,11 @@ remote_target::extended_remote_disable_randomization (int val)
 }
 
 int
-remote_target::extended_remote_run (const std::string &args)
+remote_target::extended_remote_run (const std::string &remote_exec_file,
+				    const std::string &args)
 {
   struct remote_state *rs = get_remote_state ();
   int len;
-  const char *remote_exec_file = get_remote_exec_file ();
 
   /* If the user has disabled vRun support, or we have detected that
      support is not available, do not try it.  */
@@ -10829,14 +10871,19 @@ remote_target::extended_remote_run (const std::string &args)
   strcpy (rs->buf.data (), "vRun;");
   len = strlen (rs->buf.data ());
 
-  if (strlen (remote_exec_file) * 2 + len >= get_remote_packet_size ())
+  if (remote_exec_file.size () * 2 + len >= get_remote_packet_size ())
     error (_("Remote file name too long for run packet"));
-  len += 2 * bin2hex ((gdb_byte *) remote_exec_file, rs->buf.data () + len,
-		      strlen (remote_exec_file));
+  len += 2 * bin2hex ((gdb_byte *) remote_exec_file.data (),
+		      rs->buf.data () + len,
+		      remote_exec_file.size ());
 
   if (!args.empty ())
     {
-      std::vector<std::string> split_args = gdb::remote_args::split (args);
+      std::vector<std::string> split_args;
+      if (!m_features.remote_vrun_single_arg_p ())
+	split_args = gdb::remote_args::split (args);
+      else
+	split_args.push_back (args);
 
       for (const auto &a : split_args)
 	{
@@ -10872,7 +10919,7 @@ remote_target::extended_remote_run (const std::string &args)
 		 "try \"set remote exec-file\"?"));
       else
 	error (_("Running \"%s\" on the remote target failed"),
-	       remote_exec_file);
+	       remote_exec_file.c_str ());
     default:
       gdb_assert_not_reached ("bad switch");
     }
@@ -10992,7 +11039,7 @@ extended_remote_target::create_inferior (const char *exec_file,
   int run_worked;
   char *stop_reply;
   struct remote_state *rs = get_remote_state ();
-  const char *remote_exec_file = get_remote_exec_file ();
+  const std::string &remote_exec_file = get_remote_exec_file ();
 
   /* If running asynchronously, register the target file descriptor
      with the event loop.  */
@@ -11022,7 +11069,7 @@ Remote replied unexpectedly while setting startup-with-shell: %s"),
   extended_remote_set_inferior_cwd ();
 
   /* Now restart the remote server.  */
-  run_worked = extended_remote_run (args) != -1;
+  run_worked = extended_remote_run (remote_exec_file, args) != -1;
   if (!run_worked)
     {
       /* vRun was not supported.  Fail if we need it to do what the
@@ -11935,7 +11982,7 @@ remote_target::xfer_partial (enum target_object object,
   while (annex[i] && (i < (get_remote_packet_size () - 8)))
     {
       /* Bad caller may have sent forbidden characters.  */
-      gdb_assert (isprint (annex[i]) && annex[i] != '$' && annex[i] != '#');
+      gdb_assert (c_isprint (annex[i]) && annex[i] != '$' && annex[i] != '#');
       *p2++ = annex[i];
       i++;
     }
@@ -12185,7 +12232,7 @@ private:
     for (int i = 0; i < buf.size (); ++i)
       {
 	gdb_byte c = buf[i];
-	if (isprint (c))
+	if (c_isprint (c))
 	  gdb_putc (c, &stb);
 	else
 	  gdb_printf (&stb, "\\x%02x", (unsigned char) c);
@@ -12230,6 +12277,51 @@ cli_packet_command (const char *args, int from_tty)
   gdb::array_view<const char> view
     = gdb::make_array_view (args, args == nullptr ? 0 : strlen (args));
   send_remote_packet (view, &cb);
+}
+
+/* Implement 'maint test-remote-args' command.
+
+   Treat ARGS as an argument string.  Split the remote arguments using
+   gdb::remote_args::split, and then join using gdb::remote_args::join.
+   The split and joined arguments are printed out.  Additionally, the
+   joined arguments are split and joined a second time, and compared to the
+   result of the first join, this provides some basic validation that GDB
+   sess the joined arguments as equivalent to the original argument
+   string.  */
+
+static void
+test_remote_args_command (const char *args, int from_tty)
+{
+  std::vector<std::string> split_args = gdb::remote_args::split (args);
+
+  gdb_printf ("Input (%s)\n", args);
+  for (const std::string &a : split_args)
+    gdb_printf ("  (%s)\n", a.c_str ());
+
+  gdb::argv_vec tmp_split_args;
+  for (const std::string &a : split_args)
+    tmp_split_args.emplace_back (xstrdup (a.c_str ()));
+
+  std::string joined_args = gdb::remote_args::join (tmp_split_args.get ());
+
+  gdb_printf ("Output (%s)\n", joined_args.c_str ());
+
+  std::vector<std::string> resplit = gdb::remote_args::split (joined_args);
+
+  tmp_split_args.clear ();
+  for (const std::string &a : resplit)
+    tmp_split_args.emplace_back (xstrdup (a.c_str ()));
+
+  std::string rejoined = gdb::remote_args::join (tmp_split_args.get ());
+
+  if (joined_args != rejoined || split_args != resplit)
+    {
+      gdb_printf ("FAILURE ON REJOINING\n");
+      gdb_printf ("Resplit args:\n");
+      for (const auto & a : resplit)
+	gdb_printf ("  (%s)\n", a.c_str ());
+      gdb_printf ("Rejoined (%s)\n", rejoined.c_str ());
+    }
 }
 
 #if 0
@@ -13149,7 +13241,7 @@ remote_target::fileio_readlink (struct inferior *inf, const char *filename,
   return ret;
 }
 
-/* Helper function to handle ::fileio_fstat and ::fileio_stat result
+/* Helper function to handle ::fileio_fstat and ::fileio_lstat result
    processing.  When this function is called the remote syscall has been
    performed and we know we didn't get an error back.
 
@@ -13160,10 +13252,10 @@ remote_target::fileio_readlink (struct inferior *inf, const char *filename,
    data) is to be placed in ST.  */
 
 static int
-fileio_process_fstat_and_stat_reply (const char *attachment,
-				     int attachment_len,
-				     int expected_len,
-				     struct stat *st)
+fileio_process_fstat_and_lstat_reply (const char *attachment,
+				      int attachment_len,
+				      int expected_len,
+				      struct stat *st)
 {
   struct fio_stat fst;
 
@@ -13225,15 +13317,15 @@ remote_target::fileio_fstat (int fd, struct stat *st, fileio_error *remote_errno
       return 0;
     }
 
-  return fileio_process_fstat_and_stat_reply (attachment, attachment_len,
-					      ret, st);
+  return fileio_process_fstat_and_lstat_reply (attachment, attachment_len,
+					       ret, st);
 }
 
-/* Implementation of to_fileio_stat.  */
+/* Implementation of to_fileio_lstat.  */
 
 int
-remote_target::fileio_stat (struct inferior *inf, const char *filename,
-			    struct stat *st, fileio_error *remote_errno)
+remote_target::fileio_lstat (struct inferior *inf, const char *filename,
+			     struct stat *st, fileio_error *remote_errno)
 {
   struct remote_state *rs = get_remote_state ();
   char *p = rs->buf.data ();
@@ -13242,14 +13334,14 @@ remote_target::fileio_stat (struct inferior *inf, const char *filename,
   if (remote_hostio_set_filesystem (inf, remote_errno) != 0)
     return {};
 
-  remote_buffer_add_string (&p, &left, "vFile:stat:");
+  remote_buffer_add_string (&p, &left, "vFile:lstat:");
 
   remote_buffer_add_bytes (&p, &left, (const gdb_byte *) filename,
 			   strlen (filename));
 
   int attachment_len;
   const char *attachment;
-  int ret = remote_hostio_send_command (p - rs->buf.data (), PACKET_vFile_stat,
+  int ret = remote_hostio_send_command (p - rs->buf.data (), PACKET_vFile_lstat,
 					remote_errno, &attachment,
 					&attachment_len);
 
@@ -13258,8 +13350,8 @@ remote_target::fileio_stat (struct inferior *inf, const char *filename,
   if (ret < 0)
     return ret;
 
-  return fileio_process_fstat_and_stat_reply (attachment, attachment_len,
-					      ret, st);
+  return fileio_process_fstat_and_lstat_reply (attachment, attachment_len,
+					       ret, st);
 }
 
 /* Implementation of to_filesystem_is_local.  */
@@ -16161,9 +16253,7 @@ test_packet_check_result ()
 } /* namespace selftests */
 #endif /* GDB_SELF_TEST */
 
-void _initialize_remote ();
-void
-_initialize_remote ()
+INIT_GDB_FILE (remote)
 {
   add_target (remote_target_info, remote_target::open);
   add_target (extended_remote_target_info, extended_remote_target::open);
@@ -16422,6 +16512,8 @@ Show the maximum size of the address (in bits) in a memory packet."), NULL,
 
   add_packet_config_cmd (PACKET_vFile_stat, "vFile:stat", "hostio-stat", 0);
 
+  add_packet_config_cmd (PACKET_vFile_lstat, "vFile:lstat", "hostio-lstat", 0);
+
   add_packet_config_cmd (PACKET_vAttach, "vAttach", "attach", 0);
 
   add_packet_config_cmd (PACKET_vRun, "vRun", "run", 0);
@@ -16539,6 +16631,10 @@ Show the maximum size of the address (in bits) in a memory packet."), NULL,
   add_packet_config_cmd (PACKET_accept_error_message,
 			 "error-message", "error-message", 0);
 
+  add_packet_config_cmd (PACKET_vRun_single_argument,
+			 "single-inferior-argument-feature",
+			 "single-inferior-argument-feature", 0);
+
   /* Assert that we've registered "set remote foo-packet" commands
      for all packet configs.  */
   {
@@ -16608,10 +16704,15 @@ Transfer files to and from the remote target system."),
 	   &remote_cmdlist);
 
   add_setshow_string_noescape_cmd ("exec-file", class_files,
-				   &remote_exec_file_var, _("\
-Set the remote pathname for \"run\"."), _("\
-Show the remote pathname for \"run\"."), NULL,
-				   set_remote_exec_file,
+				   _("\
+Set the remote file name for starting inferiors."), _("\
+Show the remote file name for starting inferiors."), _("\
+This is the file name, on the remote target, used when starting an\n\
+inferior, for example with the \"run\", \"start\", or \"starti\"\n\
+commands.  This setting is only useful when debugging a remote target,\n\
+otherwise, this setting is not used."),
+				   set_remote_exec_file_cb,
+				   get_remote_exec_file,
 				   show_remote_exec_file,
 				   &remote_set_cmdlist,
 				   &remote_show_cmdlist);
@@ -16670,6 +16771,20 @@ from the target."),
 
   /* Eventually initialize fileio.  See fileio.c */
   initialize_remote_fileio (&remote_set_cmdlist, &remote_show_cmdlist);
+
+  add_cmd ("test-remote-args", class_maintenance,
+	   test_remote_args_command, _("\
+Test remote argument splitting and joining.\n	\
+  maintenance test-remote-args ARGS\n\
+For remote targets that don't support passing inferior arguments as a\n\
+single string, GDB needs to split the inferior arguments before passing\n\
+them, and gdbserver needs to join the arguments it receives.\n\
+This command splits ARGS just as GDB would before passing them to a\n\
+remote target, and prints the result.  This command then joins the\n\
+arguments just as gdbserver would, and prints the results.\n\
+This command is useful in diagnosing problems when passing arguments\n\
+between GDB and a remote target."),
+	   &maintenancelist);
 
 #if GDB_SELF_TEST
   selftests::register_test ("remote_memory_tagging",

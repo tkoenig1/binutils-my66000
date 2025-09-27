@@ -51,6 +51,7 @@
 #include "cli/cli-cmds.h"
 #include "cli/cli-style.h"
 #include "cli/cli-utils.h"
+#include "terminal.h"
 
 #include "extension.h"
 #include "gdbsupport/pathstuff.h"
@@ -300,8 +301,8 @@ with_command_completer_1 (const char *set_cmd_prefix,
      command as if it was a "set" command.  */
   if (delim == text
       || delim == nullptr
-      || !isspace (delim[-1])
-      || !(isspace (delim[2]) || delim[2] == '\0'))
+      || !c_isspace (delim[-1])
+      || !(c_isspace (delim[2]) || delim[2] == '\0'))
     {
       std::string new_text = std::string (set_cmd_prefix) + text;
       tracker.advance_custom_word_point_by (-(int) strlen (set_cmd_prefix));
@@ -784,14 +785,14 @@ source_command (const char *args, int from_tty)
 	  if (args[0] != '-')
 	    break;
 
-	  if (args[1] == 'v' && isspace (args[2]))
+	  if (args[1] == 'v' && c_isspace (args[2]))
 	    {
 	      source_verbose = 1;
 
 	      /* Skip passed -v.  */
 	      args = &args[3];
 	    }
-	  else if (args[1] == 's' && isspace (args[2]))
+	  else if (args[1] == 's' && c_isspace (args[2]))
 	    {
 	      search_path = 1;
 
@@ -949,6 +950,9 @@ shell_escape (const char *arg, int from_tty)
 static void
 shell_command (const char *arg, int from_tty)
 {
+  scoped_gdb_ttystate save_restore_gdb_ttystate;
+  restore_initial_gdb_ttystate ();
+
   shell_escape (arg, from_tty);
 }
 
@@ -1180,7 +1184,7 @@ pipe_command_completer (struct cmd_list_element *ignore,
     delimiter = opts.delimiter.c_str ();
 
   /* Check if we're past option values already.  */
-  if (text > org_text && !isspace (text[-1]))
+  if (text > org_text && !c_isspace (text[-1]))
     return;
 
   const char *delim = strstr (text, delimiter);
@@ -1193,8 +1197,32 @@ pipe_command_completer (struct cmd_list_element *ignore,
       return;
     }
 
-  /* We're past the delimiter.  What follows is a shell command, which
-     we don't know how to complete.  */
+  /* We're past the delimiter now, or at least, DELIM points to the
+     delimiter string.  Update TEXT to point to the start of whatever
+     appears after the delimiter.  */
+  text = skip_spaces (delim + strlen (delimiter));
+
+  /* We really are past the delimiter now, so offer completions.  This is
+     like GDB's "shell" command, currently we only offer filename
+     completion, but in the future this could be improved by offering
+     completion of command names from $PATH.
+
+     What we don't do here is offer completions for the empty string.  It
+     is assumed that the first word after the delimiter is going to be a
+     command name from $PATH, not a filename, so if the user has typed
+     nothing (yet) and tries to complete, there's no point offering a list
+     of files from the current directory.
+
+     Once the user has started to type something though, then we do start
+     offering filename completions.  */
+  if (*text == '\0')
+    return;
+
+  tracker.set_use_custom_word_point (true);
+  tracker.advance_custom_word_point_by (text - org_text);
+  const char *word
+    = advance_to_filename_maybe_quoted_complete_word_point (tracker, text);
+  filename_maybe_quoted_completer (ignore, tracker, text, word);
 }
 
 /* Helper for the list_command function.  Prints the lines around (and
@@ -1641,7 +1669,7 @@ disassemble_command (const char *arg, int from_tty)
       if (*p == '\0')
 	error (_("Missing modifier."));
 
-      while (*p && ! isspace (*p))
+      while (*p && ! c_isspace (*p))
 	{
 	  switch (*p++)
 	    {
@@ -1910,8 +1938,8 @@ alias_command_completer (struct cmd_list_element *ignore,
      typing COMMAND DEFAULT-ARGS...  */
   if (delim != text
       && delim != nullptr
-      && isspace (delim[-1])
-      && (isspace (delim[1]) || delim[1] == '\0'))
+      && c_isspace (delim[-1])
+      && (c_isspace (delim[1]) || delim[1] == '\0'))
     {
       std::string new_text = std::string (delim + 1);
 
@@ -2593,9 +2621,7 @@ shell_internal_fn (struct gdbarch *gdbarch,
     return value::allocate_optimized_out (int_type);
 }
 
-void _initialize_cli_cmds ();
-void
-_initialize_cli_cmds ()
+INIT_GDB_FILE (cli_cmds)
 {
   struct cmd_list_element *c;
 
@@ -2876,6 +2902,7 @@ This can be changed using \"set listsize\", and the current value\n\
 can be shown using \"show listsize\"."));
 
   add_com_alias ("l", list_cmd, class_files, 1);
+  set_cmd_completer(list_cmd, location_completer);
 
   c = add_com ("disassemble", class_vars, disassemble_command, _("\
 Disassemble a specified section of memory.\n\

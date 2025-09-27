@@ -46,7 +46,7 @@
 #include "cli/cli-style.h"
 #include "gdbsupport/unordered_map.h"
 
-#include <ctype.h>
+#include <algorithm>
 
 /* This enum represents the values that the user can choose when
    informing the Linux kernel about which memory mappings will be
@@ -96,6 +96,10 @@ struct smaps_vmflags
     /* Memory map has memory tagging enabled.  */
 
     unsigned int memory_tagging : 1;
+
+    /* Memory map used for shadow stack.  */
+
+    unsigned int shadow_stack_memory : 1;
   };
 
 /* Data structure that holds the information contained in the
@@ -483,7 +487,7 @@ read_mapping (const char *line)
 
   p = skip_spaces (p);
   const char *permissions_start = p;
-  while (*p && !isspace (*p))
+  while (*p && !c_isspace (*p))
     p++;
   mapping.permissions = std::string (permissions_start,
 				     (size_t) (p - permissions_start));
@@ -492,7 +496,7 @@ read_mapping (const char *line)
 
   p = skip_spaces (p);
   const char *device_start = p;
-  while (*p && !isspace (*p))
+  while (*p && !c_isspace (*p))
     p++;
   mapping.device = {device_start, (size_t) (p - device_start)};
 
@@ -537,6 +541,8 @@ decode_vmflags (char *p, struct smaps_vmflags *v)
 	v->shared_mapping = 1;
       else if (strcmp (s, "mt") == 0)
 	v->memory_tagging = 1;
+      else if (strcmp (s, "ss") == 0)
+	v->shadow_stack_memory = 1;
     }
 }
 
@@ -836,7 +842,7 @@ linux_info_proc (struct gdbarch *gdbarch, const char *args,
   char filename[100];
   fileio_error target_errno;
 
-  if (args && isdigit (args[0]))
+  if (args && c_isdigit (args[0]))
     {
       char *tem;
 
@@ -1147,8 +1153,8 @@ linux_read_core_file_mappings
     }
 
   gdb::byte_vector contents (note_size);
-  if (!bfd_get_section_contents (current_program_space->core_bfd (), section,
-				 contents.data (), 0, note_size))
+  if (!bfd_get_section_contents (cbfd, section, contents.data (), 0,
+				 note_size))
     {
       warning (_("could not get core note contents"));
       return;
@@ -1163,13 +1169,10 @@ linux_read_core_file_mappings
       return;
     }
 
-  ULONGEST count = bfd_get (addr_size_bits, current_program_space->core_bfd (),
-			    descdata);
+  ULONGEST count = bfd_get (addr_size_bits, cbfd, descdata);
   descdata += addr_size;
 
-  ULONGEST page_size = bfd_get (addr_size_bits,
-				current_program_space->core_bfd (),
-				descdata);
+  ULONGEST page_size = bfd_get (addr_size_bits, cbfd, descdata);
   descdata += addr_size;
 
   if (note_size < 2 * addr_size + count * 3 * addr_size)
@@ -1216,12 +1219,11 @@ linux_read_core_file_mappings
 
   for (int i = 0; i < count; i++)
     {
-      ULONGEST start = bfd_get (addr_size_bits, current_program_space->core_bfd (), descdata);
+      ULONGEST start = bfd_get (addr_size_bits, cbfd, descdata);
       descdata += addr_size;
-      ULONGEST end = bfd_get (addr_size_bits, current_program_space->core_bfd (), descdata);
+      ULONGEST end = bfd_get (addr_size_bits, cbfd, descdata);
       descdata += addr_size;
-      ULONGEST file_ofs
-	= bfd_get (addr_size_bits, current_program_space->core_bfd (), descdata) * page_size;
+      ULONGEST file_ofs = bfd_get (addr_size_bits, cbfd, descdata) * page_size;
       descdata += addr_size;
       char * filename = filenames;
       filenames += strlen ((char *) filenames) + 1;
@@ -1235,14 +1237,15 @@ linux_read_core_file_mappings
     }
 }
 
-/* Implement "info proc mappings" for a corefile.  */
+/* Implement "info proc mappings" for corefile CBFD.  */
 
 static void
-linux_core_info_proc_mappings (struct gdbarch *gdbarch, const char *args)
+linux_core_info_proc_mappings (struct gdbarch *gdbarch, struct bfd *cbfd,
+			       const char *args)
 {
   std::optional<ui_out_emit_table> emitter;
 
-  linux_read_core_file_mappings (gdbarch, current_program_space->core_bfd (),
+  linux_read_core_file_mappings (gdbarch, cbfd,
     [&] (ULONGEST count)
       {
 	gdb_printf (_("Mapped address spaces:\n\n"));
@@ -1271,19 +1274,18 @@ linux_core_info_proc_mappings (struct gdbarch *gdbarch, const char *args)
       });
 }
 
-/* Implement "info proc" for a corefile.  */
+/* Implement "info proc" for corefile CBFD.  */
 
 static void
-linux_core_info_proc (struct gdbarch *gdbarch, const char *args,
-		      enum info_proc_what what)
+linux_core_info_proc (struct gdbarch *gdbarch, struct bfd *cbfd,
+		      const char *args, enum info_proc_what what)
 {
   int exe_f = (what == IP_MINIMAL || what == IP_EXE || what == IP_ALL);
   int mappings_f = (what == IP_MAPPINGS || what == IP_ALL);
 
   if (exe_f)
     {
-      const char *exe
-	= bfd_core_file_failing_command (current_program_space->core_bfd ());
+      const char *exe = bfd_core_file_failing_command (cbfd);
 
       if (exe != NULL)
 	gdb_printf ("exe = '%s'\n", exe);
@@ -1292,7 +1294,7 @@ linux_core_info_proc (struct gdbarch *gdbarch, const char *args,
     }
 
   if (mappings_f)
-    linux_core_info_proc_mappings (gdbarch, args);
+    linux_core_info_proc_mappings (gdbarch, cbfd, args);
 
   if (!exe_f && !mappings_f)
     error (_("unable to handle request"));
@@ -1304,18 +1306,15 @@ linux_core_info_proc (struct gdbarch *gdbarch, const char *args,
    interface.  */
 
 static LONGEST
-linux_core_xfer_siginfo (struct gdbarch *gdbarch, gdb_byte *readbuf,
-			 ULONGEST offset, ULONGEST len)
+linux_core_xfer_siginfo (struct gdbarch *gdbarch, struct bfd &cbfd,
+			 gdb_byte *readbuf, ULONGEST offset, ULONGEST len)
 {
   thread_section_name section_name (".note.linuxcore.siginfo", inferior_ptid);
-  asection *section
-    = bfd_get_section_by_name (current_program_space->core_bfd (),
-			       section_name.c_str ());
-  if (section == NULL)
+  asection *section = bfd_get_section_by_name (&cbfd, section_name.c_str ());
+  if (section == nullptr)
     return -1;
 
-  if (!bfd_get_section_contents (current_program_space->core_bfd (), section,
-				 readbuf, offset, len))
+  if (!bfd_get_section_contents (&cbfd, section, readbuf, offset, len))
     return -1;
 
   return len;
@@ -2227,7 +2226,7 @@ linux_fill_prpsinfo (struct elf_internal_linux_prpsinfo *p)
      specifically under the entry of `/proc/[pid]/stat'.  */
 
   /* Getting rid of the PID, since we already have it.  */
-  while (isdigit (*proc_stat))
+  while (c_isdigit (*proc_stat))
     ++proc_stat;
 
   proc_stat = skip_spaces (proc_stat);
@@ -2299,10 +2298,10 @@ linux_fill_prpsinfo (struct elf_internal_linux_prpsinfo *p)
     {
       /* Advancing the pointer to the beginning of the UID.  */
       tmpstr += sizeof ("Uid:");
-      while (*tmpstr != '\0' && !isdigit (*tmpstr))
+      while (*tmpstr != '\0' && !c_isdigit (*tmpstr))
 	++tmpstr;
 
-      if (isdigit (*tmpstr))
+      if (c_isdigit (*tmpstr))
 	p->pr_uid = strtol (tmpstr, &tmpstr, 10);
     }
 
@@ -2312,10 +2311,10 @@ linux_fill_prpsinfo (struct elf_internal_linux_prpsinfo *p)
     {
       /* Advancing the pointer to the beginning of the GID.  */
       tmpstr += sizeof ("Gid:");
-      while (*tmpstr != '\0' && !isdigit (*tmpstr))
+      while (*tmpstr != '\0' && !c_isdigit (*tmpstr))
 	++tmpstr;
 
-      if (isdigit (*tmpstr))
+      if (c_isdigit (*tmpstr))
 	p->pr_gid = strtol (tmpstr, &tmpstr, 10);
     }
 
@@ -3036,6 +3035,46 @@ show_dump_excluded_mappings (struct ui_file *file, int from_tty,
 		      " flag is %s.\n"), value);
 }
 
+/* See linux-tdep.h.  */
+
+bool
+linux_address_in_shadow_stack_mem_range
+  (CORE_ADDR addr, std::pair<CORE_ADDR, CORE_ADDR> *range)
+{
+  if (!target_has_execution () || current_inferior ()->fake_pid_p)
+    return false;
+
+  const int pid = current_inferior ()->pid;
+
+  std::string smaps_file = string_printf ("/proc/%d/smaps", pid);
+
+  gdb::unique_xmalloc_ptr<char> data
+    = target_fileio_read_stralloc (nullptr, smaps_file.c_str ());
+
+  if (data == nullptr)
+    return false;
+
+  const std::vector<smaps_data> smaps
+    = parse_smaps_data (data.get (), std::move (smaps_file));
+
+  auto find_addr_mem_range = [&addr] (const smaps_data &map)
+    {
+      bool addr_in_mem_range
+	= (addr >= map.start_address && addr < map.end_address);
+      return (addr_in_mem_range && map.vmflags.shadow_stack_memory);
+    };
+  auto it = std::find_if (smaps.begin (), smaps.end (), find_addr_mem_range);
+
+  if (it != smaps.end ())
+    {
+      range->first = it->start_address;
+      range->second = it->end_address;
+      return true;
+    }
+
+  return false;
+}
+
 /* To be called from the various GDB_OSABI_LINUX handlers for the
    various GNU/Linux architectures and machine types.
 
@@ -3081,9 +3120,7 @@ linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch,
 				       linux_corefile_parse_exec_context);
 }
 
-void _initialize_linux_tdep ();
-void
-_initialize_linux_tdep ()
+INIT_GDB_FILE (linux_tdep)
 {
   /* Observers used to invalidate the cache when needed.  */
   gdb::observers::inferior_exit.attach (invalidate_linux_cache_inf,
@@ -3117,65 +3154,4 @@ more information about this file, refer to the manpage of proc(5) and core(5).")
 			   NULL, show_dump_excluded_mappings,
 			   &setlist, &showlist);
 
-}
-
-/* Fetch (and possibly build) an appropriate `link_map_offsets' for
-   ILP32/LP64 Linux systems which don't have the r_ldsomap field.  */
-
-link_map_offsets *
-linux_ilp32_fetch_link_map_offsets ()
-{
-  static link_map_offsets lmo;
-  static link_map_offsets *lmp = nullptr;
-
-  if (lmp == nullptr)
-    {
-      lmp = &lmo;
-
-      lmo.r_version_offset = 0;
-      lmo.r_version_size = 4;
-      lmo.r_map_offset = 4;
-      lmo.r_brk_offset = 8;
-      lmo.r_ldsomap_offset = -1;
-      lmo.r_next_offset = 20;
-
-      /* Everything we need is in the first 20 bytes.  */
-      lmo.link_map_size = 20;
-      lmo.l_addr_offset = 0;
-      lmo.l_name_offset = 4;
-      lmo.l_ld_offset = 8;
-      lmo.l_next_offset = 12;
-      lmo.l_prev_offset = 16;
-    }
-
-  return lmp;
-}
-
-link_map_offsets *
-linux_lp64_fetch_link_map_offsets ()
-{
-  static link_map_offsets lmo;
-  static link_map_offsets *lmp = nullptr;
-
-  if (lmp == nullptr)
-    {
-      lmp = &lmo;
-
-      lmo.r_version_offset = 0;
-      lmo.r_version_size = 4;
-      lmo.r_map_offset = 8;
-      lmo.r_brk_offset = 16;
-      lmo.r_ldsomap_offset = -1;
-      lmo.r_next_offset = 40;
-
-      /* Everything we need is in the first 40 bytes.  */
-      lmo.link_map_size = 40;
-      lmo.l_addr_offset = 0;
-      lmo.l_name_offset = 8;
-      lmo.l_ld_offset = 16;
-      lmo.l_next_offset = 24;
-      lmo.l_prev_offset = 32;
-    }
-
-  return lmp;
 }

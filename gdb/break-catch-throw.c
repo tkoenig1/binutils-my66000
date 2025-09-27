@@ -18,19 +18,14 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "arch-utils.h"
-#include <ctype.h>
 #include "breakpoint.h"
 #include "exceptions.h"
 #include "inferior.h"
 #include "annotate.h"
 #include "valprint.h"
 #include "cli/cli-utils.h"
-#include "completer.h"
-#include "gdbsupport/gdb_obstack.h"
 #include "mi/mi-common.h"
-#include "linespec.h"
 #include "probe.h"
-#include "objfiles.h"
 #include "cp-abi.h"
 #include "gdbsupport/gdb_regex.h"
 #include "cp-support.h"
@@ -424,7 +419,7 @@ catch_exception_event (enum exception_event_kind ex_event,
 
   cond_string = ep_parse_optional_if_clause (&arg);
 
-  if ((*arg != '\0') && !isspace (*arg))
+  if ((*arg != '\0') && !c_isspace (*arg))
     error (_("Junk at end of arguments."));
 
   if (ex_event != EX_EVENT_THROW
@@ -499,9 +494,7 @@ static const struct internalvar_funcs exception_funcs =
 
 
 
-void _initialize_break_catch_throw ();
-void
-_initialize_break_catch_throw ()
+INIT_GDB_FILE (break_catch_throw)
 {
   /* Add catch and tcatch sub-commands.  */
   add_catch_command ("catch", _("\

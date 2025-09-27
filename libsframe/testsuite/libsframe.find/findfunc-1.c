@@ -22,17 +22,7 @@
    The tests in here stress the sframe_get_funcdesc_with_addr API via calls to
    the sframe_find_fre ().  */
 
-#include "config.h"
-
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-
-#include "sframe-api.h"
-
-/* DejaGnu should not use gnulib's vsnprintf replacement here.  */
-#undef vsnprintf
-#include <dejagnu.h>
+#include "sframe-test.h"
 
 static int
 add_fde1 (sframe_encoder_ctx *encode, uint32_t start_pc_vaddr,
@@ -50,11 +40,15 @@ add_fde1 (sframe_encoder_ctx *encode, uint32_t start_pc_vaddr,
     fre_start_addr of the last FRE above (0x38).  */
   *func_size = 0x40;
 
-  int32_t func1_start_addr = start_pc_vaddr - sframe_vaddr;
+  uint32_t offsetof_fde_in_sec
+    = sframe_encoder_get_offsetof_fde_start_addr (encode, idx, NULL);
+  int32_t func1_start_addr = (start_pc_vaddr
+			      - (sframe_vaddr + offsetof_fde_in_sec));
   unsigned char finfo = sframe_fde_create_func_info (SFRAME_FRE_TYPE_ADDR1,
 						     SFRAME_FDE_TYPE_PCINC);
-  int err = sframe_encoder_add_funcdesc (encode, func1_start_addr, *func_size,
-					 finfo, FDE1_NUM_FRES);
+  int err = sframe_encoder_add_funcdesc_v2 (encode, func1_start_addr,
+					    *func_size, finfo, 0,
+					    FDE1_NUM_FRES);
   if (err == -1)
     return err;
 
@@ -81,11 +75,15 @@ add_fde2 (sframe_encoder_ctx *encode, uint32_t start_pc_vaddr,
     fre_start_addr of the last FRE above (0x20).  */
   *func_size = 0x60;
 
-  int32_t func2_start_addr = start_pc_vaddr - sframe_vaddr;
+  uint32_t offsetof_fde_in_sec
+    = sframe_encoder_get_offsetof_fde_start_addr (encode, idx, NULL);
+  int32_t func2_start_addr = (start_pc_vaddr
+			      - (sframe_vaddr + offsetof_fde_in_sec));
   unsigned char finfo = sframe_fde_create_func_info (SFRAME_FRE_TYPE_ADDR1,
 						     SFRAME_FDE_TYPE_PCINC);
-  int err = sframe_encoder_add_funcdesc (encode, func2_start_addr, *func_size,
-					 finfo, FDE2_NUM_FRES);
+  int err = sframe_encoder_add_funcdesc_v2 (encode, func2_start_addr,
+					    *func_size, finfo, 0,
+					    FDE2_NUM_FRES);
   if (err == -1)
     return err;
 
@@ -112,11 +110,15 @@ add_fde3 (sframe_encoder_ctx *encode, uint32_t start_pc_vaddr,
     fre_start_addr of the last FRE above (0x38).  */
   *func_size = 0x40;
 
-  int32_t func3_start_addr = start_pc_vaddr - sframe_vaddr;
+  uint32_t offsetof_fde_in_sec
+    = sframe_encoder_get_offsetof_fde_start_addr (encode, idx, NULL);
+  int32_t func3_start_addr = (start_pc_vaddr
+			      - (sframe_vaddr + offsetof_fde_in_sec));
   unsigned char finfo = sframe_fde_create_func_info (SFRAME_FRE_TYPE_ADDR1,
 						     SFRAME_FDE_TYPE_PCINC);
-  int err = sframe_encoder_add_funcdesc (encode, func3_start_addr, *func_size,
-					 finfo, FDE3_NUM_FRES);
+  int err = sframe_encoder_add_funcdesc_v2 (encode, func3_start_addr,
+					    *func_size, finfo, 0,
+					    FDE3_NUM_FRES);
   if (err == -1)
     return err;
 
@@ -155,7 +157,8 @@ void test_text_findfre (uint32_t text_vaddr, uint32_t sframe_vaddr)
     }                                                                         \
     while (0)
 
-  encode = sframe_encode (SFRAME_VERSION, 0,
+  encode = sframe_encode (SFRAME_VERSION,
+			  SFRAME_F_FDE_FUNC_START_PCREL,
 			  SFRAME_ABI_AMD64_ENDIAN_LITTLE,
 			  SFRAME_CFA_FIXED_FP_INVALID,
 			  -8, /* Fixed RA offset for AMD64.  */

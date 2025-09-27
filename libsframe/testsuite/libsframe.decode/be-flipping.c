@@ -15,17 +15,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-
-#include "sframe-api.h"
-
-/* DejaGnu should not use gnulib's vsnprintf replacement here.  */
-#undef vsnprintf
-#include <dejagnu.h>
+#include "sframe-test.h"
 
 /* SFrame info from the following source (1 fde 5 fres):
    static int cnt;
@@ -55,6 +45,7 @@ main (void)
   struct stat st;
   char *sf_buf;
   size_t sf_size;
+  uint8_t rep_block_size;
 
 #define TEST(name, cond)                                                      \
   do                                                                          \
@@ -101,7 +92,8 @@ main (void)
   unsigned int fde_cnt = sframe_decoder_get_num_fidx (dctx);
   TEST ("be-flipping: Decoder FDE count", fde_cnt == 1);
 
-  err = sframe_decoder_get_funcdesc (dctx, 0, &nfres, &fsize, &fstart, &finfo);
+  err = sframe_decoder_get_funcdesc_v2 (dctx, 0, &nfres, &fsize, &fstart,
+					&finfo, &rep_block_size);
   TEST ("be-flipping: Decoder get FDE", err == 0);
   TEST ("be-flipping: Decoder FRE count", nfres == 5);
 

@@ -23,7 +23,6 @@
 #include "cli/cli-cmds.h"
 #include "value.h"
 #include "completer.h"
-#include <ctype.h>
 #include "target.h"
 #include "readline/tilde.h"
 #include "gdbcore.h"
@@ -564,9 +563,7 @@ restore_command (const char *args, int from_tty)
     }
 }
 
-void _initialize_cli_dump ();
-void
-_initialize_cli_dump ()
+INIT_GDB_FILE (cli_dump)
 {
   struct cmd_list_element *c;
 

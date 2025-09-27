@@ -56,7 +56,6 @@
 #include "arch/riscv.h"
 #include "record-full.h"
 #include "riscv-ravenscar-thread.h"
-#include "gdbsupport/gdb-safe-ctype.h"
 
 #include <vector>
 
@@ -4163,15 +4162,29 @@ riscv_gnu_triplet_regexp (struct gdbarch *gdbarch)
   return "riscv(32|64)?";
 }
 
+/* Implement the "print_insn" gdbarch method.  */
+
+static int
+riscv_print_insn (bfd_vma addr, struct disassemble_info *info)
+{
+  /* Initialize the BFD section to enable ISA string detection depending on the
+     object in scope.  */
+  struct obj_section *s = find_pc_section (addr);
+  if (s != nullptr)
+    info->section = s->the_bfd_section;
+
+  return default_print_insn (addr, info);
+}
+
 /* Implementation of `gdbarch_stap_is_single_operand', as defined in
    gdbarch.h.  */
 
 static int
 riscv_stap_is_single_operand (struct gdbarch *gdbarch, const char *s)
 {
-  return (ISDIGIT (*s) /* Literal number.  */
+  return (c_isdigit (*s) /* Literal number.  */
 	  || *s == '(' /* Register indirection.  */
-	  || ISALPHA (*s)); /* Register value.  */
+	  || c_isalpha (*s)); /* Register value.  */
 }
 
 /* String that appears before a register name in a SystemTap register
@@ -4428,6 +4441,9 @@ riscv_gdbarch_init (struct gdbarch_info info,
   set_gdbarch_valid_disassembler_options (gdbarch,
 					  disassembler_options_riscv ());
   set_gdbarch_disassembler_options (gdbarch, &riscv_disassembler_options);
+
+  /* Disassembler print_insn.  */
+  set_gdbarch_print_insn (gdbarch, riscv_print_insn);
 
   /* SystemTap Support.  */
   set_gdbarch_stap_is_single_operand (gdbarch, riscv_stap_is_single_operand);
@@ -4778,9 +4794,7 @@ riscv_supply_regset (const struct regset *regset,
     }
 }
 
-void _initialize_riscv_tdep ();
-void
-_initialize_riscv_tdep ()
+INIT_GDB_FILE (riscv_tdep)
 {
   riscv_init_reggroups ();
 
@@ -4909,6 +4923,8 @@ public:
     /* Corner cases.  */
     ECALL,
     EBREAK,
+    SRET,
+    MRET,
   };
 
 private:
@@ -4993,6 +5009,14 @@ private:
     return (ival >> OP_SH_CSR) & OP_MASK_CSR;
   }
 
+  /* Set any record type.  Always returns true.  */
+  bool
+  set_record_type (record_type type) noexcept
+  {
+    m_record_type = type;
+    return true;
+  }
+
   /* Set ordinary record type.  Always returns true.  */
   bool
   set_ordinary_record_type () noexcept
@@ -5051,7 +5075,8 @@ private:
     return (is_beq_insn (ival) || is_bne_insn (ival) || is_blt_insn (ival)
 	   || is_bge_insn (ival) || is_bltu_insn (ival) || is_bgeu_insn (ival)
 	   || is_fence_insn (ival) || is_pause_insn (ival)
-	   || is_fence_i_insn (ival));
+	   || is_fence_i_insn (ival) || is_wfi_insn (ival)
+	   || is_sfence_vma_insn (ival));
   }
 
   /* Returns true if instruction is classified.  */
@@ -5158,7 +5183,7 @@ private:
   {
     return (is_csrrw_insn (ival) || is_csrrs_insn (ival) || is_csrrc_insn (ival)
 	   || is_csrrwi_insn (ival) || is_csrrsi_insn (ival)
-	   || is_csrrc_insn (ival));
+	   || is_csrrci_insn (ival));
   }
 
   /* Returns true if instruction is classified.  This function can set
@@ -5255,14 +5280,26 @@ private:
 
     if (is_ecall_insn (ival))
       {
-	m_record_type = record_type::ECALL;
-	return true;
+	return set_record_type (record_type::ECALL);
       }
 
     if (is_ebreak_insn (ival))
       {
-	m_record_type = record_type::EBREAK;
-	return true;
+	return set_record_type (record_type::EBREAK);
+      }
+
+    if (is_sret_insn (ival))
+      {
+	return (!save_reg (RISCV_CSR_SSTATUS_REGNUM)
+	       || !save_reg (RISCV_CSR_MEPC_REGNUM)
+	       || set_record_type (record_type::SRET));
+      }
+
+    if (is_mret_insn (ival))
+      {
+	return (!save_reg (RISCV_CSR_MSTATUS_REGNUM)
+	       || !save_reg (RISCV_CSR_MEPC_REGNUM)
+	       || set_record_type (record_type::MRET));
       }
 
     if (try_save_pc (ival) || try_save_pc_rd (ival) || try_save_pc_fprd (ival)
@@ -5356,8 +5393,7 @@ private:
 
     if (is_c_ebreak_insn (ival))
       {
-	m_record_type = record_type::EBREAK;
-	return true;
+	return set_record_type (record_type::EBREAK);
       }
 
     if (is_c_jalr_insn (ival))
@@ -5399,8 +5435,20 @@ public:
     gdb_assert (regcache != nullptr);
 
     int m_length = 0;
+    ULONGEST ival = 0;
     m_xlen = riscv_isa_xlen (gdbarch);
-    ULONGEST ival = riscv_insn::fetch_instruction (gdbarch, addr, &m_length);
+
+    /* Since fetch_instruction can throw an exception,
+       it must be wrapped in a try-catch block.  */
+    try
+      {
+	ival = riscv_insn::fetch_instruction (gdbarch, addr, &m_length);
+      }
+    catch (const gdb_exception_error &ex)
+      {
+	warning ("%s", ex.what ());
+	return false;
+      }
     if (!save_reg (RISCV_PC_REGNUM))
       return false;
 
@@ -5494,6 +5542,9 @@ riscv_record_insn_details (struct gdbarch *gdbarch, struct regcache *regcache,
   switch (insn.get_record_type ())
     {
     case riscv_recorded_insn::record_type::ORDINARY:
+    case riscv_recorded_insn::record_type::EBREAK:
+    case riscv_recorded_insn::record_type::SRET:
+    case riscv_recorded_insn::record_type::MRET:
       break;
 
     case riscv_recorded_insn::record_type::ECALL:
@@ -5508,9 +5559,6 @@ riscv_record_insn_details (struct gdbarch *gdbarch, struct regcache *regcache,
 	  return -1;
 	return tdep->riscv_syscall_record (regcache, reg_val);
       }
-
-    case riscv_recorded_insn::record_type::EBREAK:
-      break;
 
     default:
       return -1;
@@ -5531,10 +5579,7 @@ riscv_process_record (struct gdbarch *gdbarch, struct regcache *regcache,
 
   riscv_recorded_insn insn;
   if (!insn.record (gdbarch, regcache, addr))
-    {
-      record_full_arch_list_add_end ();
-      return -1;
-    }
+    return -1;
 
   int ret_val = riscv_record_insn_details (gdbarch, regcache, insn);
 

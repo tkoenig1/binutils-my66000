@@ -65,14 +65,15 @@ value_of_register (int regnum, const frame_info_ptr &next_frame)
 /* See value.h.  */
 
 value *
-value_of_register_lazy (const frame_info_ptr &next_frame, int regnum)
+value_of_register_lazy (const frame_info_ptr &next_frame, int regnum,
+			struct type *type)
 {
   gdbarch *gdbarch = frame_unwind_arch (next_frame);
 
   gdb_assert (regnum < gdbarch_num_cooked_regs (gdbarch));
   gdb_assert (next_frame != nullptr);
 
-  return value::allocate_register_lazy (next_frame, regnum);
+  return value::allocate_register_lazy (next_frame, regnum, type);
 }
 
 /* Given a pointer of type TYPE in target form in BUF, return the
@@ -124,7 +125,7 @@ symbol_read_needs (struct symbol *sym)
       computed_ops != nullptr)
     return computed_ops->get_symbol_read_needs (sym);
 
-  switch (sym->aclass ())
+  switch (sym->loc_class ())
     {
       /* All cases listed explicitly so that gcc -Wall will detect it if
 	 we failed to consider one.  */
@@ -306,7 +307,7 @@ language_defn::read_var_value (struct symbol *var,
   if (const symbol_computed_ops *computed_ops = var->computed_ops ())
     return computed_ops->read_variable (var, frame);
 
-  switch (var->aclass ())
+  switch (var->loc_class ())
     {
     case LOC_CONST:
       if (is_dynamic_type (type))
@@ -429,7 +430,7 @@ language_defn::read_var_value (struct symbol *var,
 	const symbol_register_ops *reg_ops = var->register_ops ();
 	int regno = reg_ops->register_number (var, get_frame_arch (frame));
 
-	if (var->aclass () == LOC_REGPARM_ADDR)
+	if (var->loc_class () == LOC_REGPARM_ADDR)
 	  addr = value_as_address
 	   (value_from_register (lookup_pointer_type (type), regno, frame));
 	else
@@ -445,9 +446,8 @@ language_defn::read_var_value (struct symbol *var,
 	struct obj_section *obj_section;
 	bound_minimal_symbol bmsym;
 
-	gdbarch_iterate_over_objfiles_in_search_order
-	  (var->arch (),
-	   [var, &bmsym] (objfile *objfile)
+	current_program_space->iterate_over_objfiles_in_search_order
+	  ([var, &bmsym] (objfile *objfile)
 	     {
 		bmsym = lookup_minimal_symbol (current_program_space,
 					       var->linkage_name (), objfile);

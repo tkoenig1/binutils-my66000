@@ -1874,7 +1874,7 @@ sparc32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   set_gdbarch_frame_args_skip (gdbarch, 8);
 
-  set_gdbarch_software_single_step (gdbarch, sparc_software_single_step);
+  set_gdbarch_get_next_pcs (gdbarch, sparc_software_single_step);
   set_gdbarch_write_pc (gdbarch, sparc_write_pc);
 
   set_gdbarch_dummy_id (gdbarch, sparc_dummy_id);
@@ -2264,9 +2264,7 @@ const struct sparc_fpregmap sparc32_bsd_fpregmap =
   32 * 4,			/* %fsr */
 };
 
-void _initialize_sparc_tdep ();
-void
-_initialize_sparc_tdep ()
+INIT_GDB_FILE (sparc_tdep)
 {
   gdbarch_register (bfd_arch_sparc, sparc32_gdbarch_init);
 }

@@ -304,7 +304,7 @@ fbsd_nat_target::info_proc (const char *args, enum info_proc_what what)
       if (pid == 0)
 	error (_("No current process: you must name one."));
     }
-  else if (built_argv.count () == 1 && isdigit (built_argv[0][0]))
+  else if (built_argv.count () == 1 && c_isdigit (built_argv[0][0]))
     pid = strtol (built_argv[0], NULL, 10);
   else
     error (_("Invalid arguments."));
@@ -2470,9 +2470,7 @@ fbsd_nat_get_siginfo (ptid_t ptid, siginfo_t *siginfo)
   return (true);
 }
 
-void _initialize_fbsd_nat ();
-void
-_initialize_fbsd_nat ()
+INIT_GDB_FILE (fbsd_nat)
 {
   add_setshow_boolean_cmd ("fbsd-lwp", class_maintenance,
 			   &debug_fbsd_lwp, _("\

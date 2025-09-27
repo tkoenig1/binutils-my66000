@@ -8458,7 +8458,7 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_sofun_address_maybe_missing (gdbarch, 1);
 
   /* Handles single stepping of atomic sequences.  */
-  set_gdbarch_software_single_step (gdbarch, ppc_deal_with_atomic_sequence);
+  set_gdbarch_get_next_pcs (gdbarch, ppc_deal_with_atomic_sequence);
   
   /* Not sure on this.  FIXMEmgo */
   set_gdbarch_frame_args_skip (gdbarch, 8);
@@ -8722,9 +8722,7 @@ ppc_insn_prefix_dform (unsigned int insn1, unsigned int insn2)
 
 /* Initialization code.  */
 
-void _initialize_rs6000_tdep ();
-void
-_initialize_rs6000_tdep ()
+INIT_GDB_FILE (rs6000_tdep)
 {
   gdbarch_register (bfd_arch_rs6000, rs6000_gdbarch_init, rs6000_dump_tdep);
   gdbarch_register (bfd_arch_powerpc, rs6000_gdbarch_init, rs6000_dump_tdep);

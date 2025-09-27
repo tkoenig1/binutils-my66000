@@ -31,7 +31,6 @@
 #include "python.h"
 #include "extension-priv.h"
 #include "cli/cli-utils.h"
-#include <ctype.h>
 #include "location.h"
 #include "run-on-main-thread.h"
 #include "observable.h"
@@ -1202,15 +1201,22 @@ gdbpy_post_event (PyObject *self, PyObject *args)
 static PyObject *
 gdbpy_interrupt (PyObject *self, PyObject *args)
 {
+#ifdef __MINGW32__
   {
-    /* Make sure the interrupt isn't delivered immediately somehow.
-       This probably is not truly needed, but at the same time it
-       seems more clear to be explicit about the intent.  */
     gdbpy_allow_threads temporarily_exit_python;
     scoped_disable_cooperative_sigint_handling no_python_sigint;
 
     set_quit_flag ();
   }
+#else
+  {
+    /* For targets with support kill() just send SIGINT.  This will be
+       handled as if the user hit Ctrl+C.  This isn't exactly the same as
+       the above, which directly sets the quit flag.  Consider, for
+       example, every place that install_sigint_handler is called.  */
+    kill (getpid (), SIGINT);
+  }
+#endif
 
   Py_RETURN_NONE;
 }
@@ -1570,21 +1576,21 @@ gdbpy_write (PyObject *self, PyObject *args, PyObject *kw)
 
   try
     {
+      ui_file *stream;
       switch (stream_type)
 	{
 	case 1:
-	  {
-	    gdb_printf (gdb_stderr, "%s", arg);
-	    break;
-	  }
+	  stream = gdb_stderr;
+	  break;
 	case 2:
-	  {
-	    gdb_printf (gdb_stdlog, "%s", arg);
-	    break;
-	  }
+	  stream = gdb_stdlog;
+	  break;
 	default:
-	  gdb_printf (gdb_stdout, "%s", arg);
+	  stream = gdb_stdout;
+	  break;
 	}
+
+      gdb_puts (arg, stream);
     }
   catch (const gdb_exception &except)
     {
@@ -1625,6 +1631,40 @@ gdbpy_flush (PyObject *self, PyObject *args, PyObject *kw)
     default:
       if (gdb_stdout != nullptr)
 	gdb_flush (gdb_stdout);
+    }
+
+  Py_RETURN_NONE;
+}
+
+/* Implement gdb.warning().  Takes a single text string argument and emit a
+   warning using GDB's 'warning' function.  The input text string must not
+   be empty.  */
+
+static PyObject *
+gdbpy_warning (PyObject *self, PyObject *args, PyObject *kw)
+{
+  const char *text;
+  static const char *keywords[] = { "text", nullptr };
+
+  if (!gdb_PyArg_ParseTupleAndKeywords (args, kw, "s", keywords, &text))
+    return nullptr;
+
+  if (strlen (text) == 0)
+    {
+      PyErr_SetString (PyExc_ValueError,
+		       _("Empty text string passed to gdb.warning"));
+      return nullptr;
+    }
+
+  try
+    {
+      warning ("%s", text);
+    }
+  catch (const gdb_exception &ex)
+    {
+      /* The warning() call probably cannot throw an exception.  But just
+	 in case it ever does.  */
+      return gdbpy_handle_gdb_exception (nullptr, ex);
     }
 
   Py_RETURN_NONE;
@@ -2683,9 +2723,7 @@ test_python ()
 /* See python.h.  */
 cmd_list_element *python_cmd_element = nullptr;
 
-void _initialize_python ();
-void
-_initialize_python ()
+INIT_GDB_FILE (python)
 {
   cmd_list_element *python_interactive_cmd
     =	add_com ("python-interactive", class_obscure,
@@ -3124,6 +3162,12 @@ Return the current print options." },
     METH_VARARGS | METH_KEYWORDS,
     "notify_mi (name, data) -> None\n\
 Output async record to MI channels if any." },
+
+  { "warning", (PyCFunction) gdbpy_warning,
+    METH_VARARGS | METH_KEYWORDS,
+    "warning (text) -> None\n\
+Print a warning." },
+
   {NULL, NULL, 0, NULL}
 };
 

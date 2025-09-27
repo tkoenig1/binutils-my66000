@@ -21,7 +21,6 @@
 
 
 #include "arch-utils.h"
-#include <ctype.h>
 #include <cmath>
 #include <signal.h>
 #include "command.h"
@@ -571,9 +570,9 @@ maintenance_translate_address (const char *arg, int from_tty)
   sect = NULL;
   p = arg;
 
-  if (!isdigit (*p))
+  if (!c_isdigit (*p))
     {				/* See if we have a valid section name.  */
-      while (*p && !isspace (*p))	/* Find end of section name.  */
+      while (*p && !c_isspace (*p))	/* Find end of section name.  */
 	p++;
       if (*p == '\000')		/* End of command?  */
 	error (_("Need to specify section name and address"));
@@ -582,9 +581,9 @@ maintenance_translate_address (const char *arg, int from_tty)
       p = skip_spaces (p + 1);
 
       for (objfile *objfile : current_program_space->objfiles ())
-	for (obj_section *iter : objfile->sections ())
+	for (obj_section &iter : objfile->sections ())
 	  {
-	    if (strncmp (iter->the_bfd_section->name, arg, arg_len) == 0)
+	    if (strncmp (iter.the_bfd_section->name, arg, arg_len) == 0)
 	      goto found;
 	  }
 
@@ -1301,9 +1300,7 @@ Selftests have been disabled for this build.\n"));
 }
 
 
-void _initialize_maint_cmds ();
-void
-_initialize_maint_cmds ()
+INIT_GDB_FILE (maint_cmds)
 {
   struct cmd_list_element *cmd;
 

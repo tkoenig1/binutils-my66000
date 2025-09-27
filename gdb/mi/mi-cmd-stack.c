@@ -29,10 +29,8 @@
 #include "valprint.h"
 #include "mi-getopt.h"
 #include "extension.h"
-#include <ctype.h>
 #include "mi-parse.h"
 #include <optional>
-#include "gdbsupport/gdb-safe-ctype.h"
 #include "inferior.h"
 
 enum what_to_list { locals, arguments, all };
@@ -604,7 +602,7 @@ list_args_or_locals (const frame_print_options &fp_opts,
 	{
 	  int print_me = 0;
 
-	  switch (sym->aclass ())
+	  switch (sym->loc_class ())
 	    {
 	    default:
 	    case LOC_UNDEF:	/* catches errors        */

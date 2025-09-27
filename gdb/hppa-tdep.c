@@ -920,12 +920,12 @@ hppa64_convert_code_addr_to_fptr (struct gdbarch *gdbarch, CORE_ADDR code)
   if (!(sec->the_bfd_section->flags & SEC_CODE))
     return code;
 
-  for (obj_section *opd : sec->objfile->sections ())
+  for (obj_section &opd : sec->objfile->sections ())
     {
-      if (strcmp (opd->the_bfd_section->name, ".opd") == 0)
+      if (strcmp (opd.the_bfd_section->name, ".opd") == 0)
 	{
-	  for (CORE_ADDR addr = opd->addr ();
-	       addr < opd->endaddr ();
+	  for (CORE_ADDR addr = opd.addr ();
+	       addr < opd.endaddr ();
 	       addr += 2 * 8)
 	    {
 	      ULONGEST opdaddr;
@@ -3119,9 +3119,7 @@ hppa_dump_tdep (struct gdbarch *gdbarch, struct ui_file *file)
   gdb_printf (file, "elf = %s\n", tdep->is_elf ? "yes" : "no");
 }
 
-void _initialize_hppa_tdep ();
-void
-_initialize_hppa_tdep ()
+INIT_GDB_FILE (hppa_tdep)
 {
   gdbarch_register (bfd_arch_hppa, hppa_gdbarch_init, hppa_dump_tdep);
 
